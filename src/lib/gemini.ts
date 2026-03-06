@@ -106,7 +106,7 @@ export async function generateProfileImage(data: {
   domains: string[];
   bio: string;
 }): Promise<string | null> {
-  const bioSnippet = data.bio.slice(0, 300);
+  const bioSnippet = data.bio.slice(0, 200);
 
   const domainVisuals: Record<string, string> = {
     "AI Tech": "neural network nodes, circuit patterns, glowing data streams",
@@ -121,61 +121,28 @@ export async function generateProfileImage(data: {
     .map((d) => domainVisuals[d] || d.toLowerCase())
     .join("; ");
 
-  const prompt = `Create a unique, personalized digital avatar for a professional expert. This must be an artistic character illustration — NOT a real photo, NOT a generic icon.
+  const prompt = `A stylized digital avatar illustration of a professional expert. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo/purple color palette. Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks.`;
 
-Expert profile:
-- Name: ${data.nickName}
-- Expertise: ${data.domains.join(", ")}
-- Background: ${bioSnippet}
+  try {
+    const response = await ai.models.generateImages({
+      model: "imagen-3.0-generate-002",
+      prompt,
+      config: {
+        numberOfImages: 1,
+      },
+    });
 
-Design requirements:
-- Create a stylized character (like a modern cartoon/anime-inspired avatar) with distinctive features that feel personal and unique to this expert
-- The character should have a confident, approachable expression
-- Incorporate visual elements from their expertise domains into the scene or outfit: ${visualElements}
-- Use a rich color palette with indigo/purple as the primary accent
-- The character should be shown from shoulders up or mid-body, slightly angled
-- Add a subtle abstract background with floating elements related to their domains
-- The overall feeling should be: premium, creative, slightly playful, and professional
-- The avatar should feel like it belongs to THIS specific person but should NOT resemble any real person — it's an artistic representation of their professional identity
-- Do NOT include any text, letters, words, or watermarks in the image
-
-This avatar protects the expert's real identity while giving them a memorable, personal brand image.`;
-
-  const maxRetries = 3;
-
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
-        contents: prompt,
-        config: {
-          responseModalities: ["image", "text"],
-        },
-      });
-
-      const parts = response.candidates?.[0]?.content?.parts ?? [];
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          const mimeType = part.inlineData.mimeType || "image/png";
-          return `data:${mimeType};base64,${part.inlineData.data}`;
-        }
-      }
-      console.error("[generateProfileImage] No image data in response parts");
-      return null;
-    } catch (error: unknown) {
-      const status = (error as { status?: number }).status;
-      if (status === 429 && attempt < maxRetries - 1) {
-        const waitMs = (attempt + 1) * 3000;
-        console.warn(`[generateProfileImage] Rate limited, retrying in ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise((r) => setTimeout(r, waitMs));
-        continue;
-      }
-      console.error("[generateProfileImage]", error);
-      return null;
+    const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
+    if (imageBytes) {
+      return `data:image/png;base64,${imageBytes}`;
     }
-  }
 
-  return null;
+    console.error("[generateProfileImage] No image data in Imagen response");
+    return null;
+  } catch (error) {
+    console.error("[generateProfileImage]", error);
+    return null;
+  }
 }
 
 export async function matchExperts(
