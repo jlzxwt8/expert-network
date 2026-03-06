@@ -109,6 +109,9 @@ export default function OnboardingPage() {
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editedBio, setEditedBio] = useState("");
+  const [editingServiceIndex, setEditingServiceIndex] = useState<number | null>(null);
+  const [editedServiceTitle, setEditedServiceTitle] = useState("");
+  const [editedServiceDesc, setEditedServiceDesc] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -474,6 +477,31 @@ export default function OnboardingPage() {
     }
   };
 
+  const handleServiceSave = async (index: number) => {
+    if (!generatedProfile) return;
+    const updated = [...generatedProfile.services];
+    updated[index] = { title: editedServiceTitle.trim(), description: editedServiceDesc.trim() };
+    setGeneratedProfile((p) => (p ? { ...p, services: updated } : null));
+    setEditingServiceIndex(null);
+    try {
+      await saveOnboarding({ servicesOffered: updated });
+    } catch {
+      // Silently fail
+    }
+  };
+
+  const handleServiceDelete = async (index: number) => {
+    if (!generatedProfile) return;
+    const updated = generatedProfile.services.filter((_, i) => i !== index);
+    setGeneratedProfile((p) => (p ? { ...p, services: updated } : null));
+    setEditingServiceIndex(null);
+    try {
+      await saveOnboarding({ servicesOffered: updated });
+    } catch {
+      // Silently fail
+    }
+  };
+
   const handlePublish = async () => {
     setIsSubmitting(true);
     try {
@@ -576,15 +604,66 @@ export default function OnboardingPage() {
               <div>
                 <h3 className="mb-2 font-semibold">Services Offered</h3>
                 <ul className="space-y-2">
-                  {generatedProfile.services.map((s, i) => (
-                    <li key={i} className="rounded-lg border p-3">
-                      <p className="font-medium">{s.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {s.description}
-                      </p>
-                    </li>
-                  ))}
+                  {generatedProfile.services.map((s, i) =>
+                    editingServiceIndex === i ? (
+                      <li key={i} className="rounded-lg border border-indigo-300 p-3 space-y-2">
+                        <Input
+                          value={editedServiceTitle}
+                          onChange={(e) => setEditedServiceTitle(e.target.value)}
+                          placeholder="Service title"
+                          className="font-medium"
+                        />
+                        <Input
+                          value={editedServiceDesc}
+                          onChange={(e) => setEditedServiceDesc(e.target.value)}
+                          placeholder="One-sentence description"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleServiceSave(i)}
+                            disabled={!editedServiceTitle.trim()}
+                            size="sm"
+                            className="flex-1"
+                          >
+                            <Check className="mr-1 h-3 w-3" /> Save
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setEditingServiceIndex(null)}
+                            size="sm"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleServiceDelete(i)}
+                            size="sm"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </li>
+                    ) : (
+                      <li
+                        key={i}
+                        onClick={() => {
+                          setEditingServiceIndex(i);
+                          setEditedServiceTitle(s.title);
+                          setEditedServiceDesc(s.description);
+                        }}
+                        className="rounded-lg border p-3 cursor-pointer hover:border-indigo-300 transition-colors"
+                      >
+                        <p className="font-medium">{s.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {s.description}
+                        </p>
+                      </li>
+                    )
+                  )}
                 </ul>
+                <p className="mt-1 text-xs text-muted-foreground text-center">
+                  Tap any service to edit
+                </p>
               </div>
 
               <Button

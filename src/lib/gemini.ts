@@ -74,7 +74,7 @@ Write a concise third-person summary in markdown bullet points:
 - **Social Presence**: Follower/subscriber counts (only if found via search)
 Keep under 100 words. No fluff.
 
-2. "services" (ARRAY of objects): 3-4 specific services, each as {"title": "...", "description": "... (1 sentence)"}
+2. "services" (ARRAY of objects): 3-4 services following MECE (Mutually Exclusive, Collectively Exhaustive) principle. Each service covers a distinct, non-overlapping area. Format: {"title": "concise service name (3-5 words)", "description": "one-sentence value proposition for founders"}
 
 3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY real facts. Structure: who I am → what I do → how I help founders → book a session CTA.
 
