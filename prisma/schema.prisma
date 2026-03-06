@@ -99,12 +99,10 @@ model Expert {
 
   // Social links
   linkedIn        String?
-  github          String?
   twitter         String?
   substack        String?
-  wechatOA        String?
+  instagram       String?
   xiaohongshu     String?
-  tiktok          String?
 
   // Professional info
   domains         String[]       @default([])

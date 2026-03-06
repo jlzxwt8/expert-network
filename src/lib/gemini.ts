@@ -1,30 +1,28 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
-export const geminiModel = genAI.getGenerativeModel({
-  model: "gemini-3.1-flash-lite-preview",
-});
+const MODEL = "gemini-2.5-flash";
+
+function cleanJsonResponse(text: string): string {
+  return text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+}
 
 export async function generateExpertProfile(data: {
   linkedIn?: string;
-  github?: string;
   twitter?: string;
   substack?: string;
-  wechatOA?: string;
   xiaohongshu?: string;
-  tiktok?: string;
+  instagram?: string;
   domains: string[];
   nickName: string;
 }) {
   const socialLinks = [
     data.linkedIn && `LinkedIn: ${data.linkedIn}`,
-    data.github && `GitHub: ${data.github}`,
     data.twitter && `X/Twitter: ${data.twitter}`,
     data.substack && `Substack: ${data.substack}`,
-    data.wechatOA && `WeChat Official Account: ${data.wechatOA}`,
     data.xiaohongshu && `XiaoHongShu: ${data.xiaohongshu}`,
-    data.tiktok && `TikTok: ${data.tiktok}`,
+    data.instagram && `Instagram: ${data.instagram}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -36,20 +34,34 @@ Professional domains: ${data.domains.join(", ")}
 Social profiles:
 ${socialLinks}
 
-Generate the following as a JSON object:
+IMPORTANT: Use Google Search to look up each social profile link above. Visit the actual profile pages and gather as much real information as possible including:
+- Professional headline, job title, company
+- Work history and key achievements
+- Number of followers/connections/fans
+- Recent posts, articles, or content themes
+- Skills and endorsements
+- For Instagram/XiaoHongShu: follower count, content focus, engagement level — these indicate marketing/KOL capability
 
-1. "bio": A deeply personalized 150–200 word third-person professional bio in markdown. Synthesize information from their social profiles into a cohesive narrative highlighting domain expertise, Singapore/SEA market knowledge, and key achievements. Make it compelling for startup founders considering hiring them.
+Then generate the following as a JSON object:
 
-2. "services": An array of 3-5 specific services this expert could offer, each as an object with "title" (string) and "description" (string, 1-2 sentences). Infer these from their domains and social presence.
+1. "bio": A deeply personalized 150–200 word third-person professional bio in markdown. Synthesize REAL information gathered from their social profiles into a cohesive narrative highlighting domain expertise, Singapore/SEA market knowledge, key achievements, and social media influence (mention follower counts if found). Make it compelling for startup founders.
 
-3. "videoScript": A compelling first-person video introduction script (60-90 seconds when spoken). Structure it as the expert introducing themselves, their professional history, specific services they offer, and a call-to-action for startup founders to book a session. Make it natural and conversational.
+2. "services": An array of 3-5 specific services this expert could offer, each as an object with "title" (string) and "description" (string, 1-2 sentences). Base these on real expertise found in their profiles.
+
+3. "videoScript": A compelling first-person video introduction script (60-90 seconds when spoken). Reference real details from their profiles — actual companies worked at, real achievements, genuine expertise areas. Make it natural and conversational with a call-to-action for startup founders to book a session.
 
 Return ONLY the JSON object, no markdown code fences.`;
 
-  const result = await geminiModel.generateContent(prompt);
-  const text = result.response.text();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }],
+    },
+  });
 
-  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const text = response.text ?? "";
+  const cleaned = cleanJsonResponse(text);
   return JSON.parse(cleaned) as {
     bio: string;
     services: { title: string; description: string }[];
@@ -86,10 +98,13 @@ If no expert in the pool matches the query well, respond with an empty "recommen
 
 Return ONLY a JSON object with a "recommendations" array and optionally a "noMatchMessage" string. No markdown code fences.`;
 
-  const result = await geminiModel.generateContent(prompt);
-  const text = result.response.text();
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
 
-  const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const text = response.text ?? "";
+  const cleaned = cleanJsonResponse(text);
   return JSON.parse(cleaned) as {
     recommendations: {
       expertId: string;
