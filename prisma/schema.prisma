@@ -102,6 +102,7 @@ model Expert {
   twitter         String?
   substack        String?
   instagram       String?
+  tiktok          String?
   xiaohongshu     String?
 
   // Professional info

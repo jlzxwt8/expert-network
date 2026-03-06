@@ -9,6 +9,7 @@ const SOCIAL_LINK_KEYS = [
   "twitter",
   "substack",
   "instagram",
+  "tiktok",
   "xiaohongshu",
 ] as const;
 

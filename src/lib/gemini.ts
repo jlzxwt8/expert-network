@@ -12,8 +12,9 @@ export async function generateExpertProfile(data: {
   linkedIn?: string;
   twitter?: string;
   substack?: string;
-  xiaohongshu?: string;
   instagram?: string;
+  tiktok?: string;
+  xiaohongshu?: string;
   domains: string[];
   nickName: string;
 }) {
@@ -21,8 +22,9 @@ export async function generateExpertProfile(data: {
     data.linkedIn && `LinkedIn: ${data.linkedIn}`,
     data.twitter && `X/Twitter: ${data.twitter}`,
     data.substack && `Substack: ${data.substack}`,
-    data.xiaohongshu && `XiaoHongShu: ${data.xiaohongshu}`,
     data.instagram && `Instagram: ${data.instagram}`,
+    data.tiktok && `TikTok: ${data.tiktok}`,
+    data.xiaohongshu && `XiaoHongShu: ${data.xiaohongshu}`,
   ]
     .filter(Boolean)
     .join("\n");

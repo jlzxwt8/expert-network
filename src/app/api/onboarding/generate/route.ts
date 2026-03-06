@@ -31,6 +31,7 @@ export async function POST() {
       twitter: expert.twitter ?? undefined,
       substack: expert.substack ?? undefined,
       instagram: expert.instagram ?? undefined,
+      tiktok: expert.tiktok ?? undefined,
       xiaohongshu: expert.xiaohongshu ?? undefined,
       domains: expert.domains,
       nickName,
