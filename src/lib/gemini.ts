@@ -101,8 +101,11 @@ Return ONLY the JSON object, no markdown code fences.`;
   };
 }
 
-const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || "";
 const DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/api/v1";
+
+function getDashScopeKey(): string {
+  return process.env.DASHSCOPE_API_KEY || "";
+}
 
 async function submitQwenImageTask(prompt: string): Promise<string | null> {
   const res = await fetch(
@@ -110,7 +113,7 @@ async function submitQwenImageTask(prompt: string): Promise<string | null> {
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${DASHSCOPE_API_KEY}`,
+        Authorization: `Bearer ${getDashScopeKey()}`,
         "Content-Type": "application/json",
         "X-DashScope-Async": "enable",
       },
@@ -148,7 +151,7 @@ async function pollQwenImageResult(
     await new Promise((r) => setTimeout(r, interval));
 
     const res = await fetch(`${DASHSCOPE_BASE_URL}/tasks/${taskId}`, {
-      headers: { Authorization: `Bearer ${DASHSCOPE_API_KEY}` },
+      headers: { Authorization: `Bearer ${getDashScopeKey()}` },
     });
 
     if (!res.ok) {
@@ -194,7 +197,7 @@ export async function generateProfileImage(data: {
   domains: string[];
   bio: string;
 }): Promise<string | null> {
-  if (!DASHSCOPE_API_KEY) {
+  if (!getDashScopeKey()) {
     console.error("[generateProfileImage] DASHSCOPE_API_KEY not set");
     return null;
   }
