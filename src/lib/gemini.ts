@@ -95,7 +95,6 @@ Return ONLY the JSON object, no markdown code fences.`;
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
-      responseMimeType: "application/json",
     },
   });
 
