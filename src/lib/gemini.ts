@@ -106,14 +106,40 @@ export async function generateProfileImage(data: {
   domains: string[];
   bio: string;
 }): Promise<string | null> {
-  const bioSnippet = data.bio.slice(0, 200);
+  const bioSnippet = data.bio.slice(0, 300);
 
-  const prompt = `Create a professional, modern profile illustration for a tech expert named ${data.nickName}. This is a stylized digital illustration, NOT a photo of a real person.
+  const domainVisuals: Record<string, string> = {
+    "AI Tech": "neural network nodes, circuit patterns, glowing data streams",
+    "Fintech": "abstract currency symbols, blockchain links, rising chart lines",
+    "Local Marketing": "location pins, megaphone waves, connected community dots",
+    "Compliance": "shield emblem, balanced scales, structured grid patterns",
+    "Business Expansion": "globe with connection arcs, rocket trail, branching paths",
+    "Legal/Regulatory": "gavel silhouette, document layers, pillar structures",
+  };
 
-Domains: ${data.domains.join(", ")}
-Context: ${bioSnippet}
+  const visualElements = data.domains
+    .map((d) => domainVisuals[d] || d.toLowerCase())
+    .join("; ");
 
-Style: Clean flat vector illustration with indigo/blue palette. Show abstract visual elements for their expertise (e.g. AI neural networks, marketing charts, globe for business expansion). Professional and premium feel. No text or letters in the image.`;
+  const prompt = `Create a unique, personalized digital avatar for a professional expert. This must be an artistic character illustration — NOT a real photo, NOT a generic icon.
+
+Expert profile:
+- Name: ${data.nickName}
+- Expertise: ${data.domains.join(", ")}
+- Background: ${bioSnippet}
+
+Design requirements:
+- Create a stylized character (like a modern cartoon/anime-inspired avatar) with distinctive features that feel personal and unique to this expert
+- The character should have a confident, approachable expression
+- Incorporate visual elements from their expertise domains into the scene or outfit: ${visualElements}
+- Use a rich color palette with indigo/purple as the primary accent
+- The character should be shown from shoulders up or mid-body, slightly angled
+- Add a subtle abstract background with floating elements related to their domains
+- The overall feeling should be: premium, creative, slightly playful, and professional
+- The avatar should feel like it belongs to THIS specific person but should NOT resemble any real person — it's an artistic representation of their professional identity
+- Do NOT include any text, letters, words, or watermarks in the image
+
+This avatar protects the expert's real identity while giving them a memorable, personal brand image.`;
 
   try {
     const response = await ai.models.generateContent({

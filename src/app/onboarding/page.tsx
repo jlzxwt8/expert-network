@@ -108,7 +108,6 @@ export default function OnboardingPage() {
   const [currentSocialIndex, setCurrentSocialIndex] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingBio, setEditingBio] = useState(false);
   const [editedBio, setEditedBio] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -464,10 +463,9 @@ export default function OnboardingPage() {
   };
 
   const handleBioSave = async () => {
-    setEditingBio(false);
     if (!generatedProfile) return;
     setGeneratedProfile((p) =>
-      p ? { ...p, bio: editedBio } : null
+      p ? { ...p, videoScript: editedBio } : null
     );
     try {
       await saveOnboarding({ bio: editedBio });
@@ -511,18 +509,7 @@ export default function OnboardingPage() {
         </div>
         <div className="flex-1 overflow-y-auto p-4 pb-8">
           <Card className="mx-auto max-w-lg overflow-hidden shadow-lg">
-            {generatedProfile.profileImage && (
-              <div className="relative w-full aspect-[16/9] bg-slate-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={generatedProfile.profileImage}
-                  alt={`${nickName}'s profile`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-
-            <CardHeader className="space-y-2">
+            <CardHeader className="space-y-3">
               <CardTitle className="text-xl">{nickName}</CardTitle>
               <div className="flex flex-wrap gap-1.5">
                 {selectedDomains.map((d) => (
@@ -531,47 +518,58 @@ export default function OnboardingPage() {
                   </Badge>
                 ))}
               </div>
+
+              {generatedProfile.profileImage ? (
+                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-100">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={generatedProfile.profileImage}
+                    alt={`${nickName}'s digital avatar`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                  <Sparkles className="h-16 w-16 text-indigo-300" />
+                </div>
+              )}
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {editingBio ? (
-                <div className="space-y-2">
-                  <Textarea
-                    value={editedBio}
-                    onChange={(e) => setEditedBio(e.target.value)}
-                    rows={6}
-                    className="min-h-[120px]"
-                  />
-                  <Button
-                    onClick={handleBioSave}
-                    size="lg"
-                    className="min-h-[44px] w-full"
-                  >
-                    <Check className="mr-2 h-4 w-4" />
-                    Save Bio
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  onClick={() => {
-                    setEditingBio(true);
-                    setEditedBio(generatedProfile.bio);
-                  }}
-                  className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap"
-                >
-                  {generatedProfile.bio}
-                  <span className="mt-2 block text-xs text-muted-foreground">
-                    Tap to edit
-                  </span>
-                </div>
-              )}
-
               {generatedProfile.videoScript && (
                 <div>
                   <h3 className="mb-2 font-semibold">Introduction Script</h3>
-                  <div className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap">
-                    {generatedProfile.videoScript}
-                  </div>
+                  {editedBio ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={editedBio}
+                        onChange={(e) => setEditedBio(e.target.value)}
+                        rows={6}
+                        className="min-h-[120px]"
+                      />
+                      <Button
+                        onClick={() => {
+                          handleBioSave();
+                          setEditedBio("");
+                        }}
+                        size="lg"
+                        className="min-h-[44px] w-full"
+                      >
+                        <Check className="mr-2 h-4 w-4" />
+                        Save
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => setEditedBio(generatedProfile.videoScript)}
+                      className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap cursor-pointer hover:border-indigo-300 transition-colors"
+                    >
+                      {generatedProfile.videoScript}
+                      <span className="mt-2 block text-xs text-muted-foreground">
+                        Tap to edit
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
