@@ -10,6 +10,8 @@ import {
   SkipForward,
   Check,
   Sparkles,
+  Upload,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -36,6 +38,7 @@ type Step =
   | "SOCIAL_LINKS"
   | "DOMAINS"
   | "SESSION_PREFS"
+  | "DOCUMENT_UPLOAD"
   | "AI_GENERATION"
   | "PREVIEW";
 
@@ -77,6 +80,7 @@ function getProgressValue(step: Step): number {
     case "SOCIAL_LINKS":
     case "DOMAINS":
     case "SESSION_PREFS":
+    case "DOCUMENT_UPLOAD":
       return 25;
     case "AI_GENERATION":
       return 50;
@@ -106,6 +110,9 @@ export default function OnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
   const [editedBio, setEditedBio] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [userNickName, setUserNickName] = useState("");
 
@@ -265,6 +272,33 @@ export default function OnboardingPage() {
     addSessionQuestion();
   }, [currentStep, messages]);
 
+  // When we move to DOCUMENT_UPLOAD, add the upload question
+  useEffect(() => {
+    if (currentStep !== "DOCUMENT_UPLOAD") return;
+
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.content?.includes("upload")) return;
+
+    const addUploadQuestion = async () => {
+      setIsTyping(true);
+      await new Promise((r) => setTimeout(r, 800));
+
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "upload-question",
+          role: "ai",
+          content:
+            "Would you like to upload a document (PDF, DOCX) to help me better understand your services? This could be a resume, portfolio, or service description. You can also skip this step.",
+          type: "text",
+        },
+      ]);
+    };
+
+    addUploadQuestion();
+  }, [currentStep, messages]);
+
   const saveOnboarding = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/onboarding", {
       method: "POST",
@@ -373,10 +407,51 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
+    setCurrentStep("DOCUMENT_UPLOAD");
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/onboarding/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Upload failed");
+      }
+      setUploadedFileName(file.name);
+      setMessages((prev) => [
+        ...prev,
+        { id: "user-upload", role: "user", content: `Uploaded: ${file.name}` },
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setMessages((prev) => [
+        ...prev,
+        { id: "upload-error", role: "ai", content: `Upload error: ${msg}`, type: "text" },
+      ]);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const startAIGeneration = async () => {
+    if (uploadedFileName) {
+      setMessages((prev) => [
+        ...prev,
+        { id: "upload-ack", role: "ai", content: `Great, I'll use "${uploadedFileName}" to enrich your profile.`, type: "text" },
+      ]);
+      await new Promise((r) => setTimeout(r, 600));
+    }
+
     setCurrentStep("AI_GENERATION");
     setIsTyping(true);
 
-    // Add processing messages one by one
     for (let i = 0; i < AI_PROCESSING_MESSAGES.length; i++) {
       setMessages((prev) => [
         ...prev,
@@ -750,6 +825,51 @@ export default function OnboardingPage() {
                 </span>
               </button>
             ))}
+          </div>
+        )}
+
+        {currentStep === "DOCUMENT_UPLOAD" && (
+          <div className="space-y-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.txt,.md"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file);
+              }}
+            />
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              variant="outline"
+              className="min-h-[48px] w-full"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : uploadedFileName ? (
+                <>
+                  <FileText className="mr-2 h-4 w-4" />
+                  {uploadedFileName}
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Document (PDF, DOCX)
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={startAIGeneration}
+              disabled={isUploading}
+              className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+            >
+              {uploadedFileName ? "Continue with Document" : "Skip & Continue"}
+            </Button>
           </div>
         )}
 

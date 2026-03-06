@@ -35,22 +35,19 @@ export async function POST() {
       xiaohongshu: expert.xiaohongshu ?? undefined,
       domains: expert.domains,
       nickName,
+      resumeText: expert.avatarScript ?? undefined,
     });
-
-    const bioText = typeof generated.bio === "string"
-      ? generated.bio
-      : JSON.stringify(generated.bio);
 
     const profileImage = await generateProfileImage({
       nickName,
       domains: expert.domains,
-      bio: bioText,
+      bio: generated.bio,
     });
 
     await prisma.expert.update({
       where: { id: expert.id },
       data: {
-        bio: bioText,
+        bio: generated.bio,
         servicesOffered: generated.services as object,
         avatarScript: generated.videoScript,
         avatarVideoUrl: profileImage,
@@ -59,7 +56,7 @@ export async function POST() {
     });
 
     return NextResponse.json({
-      bio: bioText,
+      bio: generated.bio,
       services: generated.services,
       videoScript: generated.videoScript,
       profileImage,
