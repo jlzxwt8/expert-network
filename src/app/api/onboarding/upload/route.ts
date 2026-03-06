@@ -4,13 +4,15 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
   const result = await pdfParse(buffer);
   return result.text;
 }
 
 async function extractTextFromDocx(buffer: Buffer): Promise<string> {
-  const mammoth = await import("mammoth");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mammoth = require("mammoth") as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> };
   const result = await mammoth.extractRawText({ buffer });
   return result.value;
 }
