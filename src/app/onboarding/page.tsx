@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,8 +37,8 @@ type Step =
   | "NICKNAME"
   | "SOCIAL_LINKS"
   | "DOMAINS"
-  | "SESSION_PREFS"
   | "DOCUMENT_UPLOAD"
+  | "SESSION_PREFS"
   | "AI_GENERATION"
   | "PREVIEW";
 
@@ -79,8 +79,8 @@ function getProgressValue(step: Step): number {
       return 10;
     case "SOCIAL_LINKS":
     case "DOMAINS":
-    case "SESSION_PREFS":
     case "DOCUMENT_UPLOAD":
+    case "SESSION_PREFS":
       return 25;
     case "AI_GENERATION":
       return 50;
@@ -116,13 +116,31 @@ export default function OnboardingPage() {
 
   const [userNickName, setUserNickName] = useState("");
 
+  // Track which step-questions have already been added to avoid duplicates
+  const addedQuestionsRef = useRef<Set<string>>(new Set());
+
   const nickName =
     userNickName ||
     ((session?.user as { nickName?: string })?.nickName ??
     session?.user?.name ??
     "");
 
-  // Redirect if not authenticated; ensure role is EXPERT
+  const addStepMessage = useCallback(
+    (stepKey: string, msg: Message, delayMs = 800) => {
+      if (addedQuestionsRef.current.has(stepKey)) return;
+      addedQuestionsRef.current.add(stepKey);
+
+      const run = async () => {
+        setIsTyping(true);
+        await new Promise((r) => setTimeout(r, delayMs));
+        setIsTyping(false);
+        setMessages((prev) => [...prev, msg]);
+      };
+      run();
+    },
+    []
+  );
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/signin?role=expert");
@@ -140,32 +158,30 @@ export default function OnboardingPage() {
     }
   }, [status, session, router]);
 
-  // Scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // Initial greeting — ask for nickname
+  // Greeting
   useEffect(() => {
     if (status !== "authenticated" || messages.length > 0) return;
 
     const addGreeting = async () => {
+      addedQuestionsRef.current.add("greeting");
       setIsTyping(true);
       await new Promise((r) => setTimeout(r, 800));
-
       setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
+      setMessages([
         {
           id: "greeting",
           role: "ai",
-          content: "Hey! 👋 Welcome to Help&Grow Expert Network. Let's set up your professional profile. It'll take just 2 minutes.",
+          content:
+            "Hey! Welcome to Help&Grow Expert Network. Let's set up your professional profile. It'll take just 2 minutes.",
           type: "text",
         },
       ]);
 
       await new Promise((r) => setTimeout(r, 800));
-
       setMessages((prev) => [
         ...prev,
         {
@@ -175,129 +191,70 @@ export default function OnboardingPage() {
           type: "input",
         },
       ]);
-
       setCurrentStep("NICKNAME");
     };
 
     addGreeting();
   }, [status, messages.length]);
 
-  // When we move to SOCIAL_LINKS, add the social question for current platform
+  // Social link questions
   useEffect(() => {
-    if (
-      currentStep !== "SOCIAL_LINKS" ||
-      currentSocialIndex >= SOCIAL_PLATFORMS.length
-    )
+    if (currentStep !== "SOCIAL_LINKS" || currentSocialIndex >= SOCIAL_PLATFORMS.length)
       return;
 
     const platform = SOCIAL_PLATFORMS[currentSocialIndex];
-    const questionId = `social-${platform.key}`;
-    const alreadyAsked = messages.some((m) => m.id === questionId);
-    if (alreadyAsked) return;
+    const questionKey = `social-${platform.key}`;
 
-    const addSocialQuestion = async () => {
-      setIsTyping(true);
-      await new Promise((r) => setTimeout(r, 800));
+    const isOptional = !platform.required;
+    const skipHint = isOptional ? " (paste link or press Skip)" : "";
 
-      const question =
-        currentSocialIndex === 0
-          ? `First, what's your ${platform.label} profile URL?`
-          : `What's your ${platform.label}?`;
+    const question =
+      currentSocialIndex === 0
+        ? `Now let's add your social profiles. What's your ${platform.label} profile URL?${platform.required ? " (required)" : skipHint}`
+        : `What's your ${platform.label}?${skipHint}`;
 
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: questionId,
-          role: "ai",
-          content: question,
-          type: "input",
-        },
-      ]);
-    };
+    addStepMessage(questionKey, {
+      id: questionKey,
+      role: "ai",
+      content: question,
+      type: "input",
+    });
+  }, [currentStep, currentSocialIndex, addStepMessage]);
 
-    addSocialQuestion();
-  }, [currentStep, currentSocialIndex, messages]);
-
-  // When we move to DOMAINS, add the domains question
+  // Domains question
   useEffect(() => {
     if (currentStep !== "DOMAINS") return;
+    addStepMessage("domains", {
+      id: "domains",
+      role: "ai",
+      content:
+        "Great! Now, what areas do you specialize in? Select all that apply.",
+      type: "chips",
+    });
+  }, [currentStep, addStepMessage]);
 
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.content?.includes("specialize in")) return;
-
-    const addDomainsQuestion = async () => {
-      setIsTyping(true);
-      await new Promise((r) => setTimeout(r, 800));
-
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: "domains",
-          role: "ai",
-          content:
-            "Great! Now, what areas do you specialize in? Select all that apply.",
-          type: "chips",
-        },
-      ]);
-    };
-
-    addDomainsQuestion();
-  }, [currentStep, messages]);
-
-  // When we move to SESSION_PREFS, add the session question
-  useEffect(() => {
-    if (currentStep !== "SESSION_PREFS") return;
-
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.content?.includes("meet with startup founders")) return;
-
-    const addSessionQuestion = async () => {
-      setIsTyping(true);
-      await new Promise((r) => setTimeout(r, 800));
-
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: "session",
-          role: "ai",
-          content: "How would you like to meet with startup founders?",
-          type: "options",
-        },
-      ]);
-    };
-
-    addSessionQuestion();
-  }, [currentStep, messages]);
-
-  // When we move to DOCUMENT_UPLOAD, add the upload question
+  // Document upload question (now between links and session prefs)
   useEffect(() => {
     if (currentStep !== "DOCUMENT_UPLOAD") return;
+    addStepMessage("upload-question", {
+      id: "upload-question",
+      role: "ai",
+      content:
+        "Would you like to upload a document (PDF, DOCX) to help me better understand your services? This could be a resume, portfolio, or service description. You can also skip this step.",
+      type: "text",
+    });
+  }, [currentStep, addStepMessage]);
 
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg?.content?.includes("upload")) return;
-
-    const addUploadQuestion = async () => {
-      setIsTyping(true);
-      await new Promise((r) => setTimeout(r, 800));
-
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: "upload-question",
-          role: "ai",
-          content:
-            "Would you like to upload a document (PDF, DOCX) to help me better understand your services? This could be a resume, portfolio, or service description. You can also skip this step.",
-          type: "text",
-        },
-      ]);
-    };
-
-    addUploadQuestion();
-  }, [currentStep, messages]);
+  // Session prefs question
+  useEffect(() => {
+    if (currentStep !== "SESSION_PREFS") return;
+    addStepMessage("session", {
+      id: "session",
+      role: "ai",
+      content: "How would you like to meet with startup founders?",
+      type: "options",
+    });
+  }, [currentStep, addStepMessage]);
 
   const saveOnboarding = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/onboarding", {
@@ -357,7 +314,7 @@ export default function OnboardingPage() {
     try {
       await saveOnboarding({ [platform.key]: skip ? "" : value.trim() });
     } catch {
-      // Silently fail for now
+      // Silently fail
     }
 
     if (currentSocialIndex < SOCIAL_PLATFORMS.length - 1) {
@@ -385,6 +342,53 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
+    setCurrentStep("DOCUMENT_UPLOAD");
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/onboarding/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Upload failed");
+      }
+      setUploadedFileName(file.name);
+      setMessages((prev) => [
+        ...prev,
+        { id: `user-upload-${Date.now()}`, role: "user", content: `Uploaded: ${file.name}` },
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setMessages((prev) => [
+        ...prev,
+        { id: `upload-error-${Date.now()}`, role: "ai", content: `Upload error: ${msg}. You can try again or skip.`, type: "text" },
+      ]);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDocumentContinue = async () => {
+    if (uploadedFileName) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "upload-ack",
+          role: "ai",
+          content: `Great, I'll use "${uploadedFileName}" to enrich your profile.`,
+          type: "text",
+        },
+      ]);
+      await new Promise((r) => setTimeout(r, 600));
+    }
+
     setCurrentStep("SESSION_PREFS");
   };
 
@@ -407,48 +411,10 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
-    setCurrentStep("DOCUMENT_UPLOAD");
-  };
-
-  const handleFileUpload = async (file: File) => {
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch("/api/onboarding/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Upload failed");
-      }
-      setUploadedFileName(file.name);
-      setMessages((prev) => [
-        ...prev,
-        { id: "user-upload", role: "user", content: `Uploaded: ${file.name}` },
-      ]);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
-      setMessages((prev) => [
-        ...prev,
-        { id: "upload-error", role: "ai", content: `Upload error: ${msg}`, type: "text" },
-      ]);
-    } finally {
-      setIsUploading(false);
-    }
+    startAIGeneration();
   };
 
   const startAIGeneration = async () => {
-    if (uploadedFileName) {
-      setMessages((prev) => [
-        ...prev,
-        { id: "upload-ack", role: "ai", content: `Great, I'll use "${uploadedFileName}" to enrich your profile.`, type: "text" },
-      ]);
-      await new Promise((r) => setTimeout(r, 600));
-    }
-
     setCurrentStep("AI_GENERATION");
     setIsTyping(true);
 
@@ -487,9 +453,9 @@ export default function OnboardingPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: "ai-error",
+          id: `ai-error-${Date.now()}`,
           role: "ai",
-          content: "Something went wrong. Please try again.",
+          content: "Something went wrong generating your profile. Please try again.",
           type: "text",
         },
       ]);
@@ -547,6 +513,7 @@ export default function OnboardingPage() {
           <Card className="mx-auto max-w-lg overflow-hidden shadow-lg">
             {generatedProfile.profileImage && (
               <div className="relative w-full aspect-[16/9] bg-slate-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={generatedProfile.profileImage}
                   alt={`${nickName}'s profile`}
@@ -590,7 +557,7 @@ export default function OnboardingPage() {
                     setEditingBio(true);
                     setEditedBio(generatedProfile.bio);
                   }}
-                  className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed"
+                  className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap"
                 >
                   {generatedProfile.bio}
                   <span className="mt-2 block text-xs text-muted-foreground">
@@ -739,33 +706,41 @@ export default function OnboardingPage() {
         )}
 
         {currentStep === "SOCIAL_LINKS" && platform && (
-          <div className="flex gap-2">
-            <Input
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={platform.placeholder}
-              className="min-h-[44px] flex-1"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSocialSubmit(inputValue);
-              }}
-            />
-            <Button
-              onClick={() => handleSocialSubmit(inputValue)}
-              disabled={!inputValue.trim() && platform.required}
-              size="icon"
-              className="min-h-[44px] min-w-[44px] shrink-0"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-            {!platform.required && (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={platform.placeholder}
+                className="min-h-[44px] flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSocialSubmit(inputValue);
+                }}
+              />
               <Button
-                variant="ghost"
-                onClick={() => handleSocialSubmit("", true)}
+                onClick={() => handleSocialSubmit(inputValue)}
+                disabled={!inputValue.trim() && platform.required}
                 size="icon"
                 className="min-h-[44px] min-w-[44px] shrink-0"
               >
-                <SkipForward className="h-4 w-4" />
+                <Send className="h-4 w-4" />
               </Button>
+              {!platform.required && (
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSocialSubmit("", true)}
+                  size="icon"
+                  className="min-h-[44px] min-w-[44px] shrink-0"
+                  title="Skip this platform"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {!platform.required && (
+              <p className="text-xs text-muted-foreground text-center">
+                This is optional — press the skip button or leave empty to continue
+              </p>
             )}
           </div>
         )}
@@ -805,29 +780,6 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {currentStep === "SESSION_PREFS" && (
-          <div className="space-y-3">
-            {SESSION_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => handleSessionSelect(opt.value)}
-                className={cn(
-                  "w-full rounded-xl border-2 p-4 text-left transition min-h-[56px] flex flex-col items-start",
-                  sessionType === opt.value
-                    ? "border-indigo-600 bg-indigo-50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                )}
-              >
-                <span className="font-semibold">{opt.label}</span>
-                <span className="text-sm text-muted-foreground">
-                  {opt.desc}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-
         {currentStep === "DOCUMENT_UPLOAD" && (
           <div className="space-y-3">
             <input
@@ -864,12 +816,35 @@ export default function OnboardingPage() {
               )}
             </Button>
             <Button
-              onClick={startAIGeneration}
+              onClick={handleDocumentContinue}
               disabled={isUploading}
               className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
             >
               {uploadedFileName ? "Continue with Document" : "Skip & Continue"}
             </Button>
+          </div>
+        )}
+
+        {currentStep === "SESSION_PREFS" && (
+          <div className="space-y-3">
+            {SESSION_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleSessionSelect(opt.value)}
+                className={cn(
+                  "w-full rounded-xl border-2 p-4 text-left transition min-h-[56px] flex flex-col items-start",
+                  sessionType === opt.value
+                    ? "border-indigo-600 bg-indigo-50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                )}
+              >
+                <span className="font-semibold">{opt.label}</span>
+                <span className="text-sm text-muted-foreground">
+                  {opt.desc}
+                </span>
+              </button>
+            ))}
           </div>
         )}
 

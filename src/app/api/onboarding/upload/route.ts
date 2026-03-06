@@ -4,15 +4,27 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
-  const result = await pdfParse(buffer);
-  return result.text;
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) })
+    .promise;
+
+  const pages: string[] = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .map((item) => ("str" in item ? item.str : ""))
+      .join(" ");
+    pages.push(text);
+  }
+  return pages.join("\n\n");
 }
 
 async function extractTextFromDocx(buffer: Buffer): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const mammoth = require("mammoth") as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> };
+  const mammoth = require("mammoth") as {
+    extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }>;
+  };
   const result = await mammoth.extractRawText({ buffer });
   return result.value;
 }
@@ -31,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
         { error: "File too large. Maximum 5MB." },
@@ -51,7 +63,10 @@ export async function POST(request: NextRequest) {
       text = buffer.toString("utf-8");
     } else {
       return NextResponse.json(
-        { error: "Unsupported file type. Please upload PDF, DOCX, TXT, or MD." },
+        {
+          error:
+            "Unsupported file type. Please upload PDF, DOCX, TXT, or MD.",
+        },
         { status: 400 }
       );
     }
@@ -89,9 +104,10 @@ export async function POST(request: NextRequest) {
       textLength: trimmedText.length,
     });
   } catch (error) {
-    console.error("[onboarding/upload POST]", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[onboarding/upload POST]", message, error);
     return NextResponse.json(
-      { error: "Failed to process file" },
+      { error: `Failed to process file: ${message}` },
       { status: 500 }
     );
   }
