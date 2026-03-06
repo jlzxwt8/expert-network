@@ -5,7 +5,15 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 const MODEL = "gemini-2.5-flash";
 
 function cleanJsonResponse(text: string): string {
-  return text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  let cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+
+  // If the model returned prose before/after the JSON, extract the JSON object
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    cleaned = jsonMatch[0];
+  }
+
+  return cleaned;
 }
 
 function ensureString(value: unknown): string {
@@ -87,12 +95,20 @@ Return ONLY the JSON object, no markdown code fences.`;
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
+      responseMimeType: "application/json",
     },
   });
 
   const text = response.text ?? "";
   const cleaned = cleanJsonResponse(text);
-  const parsed = JSON.parse(cleaned);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    console.error("[generateExpertProfile] Failed to parse JSON, raw response:", text.slice(0, 500));
+    throw new Error("AI returned invalid response format. Please try again.");
+  }
 
   return {
     bio: ensureString(parsed.bio),
