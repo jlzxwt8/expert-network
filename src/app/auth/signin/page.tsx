@@ -19,8 +19,9 @@ import { Separator } from "@/components/ui/separator";
 function SignInForm() {
   const searchParams = useSearchParams();
   const role = searchParams.get("role");
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const isExpert = role === "expert";
+  const callbackUrl =
+    searchParams.get("callbackUrl") ?? (isExpert ? "/onboarding" : "/");
 
   const [email, setEmail] = useState("");
   const [emailLoading, setEmailLoading] = useState(false);

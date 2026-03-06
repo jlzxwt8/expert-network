@@ -109,12 +109,23 @@ export default function OnboardingPage() {
     session?.user?.name ??
     "there";
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated; ensure role is EXPERT
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/auth/signin");
+      router.push("/auth/signin?role=expert");
+      return;
     }
-  }, [status, router]);
+    if (status === "authenticated") {
+      const userRole = (session?.user as { role?: string })?.role;
+      if (userRole !== "EXPERT") {
+        fetch("/api/user", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: "EXPERT" }),
+        }).catch(console.error);
+      }
+    }
+  }, [status, session, router]);
 
   // Scroll to latest message
   useEffect(() => {
