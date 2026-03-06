@@ -111,9 +111,9 @@ export default function OnboardingPage() {
 
   const nickName =
     userNickName ||
-    (session?.user as { nickName?: string })?.nickName ??
+    ((session?.user as { nickName?: string })?.nickName ??
     session?.user?.name ??
-    "";
+    "");
 
   // Redirect if not authenticated; ensure role is EXPERT
   useEffect(() => {
