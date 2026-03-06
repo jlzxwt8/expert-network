@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { generateExpertProfile } from "@/lib/gemini";
+import { generateExpertProfile, generateProfileImage } from "@/lib/gemini";
 
 export async function POST() {
   try {
@@ -37,12 +37,19 @@ export async function POST() {
       nickName,
     });
 
+    const profileImage = await generateProfileImage({
+      nickName,
+      domains: expert.domains,
+      bio: generated.bio,
+    });
+
     await prisma.expert.update({
       where: { id: expert.id },
       data: {
         bio: generated.bio,
         servicesOffered: generated.services as object,
         avatarScript: generated.videoScript,
+        avatarVideoUrl: profileImage,
         onboardingStep: "AI_GENERATION",
       },
     });
@@ -51,6 +58,7 @@ export async function POST() {
       bio: generated.bio,
       services: generated.services,
       videoScript: generated.videoScript,
+      profileImage,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

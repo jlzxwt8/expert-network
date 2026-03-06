@@ -81,6 +81,49 @@ Return ONLY the JSON object, no markdown code fences.`;
   };
 }
 
+export async function generateProfileImage(data: {
+  nickName: string;
+  domains: string[];
+  bio: string;
+}): Promise<string | null> {
+  const prompt = `Create a professional, modern profile illustration for a tech expert. This is NOT a photo — it's a stylized digital illustration / avatar.
+
+Expert context:
+- Name: ${data.nickName}
+- Domains: ${data.domains.join(", ")}
+- Summary: ${data.bio.slice(0, 200)}
+
+Requirements:
+- Clean, modern flat illustration style with a friendly, approachable look
+- Professional setting with subtle tech/business visual elements related to their domains
+- Use a cohesive color palette with indigo/blue tones
+- The illustration should feel premium and suitable for a professional networking platform
+- Include abstract visual elements representing their expertise domains (e.g., AI circuits, charts, globe for business expansion)
+- Do NOT include any text or letters in the image`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: prompt,
+      config: {
+        responseModalities: ["image", "text"],
+      },
+    });
+
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        const mimeType = part.inlineData.mimeType || "image/png";
+        return `data:${mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("[generateProfileImage]", error);
+    return null;
+  }
+}
+
 export async function matchExperts(
   query: string,
   expertSummaries: string,

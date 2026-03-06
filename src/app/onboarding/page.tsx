@@ -54,6 +54,7 @@ type GeneratedProfile = {
   bio: string;
   services: { title: string; description: string }[];
   videoScript: string;
+  profileImage: string | null;
 };
 
 const SESSION_OPTIONS = [
@@ -403,6 +404,7 @@ export default function OnboardingPage() {
         bio: data.bio,
         services: data.services ?? [],
         videoScript: data.videoScript ?? "",
+        profileImage: data.profileImage ?? null,
       });
       setCurrentStep("PREVIEW");
     } catch (err) {
@@ -468,6 +470,16 @@ export default function OnboardingPage() {
         </div>
         <div className="flex-1 overflow-y-auto p-4 pb-8">
           <Card className="mx-auto max-w-lg overflow-hidden shadow-lg">
+            {generatedProfile.profileImage && (
+              <div className="relative w-full aspect-[16/9] bg-slate-100">
+                <img
+                  src={generatedProfile.profileImage}
+                  alt={`${nickName}'s profile`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+
             <CardHeader className="space-y-2">
               <CardTitle className="text-xl">{nickName}</CardTitle>
               <div className="flex flex-wrap gap-1.5">
