@@ -141,28 +141,41 @@ Design requirements:
 
 This avatar protects the expert's real identity while giving them a memorable, personal brand image.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents: prompt,
-      config: {
-        responseModalities: ["image", "text"],
-      },
-    });
+  const maxRetries = 3;
 
-    const parts = response.candidates?.[0]?.content?.parts ?? [];
-    for (const part of parts) {
-      if (part.inlineData?.data) {
-        const mimeType = part.inlineData.mimeType || "image/png";
-        return `data:${mimeType};base64,${part.inlineData.data}`;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-image",
+        contents: prompt,
+        config: {
+          responseModalities: ["image", "text"],
+        },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          const mimeType = part.inlineData.mimeType || "image/png";
+          return `data:${mimeType};base64,${part.inlineData.data}`;
+        }
       }
+      console.error("[generateProfileImage] No image data in response parts");
+      return null;
+    } catch (error: unknown) {
+      const status = (error as { status?: number }).status;
+      if (status === 429 && attempt < maxRetries - 1) {
+        const waitMs = (attempt + 1) * 3000;
+        console.warn(`[generateProfileImage] Rate limited, retrying in ${waitMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      console.error("[generateProfileImage]", error);
+      return null;
     }
-    console.error("[generateProfileImage] No image data in response parts:", JSON.stringify(parts.map(p => ({ hasInlineData: !!p.inlineData, hasText: !!p.text }))));
-    return null;
-  } catch (error) {
-    console.error("[generateProfileImage]", error);
-    return null;
   }
+
+  return null;
 }
 
 export async function matchExperts(
