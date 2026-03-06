@@ -1,0 +1,149 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import type { OnboardingStep, SessionType } from "@/generated/prisma/client";
+
+const SOCIAL_LINK_KEYS = [
+  "linkedIn",
+  "github",
+  "twitter",
+  "substack",
+  "wechatOA",
+  "xiaohongshu",
+  "tiktok",
+] as const;
+
+type SocialLinks = Partial<
+  Record<(typeof SOCIAL_LINK_KEYS)[number], string>
+>;
+
+function parseOnboardingStep(value: unknown): OnboardingStep | null {
+  const valid: OnboardingStep[] = [
+    "SOCIAL_LINKS",
+    "DOMAINS",
+    "SESSION_PREFS",
+    "AI_GENERATION",
+    "PREVIEW",
+    "PUBLISHED",
+  ];
+  return typeof value === "string" && valid.includes(value as OnboardingStep)
+    ? (value as OnboardingStep)
+    : null;
+}
+
+function parseSessionType(value: unknown): SessionType | null {
+  const valid: SessionType[] = ["ONLINE", "OFFLINE", "BOTH"];
+  return typeof value === "string" && valid.includes(value as SessionType)
+    ? (value as SessionType)
+    : null;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    if (typeof body !== "object" || body === null) {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
+      );
+    }
+
+    const socialLinks: SocialLinks = {};
+    for (const key of SOCIAL_LINK_KEYS) {
+      if (body[key] !== undefined) {
+        socialLinks[key] =
+          typeof body[key] === "string" ? body[key] : String(body[key] ?? "");
+      }
+    }
+
+    const domains =
+      Array.isArray(body.domains) && body.domains.every((d: unknown) => typeof d === "string")
+        ? (body.domains as string[])
+        : undefined;
+
+    const sessionType = parseSessionType(body.sessionType);
+    const onboardingStep = parseOnboardingStep(body.onboardingStep);
+    const bio =
+      typeof body.bio === "string" ? body.bio : undefined;
+
+    const updateData: Record<string, unknown> = {};
+    if (Object.keys(socialLinks).length > 0) Object.assign(updateData, socialLinks);
+    if (domains !== undefined) updateData.domains = domains;
+    if (sessionType !== null) updateData.sessionType = sessionType;
+    if (onboardingStep !== null) updateData.onboardingStep = onboardingStep;
+    if (bio !== undefined) updateData.bio = bio;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 }
+      );
+    }
+
+    let expert = await prisma.expert.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!expert) {
+      expert = await prisma.expert.create({
+        data: {
+          userId: session.user.id,
+          ...updateData,
+        } as Parameters<typeof prisma.expert.create>[0]["data"],
+      });
+    } else {
+      expert = await prisma.expert.update({
+        where: { id: expert.id },
+        data: updateData,
+      });
+    }
+
+    return NextResponse.json(expert);
+  } catch (error) {
+    console.error("[onboarding POST]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const expert = await prisma.expert.findUnique({
+      where: { userId: session.user.id },
+      include: { user: true },
+    });
+
+    if (!expert) {
+      return NextResponse.json({
+        expert: null,
+        onboardingStep: "SOCIAL_LINKS",
+        isPublished: false,
+      });
+    }
+
+    return NextResponse.json({
+      expert,
+      onboardingStep: expert.onboardingStep,
+      isPublished: expert.isPublished,
+    });
+  } catch (error) {
+    console.error("[onboarding GET]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

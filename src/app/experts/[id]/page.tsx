@@ -1,0 +1,443 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  Star,
+  Shield,
+  Video,
+  Link2,
+  MapPin,
+  Monitor,
+  Loader2,
+  Linkedin,
+  Github,
+  Twitter,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+
+interface ExpertUser {
+  id: string;
+  name: string | null;
+  nickName: string | null;
+  image: string | null;
+  email: string | null;
+}
+
+interface ServiceItem {
+  title: string;
+  description: string;
+}
+
+interface Expert {
+  id: string;
+  domains: string[];
+  sessionType: string;
+  bio: string | null;
+  servicesOffered: ServiceItem[] | null;
+  isVerified: boolean;
+  avgRating: number;
+  reviewCount: number;
+  linkedIn: string | null;
+  github: string | null;
+  twitter: string | null;
+  substack: string | null;
+  avatarVideoUrl: string | null;
+  user: ExpertUser;
+}
+
+interface ReviewFounder {
+  id: string;
+  name: string | null;
+  nickName: string | null;
+  image: string | null;
+}
+
+interface Review {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  founder: ReviewFounder;
+}
+
+interface ReviewsResponse {
+  reviews: Review[];
+  total: number;
+  skip: number;
+  take: number;
+}
+
+const socialConfig = [
+  { key: "linkedIn" as const, label: "LinkedIn", icon: Linkedin, getUrl: (e: Expert) => e.linkedIn },
+  { key: "github" as const, label: "GitHub", icon: Github, getUrl: (e: Expert) => e.github },
+  { key: "twitter" as const, label: "X", icon: Twitter, getUrl: (e: Expert) => e.twitter },
+  { key: "substack" as const, label: "Substack", icon: Link2, getUrl: (e: Expert) => e.substack },
+];
+
+function HeroSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="aspect-video rounded-xl bg-muted animate-pulse" />
+      <div className="h-8 w-48 rounded bg-muted animate-pulse" />
+      <div className="flex gap-2">
+        <div className="h-6 w-20 rounded bg-muted animate-pulse" />
+        <div className="h-6 w-20 rounded bg-muted animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+function ReviewSkeleton() {
+  return (
+    <div className="space-y-2 py-4">
+      <div className="flex gap-3">
+        <div className="h-10 w-10 rounded-full bg-muted animate-pulse" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+          <div className="h-3 w-full rounded bg-muted animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ExpertProfilePage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id as string;
+  const [expert, setExpert] = useState<Expert | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const reviewsRef = useRef<Review[]>([]);
+  reviewsRef.current = reviews;
+
+  const fetchExpert = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/experts/${id}`);
+      if (!res.ok) {
+        if (res.status === 404) setError("Expert not found");
+        else setError("Failed to load profile");
+        setExpert(null);
+        return;
+      }
+      const data = await res.json();
+      setExpert(data);
+    } catch {
+      setError("Failed to load profile");
+      setExpert(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  const fetchReviews = useCallback(
+    async (append = false) => {
+      if (!id) return;
+      if (append) setReviewsLoading(true);
+      const skip = append ? reviewsRef.current.length : 0;
+      try {
+        const res = await fetch(
+          `/api/reviews?expertId=${id}&skip=${skip}&take=5`
+        );
+        if (!res.ok) throw new Error("Failed to fetch reviews");
+        const data: ReviewsResponse = await res.json();
+        if (append) {
+          setReviews((prev) => [...prev, ...data.reviews]);
+        } else {
+          setReviews(data.reviews);
+        }
+        setReviewsTotal(data.total);
+      } catch {
+        if (!append) setReviews([]);
+      } finally {
+        setReviewsLoading(false);
+      }
+    },
+    [id]
+  );
+
+  useEffect(() => {
+    fetchExpert();
+  }, [fetchExpert]);
+
+  useEffect(() => {
+    if (expert?.id) {
+      fetchReviews(false);
+    }
+  }, [expert?.id, fetchReviews]);
+
+  const loadMoreReviews = () => {
+    fetchReviews(true);
+  };
+
+  if (!id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Invalid expert ID</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full max-w-lg mx-auto px-4 py-6 pb-28">
+        <HeroSkeleton />
+        <div className="mt-8 space-y-4">
+          <div className="h-6 w-24 rounded bg-muted animate-pulse" />
+          <div className="h-4 w-full rounded bg-muted animate-pulse" />
+          <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="mt-8">
+          <div className="h-6 w-32 rounded bg-muted animate-pulse mb-4" />
+          <ReviewSkeleton />
+          <ReviewSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !expert) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4">
+        <p className="text-muted-foreground mb-4">{error ?? "Expert not found"}</p>
+        <Button variant="outline" onClick={() => router.push("/discover")}>
+          Back to Discover
+        </Button>
+      </div>
+    );
+  }
+
+  const name = expert.user.nickName ?? expert.user.name ?? "Expert";
+  const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
+  const socialLinks = socialConfig.filter((c) => {
+    const url = c.getUrl(expert);
+    return url && url.trim() !== "";
+  });
+  const hasMoreReviews = reviews.length < reviewsTotal;
+
+  return (
+    <div className="min-h-screen w-full max-w-lg mx-auto px-4 pb-28">
+      {/* Hero */}
+      <section className="pt-4">
+        <div className="aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+          {expert.avatarVideoUrl ? (
+            <video
+              src={expert.avatarVideoUrl}
+              controls
+              className="w-full h-full object-cover"
+              poster=""
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center text-white/80">
+              <Video className="h-16 w-16 mb-2" />
+              <span className="text-sm">Video coming soon</span>
+            </div>
+          )}
+        </div>
+        <div className="mt-4">
+          <h1 className="text-2xl font-bold text-foreground">{name}</h1>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {expert.domains.map((d) => (
+              <Badge key={d} variant="secondary">
+                {d}
+              </Badge>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Star
+                  key={i}
+                  className={`h-4 w-4 ${
+                    i <= Math.round(expert.avgRating)
+                      ? "fill-amber-400 text-amber-400"
+                      : "text-muted-foreground/40"
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
+            </span>
+          </div>
+          {expert.isVerified && (
+            <Badge
+              className="mt-2 gap-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+            >
+              <Shield className="h-3 w-3" />
+              Verified Community Member
+            </Badge>
+          )}
+        </div>
+      </section>
+
+      {/* Bio */}
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-foreground mb-3">About</h2>
+        {expert.bio ? (
+          <div
+            className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground"
+            dangerouslySetInnerHTML={{
+              __html: expert.bio
+                .replace(/\n/g, "<br />")
+                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                .replace(/\*(.*?)\*/g, "<em>$1</em>"),
+            }}
+          />
+        ) : (
+          <p className="text-muted-foreground">No bio available.</p>
+        )}
+      </section>
+
+      {/* Services */}
+      {services.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">
+            Services Offered
+          </h2>
+          <div className="space-y-3">
+            {services.map((s, i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <h3 className="font-medium text-foreground">{s.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {s.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Social Links */}
+      {socialLinks.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">Connect</h2>
+          <div className="flex flex-wrap gap-3">
+            {socialLinks.map(({ label, icon: Icon, getUrl }) => {
+              const url = getUrl(expert);
+              if (!url) return null;
+              const href = url.startsWith("http") ? url : `https://${url}`;
+              return (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Reviews */}
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-foreground mb-3">
+          Reviews ({reviewsTotal})
+        </h2>
+        {reviews.length === 0 ? (
+          <p className="text-muted-foreground py-4">No reviews yet</p>
+        ) : (
+          <>
+            <div className="space-y-0">
+              {reviews.map((r) => (
+                <div key={r.id} className="py-4">
+                  <div className="flex gap-3">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-400 to-slate-600 text-sm font-medium text-white"
+                      aria-hidden
+                    >
+                      {(r.founder.nickName ?? r.founder.name ?? "F")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground text-sm">
+                          {r.founder.nickName ?? r.founder.name ?? "Anonymous"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 flex">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Star
+                            key={i}
+                            className={`h-3.5 w-3.5 ${
+                              i <= r.rating
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-muted-foreground/40"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {r.comment && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {r.comment}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Separator className="mt-4" />
+                </div>
+              ))}
+            </div>
+            {hasMoreReviews && (
+              <Button
+                variant="outline"
+                className="mt-4 w-full"
+                onClick={loadMoreReviews}
+                disabled={reviewsLoading}
+              >
+                {reviewsLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* Sticky Bottom Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t safe-area-inset-bottom">
+        <div className="max-w-lg mx-auto px-4 py-4 flex gap-3">
+          <Button asChild className="flex-1 h-12 text-base font-semibold" size="lg">
+            <Link href={`/experts/${id}/book?type=ONLINE`} className="flex items-center justify-center gap-2">
+              <Monitor className="h-5 w-5" />
+              Book Online
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="flex-1 h-12 text-base font-semibold" size="lg">
+            <Link href={`/experts/${id}/book?type=OFFLINE`} className="flex items-center justify-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Book Offline
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

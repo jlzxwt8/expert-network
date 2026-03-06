@@ -1,36 +1,104 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Help&Grow Expert Network
+
+A mobile-first web platform connecting Singapore-based AI/fintech experts with global startup founders. Built for the Help&Grow community of 1,000+ verified tech professionals.
+
+## Tech Stack
+
+- **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui
+- **Backend:** Next.js API Routes (serverless), Prisma ORM 7
+- **Database:** PostgreSQL (via Supabase or Railway)
+- **Auth:** NextAuth.js (magic link + Google OAuth)
+- **AI:** Google Gemini API (profile generation + expert matching)
+- **Deployment:** Vercel
+
+## Features
+
+### 1. Expert Onboarding (Chat-Oriented)
+WhatsApp-style conversational onboarding that collects social profiles, expertise domains, and session preferences through an AI-guided chat interface. Gemini generates personalized bios and service descriptions.
+
+### 2. Expert Discovery
+Dual discovery paths — filter-based browsing and AI chatbot matching. Founders can search by domain, session type, and ratings, or describe their challenge to get AI-powered expert recommendations.
+
+### 3. Seamless Free Booking
+Calendar-based booking with timezone-aware scheduling, instant confirmation, and post-session review prompts.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+
+- PostgreSQL database (local, Supabase, or Railway)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Setup
+
+1. **Clone and install:**
+   ```bash
+   cd expert-network
+   npm install
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` with your credentials:
+   - `DATABASE_URL` — PostgreSQL connection string
+   - `NEXTAUTH_SECRET` — Generate with `openssl rand -base64 32`
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — From Google Cloud Console
+   - `EMAIL_SERVER_*` — SMTP credentials for magic link emails
+   - `GEMINI_API_KEY` — From Google AI Studio
+
+3. **Set up database:**
+   ```bash
+   npx prisma migrate dev --name init
+   ```
+
+4. **Run development server:**
+   ```bash
+   npm run dev
+   ```
+
+5. Open [http://localhost:3000](http://localhost:3000)
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── api/                  # API routes
+│   │   ├── auth/             # NextAuth endpoints
+│   │   ├── bookings/         # Booking CRUD
+│   │   ├── experts/          # Expert listing, matching, slots
+│   │   ├── onboarding/       # Expert onboarding flow
+│   │   ├── reviews/          # Review CRUD
+│   │   └── user/             # User profile
+│   ├── auth/                 # Auth pages (signin, verify, error)
+│   ├── bookings/             # Booking success page
+│   ├── dashboard/            # User dashboard
+│   ├── discover/             # Expert discovery + AI matching
+│   ├── experts/[id]/         # Expert profile + booking
+│   ├── onboarding/           # Expert onboarding chat
+│   └── reviews/              # Post-session review
+├── components/
+│   ├── providers.tsx          # Session provider
+│   └── ui/                   # shadcn/ui components
+├── generated/prisma/         # Prisma generated client
+├── lib/
+│   ├── auth.ts               # NextAuth configuration
+│   ├── constants.ts           # Domain lists, social platforms
+│   ├── gemini.ts             # Gemini AI integration
+│   ├── prisma.ts             # Prisma client singleton
+│   └── utils.ts              # Utility functions
+└── types/
+    └── next-auth.d.ts        # NextAuth type augmentation
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deployment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Deploy to Vercel:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm i -g vercel
+vercel
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set all environment variables in the Vercel dashboard.
