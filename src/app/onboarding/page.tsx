@@ -725,22 +725,16 @@ export default function OnboardingPage() {
               >
                 <Send className="h-4 w-4" />
               </Button>
-              {!platform.required && (
-                <Button
-                  variant="ghost"
-                  onClick={() => handleSocialSubmit("", true)}
-                  size="icon"
-                  className="min-h-[44px] min-w-[44px] shrink-0"
-                  title="Skip this platform"
-                >
-                  <SkipForward className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             {!platform.required && (
-              <p className="text-xs text-muted-foreground text-center">
-                This is optional — press the skip button or leave empty to continue
-              </p>
+              <Button
+                variant="outline"
+                onClick={() => handleSocialSubmit("", true)}
+                className="min-h-[44px] w-full text-muted-foreground"
+              >
+                <SkipForward className="mr-2 h-4 w-4" />
+                Skip {platform.label}
+              </Button>
             )}
           </div>
         )}
