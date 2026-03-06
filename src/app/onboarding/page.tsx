@@ -353,7 +353,11 @@ export default function OnboardingPage() {
 
     try {
       const res = await fetch("/api/onboarding/generate", { method: "POST" });
-      if (!res.ok) throw new Error("Generate failed");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("Generate API error:", errBody);
+        throw new Error(errBody.detail || "Generate failed");
+      }
       const data = await res.json();
       setGeneratedProfile({
         bio: data.bio,
@@ -361,7 +365,8 @@ export default function OnboardingPage() {
         videoScript: data.videoScript ?? "",
       });
       setCurrentStep("PREVIEW");
-    } catch {
+    } catch (err) {
+      console.error("AI generation error:", err);
       setMessages((prev) => [
         ...prev,
         {

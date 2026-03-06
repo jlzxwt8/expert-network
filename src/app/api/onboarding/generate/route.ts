@@ -54,9 +54,10 @@ export async function POST() {
       videoScript: generated.videoScript,
     });
   } catch (error) {
-    console.error("[onboarding/generate POST]", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[onboarding/generate POST]", message, error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", detail: message },
       { status: 500 }
     );
   }
