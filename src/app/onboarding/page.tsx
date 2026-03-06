@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Play,
   Loader2,
   Send,
   SkipForward,
@@ -33,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 type Step =
   | "GREETING"
+  | "NICKNAME"
   | "SOCIAL_LINKS"
   | "DOMAINS"
   | "SESSION_PREFS"
@@ -63,14 +63,16 @@ const SESSION_OPTIONS = [
 ] as const;
 
 const AI_PROCESSING_MESSAGES = [
-  "Analysing your professional footprint with advanced AI...",
-  "Synthesizing your expertise...",
-  "Generating your digital avatar video...",
+  "Searching your social profiles with AI...",
+  "Analysing your professional footprint...",
+  "Generating your expert profile...",
 ];
 
 function getProgressValue(step: Step): number {
   switch (step) {
     case "GREETING":
+    case "NICKNAME":
+      return 10;
     case "SOCIAL_LINKS":
     case "DOMAINS":
     case "SESSION_PREFS":
@@ -104,10 +106,13 @@ export default function OnboardingPage() {
   const [editingBio, setEditingBio] = useState(false);
   const [editedBio, setEditedBio] = useState("");
 
+  const [userNickName, setUserNickName] = useState("");
+
   const nickName =
+    userNickName ||
     (session?.user as { nickName?: string })?.nickName ??
     session?.user?.name ??
-    "there";
+    "";
 
   // Redirect if not authenticated; ensure role is EXPERT
   useEffect(() => {
@@ -132,7 +137,7 @@ export default function OnboardingPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // Initial greeting sequence
+  // Initial greeting — ask for nickname
   useEffect(() => {
     if (status !== "authenticated" || messages.length > 0) return;
 
@@ -146,18 +151,28 @@ export default function OnboardingPage() {
         {
           id: "greeting",
           role: "ai",
-          content: `Hey ${nickName}! 👋 Welcome to Help&Grow Expert Network. Let's set up your professional profile. It'll take just 2 minutes.`,
+          content: "Hey! 👋 Welcome to Help&Grow Expert Network. Let's set up your professional profile. It'll take just 2 minutes.",
           type: "text",
         },
       ]);
 
       await new Promise((r) => setTimeout(r, 800));
-      setCurrentStep("SOCIAL_LINKS");
-      setCurrentSocialIndex(0);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "ask-nickname",
+          role: "ai",
+          content: "First, what should we call you? (Your display name)",
+          type: "input",
+        },
+      ]);
+
+      setCurrentStep("NICKNAME");
     };
 
     addGreeting();
-  }, [status, nickName, messages.length]);
+  }, [status, messages.length]);
 
   // When we move to SOCIAL_LINKS, add the social question for current platform
   useEffect(() => {
@@ -257,6 +272,31 @@ export default function OnboardingPage() {
     });
     if (!res.ok) throw new Error("Failed to save");
     return res.json();
+  };
+
+  const handleNicknameSubmit = async (value: string) => {
+    if (!value.trim()) return;
+    const name = value.trim();
+    setUserNickName(name);
+
+    setMessages((prev) => [
+      ...prev,
+      { id: "user-nickname", role: "user", content: name },
+    ]);
+    setInputValue("");
+
+    try {
+      await fetch("/api/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickName: name }),
+      });
+    } catch {
+      // Silently fail
+    }
+
+    setCurrentStep("SOCIAL_LINKS");
+    setCurrentSocialIndex(0);
   };
 
   const handleSocialSubmit = async (value: string, skip = false) => {
@@ -428,15 +468,6 @@ export default function OnboardingPage() {
         </div>
         <div className="flex-1 overflow-y-auto p-4 pb-8">
           <Card className="mx-auto max-w-lg overflow-hidden shadow-lg">
-            {/* Mock video player */}
-            <div className="relative aspect-video w-full bg-slate-900">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition hover:bg-white/30">
-                  <Play className="h-8 w-8 text-white" fill="white" />
-                </div>
-              </div>
-            </div>
-
             <CardHeader className="space-y-2">
               <CardTitle className="text-xl">{nickName}</CardTitle>
               <div className="flex flex-wrap gap-1.5">
@@ -478,6 +509,15 @@ export default function OnboardingPage() {
                   <span className="mt-2 block text-xs text-muted-foreground">
                     Tap to edit
                   </span>
+                </div>
+              )}
+
+              {generatedProfile.videoScript && (
+                <div>
+                  <h3 className="mb-2 font-semibold">Introduction Script</h3>
+                  <div className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap">
+                    {generatedProfile.videoScript}
+                  </div>
                 </div>
               )}
 
@@ -589,6 +629,28 @@ export default function OnboardingPage() {
 
       {/* Input area */}
       <div className="shrink-0 border-t bg-white px-4 py-4 mobile-safe-bottom">
+        {currentStep === "NICKNAME" && (
+          <div className="flex gap-2">
+            <Input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Your name or nickname"
+              className="min-h-[44px] flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleNicknameSubmit(inputValue);
+              }}
+            />
+            <Button
+              onClick={() => handleNicknameSubmit(inputValue)}
+              disabled={!inputValue.trim()}
+              size="icon"
+              className="min-h-[44px] min-w-[44px] shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         {currentStep === "SOCIAL_LINKS" && platform && (
           <div className="flex gap-2">
             <Input

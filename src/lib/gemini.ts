@@ -36,21 +36,31 @@ Professional domains: ${data.domains.join(", ")}
 Social profiles:
 ${socialLinks}
 
-IMPORTANT: Use Google Search to look up each social profile link above. Visit the actual profile pages and gather as much real information as possible including:
-- Professional headline, job title, company
-- Work history and key achievements
-- Number of followers/connections/fans
-- Recent posts, articles, or content themes
-- Skills and endorsements
-- For Instagram/XiaoHongShu: follower count, content focus, engagement level — these indicate marketing/KOL capability
+STEP 1 — Research: Use Google Search to look up each social profile link above. Gather ONLY verifiable facts:
+- Job title, company, professional headline
+- Real work history and achievements
+- Follower/subscriber/connection counts (exact numbers only if found)
+- Content themes and recent posts
+- For Instagram/TikTok/XiaoHongShu: follower count, content focus — these indicate KOL/marketing capability
 
-Then generate the following as a JSON object:
+CRITICAL RULES:
+- NEVER fabricate or estimate numbers (followers, connections, subscribers, etc.). If you cannot find the exact number, DO NOT mention it at all.
+- NEVER invent companies, job titles, achievements, or any facts not found in your search results.
+- If search returns limited information, write a shorter bio based ONLY on what you found. A short truthful bio is far better than a long fabricated one.
+- Use ONLY verified information from your search results.
 
-1. "bio": A deeply personalized 150–200 word third-person professional bio in markdown. Synthesize REAL information gathered from their social profiles into a cohesive narrative highlighting domain expertise, Singapore/SEA market knowledge, key achievements, and social media influence (mention follower counts if found). Make it compelling for startup founders.
+STEP 2 — Generate the following as a JSON object:
 
-2. "services": An array of 3-5 specific services this expert could offer, each as an object with "title" (string) and "description" (string, 1-2 sentences). Base these on real expertise found in their profiles.
+1. "bio": A concise third-person professional summary using MECE (Mutually Exclusive, Collectively Exhaustive) bullet points in markdown. Structure:
+   - **Current Role**: One line with job title and company (if found)
+   - **Expertise**: 2-3 bullet points covering distinct domain areas
+   - **Track Record**: 1-2 bullet points with verifiable achievements only
+   - **Social Presence**: 1 bullet point with real follower/subscriber counts (only if found via search)
+   Keep it under 100 words total. No fluff, no adjectives like "visionary" or "renowned".
 
-3. "videoScript": A compelling first-person video introduction script (60-90 seconds when spoken). Reference real details from their profiles — actual companies worked at, real achievements, genuine expertise areas. Make it natural and conversational with a call-to-action for startup founders to book a session.
+2. "services": An array of 3-4 specific services, each as {"title": string, "description": string (1 sentence)}. Based on real expertise found.
+
+3. "videoScript": A natural first-person introduction script (45-60 seconds spoken). Use ONLY real facts found. Structure: who I am → what I do → how I can help founders → book a session CTA.
 
 Return ONLY the JSON object, no markdown code fences.`;
 
