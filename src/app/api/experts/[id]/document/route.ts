@@ -29,7 +29,7 @@ export async function GET(
     }
 
     const match = expert.documentData.match(
-      /^data:([^;]+);base64,(.+)$/s
+      /^data:([^;]+);base64,(.+)$/
     );
 
     // #region agent log
