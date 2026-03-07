@@ -220,14 +220,10 @@ export async function generateProfileImage(data: {
   const bioSnippet = data.bio.slice(0, 200);
 
   const domainVisuals: Record<string, string> = {
-    "Company Setup & HR Operation": "corporate building outline, organizational chart nodes, people icons",
+    "Marketing & BD": "megaphone waves, handshake silhouette, growth analytics charts, globe with connection arcs",
     "Headhunter": "magnifying glass over profile cards, talent pipeline, connecting dots",
     "Law": "balanced scales, gavel silhouette, document layers with legal seals",
-    "Audit": "spreadsheet grids, checkmark shields, financial chart patterns",
-    "Marketing": "megaphone waves, social media icons, growth analytics charts",
-    "BD (Sales)": "handshake silhouette, pipeline funnel, globe with connection arcs",
-    "IT Outsourcing": "server racks, code brackets, cloud computing nodes",
-    "Career Mentoring": "compass rose, ascending staircase, guiding star paths",
+    "Funding": "rising bar charts, currency symbols, rocket launch trail, investor handshake",
   };
 
   const visualElements = data.domains

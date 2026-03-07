@@ -1,12 +1,8 @@
 export const DOMAINS = [
-  "Company Setup & HR Operation",
+  "Marketing & BD",
   "Headhunter",
   "Law",
-  "Audit",
-  "Marketing",
-  "BD (Sales)",
-  "IT Outsourcing",
-  "Career Mentoring",
+  "Funding",
 ] as const;
 
 export type Domain = (typeof DOMAINS)[number];

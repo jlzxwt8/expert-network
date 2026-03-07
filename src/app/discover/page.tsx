@@ -148,7 +148,7 @@ function ExpertCard({ expert }: { expert: Expert }) {
               </span>
             </div>
             <Button asChild size="sm" className="mt-3 w-full">
-              <Link href={`/experts/${expert.id}`}>View Profile</Link>
+              <a href={`/experts/${expert.id}`} target="_blank" rel="noopener noreferrer">View Profile</a>
             </Button>
           </div>
         </div>
@@ -183,7 +183,7 @@ function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
                 <Link href={`/experts/${rec.expertId}/book`}>Book Free Session</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href={`/experts/${rec.expertId}`}>View Profile</Link>
+                <a href={`/experts/${rec.expertId}`} target="_blank" rel="noopener noreferrer">View Profile</a>
               </Button>
             </div>
           </div>
