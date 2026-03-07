@@ -76,10 +76,12 @@ export default function ProfilePage() {
 
   const [improvingIntro, setImprovingIntro] = useState(false);
   const [improvingServices, setImprovingServices] = useState(false);
+  const saveMessageRef = useRef<HTMLParagraphElement>(null);
 
   const [regenerating, setRegenerating] = useState(false);
   const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [avatarCacheBuster, setAvatarCacheBuster] = useState("");
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -116,6 +118,9 @@ export default function ProfilePage() {
   const showMessage = (msg: string, duration = 3000) => {
     setSaveMessage(msg);
     setTimeout(() => setSaveMessage(null), duration);
+    requestAnimationFrame(() => {
+      saveMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
   };
 
   const saveSection = async (data: Record<string, unknown>) => {
@@ -313,6 +318,7 @@ export default function ProfilePage() {
       setProfile((prev) =>
         prev ? { ...prev, hasAvatar: !!data.profileImage } : prev
       );
+      setAvatarCacheBuster(`?t=${Date.now()}`);
       showMessage("Profile image regenerated!");
     } catch (err) {
       showMessage(
@@ -373,6 +379,7 @@ export default function ProfilePage() {
       <div className="space-y-6 p-4">
         {saveMessage && (
           <p
+            ref={saveMessageRef}
             className={`text-sm text-center rounded-lg px-4 py-2 ${
               saveMessage.includes("saved") || saveMessage.includes("uploaded") || saveMessage.includes("regenerated")
                 ? "bg-emerald-500/10 text-emerald-700"
@@ -475,7 +482,7 @@ export default function ProfilePage() {
                   <div className="aspect-square rounded-xl overflow-hidden bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={`/api/experts/${profile.id}/avatar`}
+                      src={`/api/experts/${profile.id}/avatar${avatarCacheBuster}`}
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />
