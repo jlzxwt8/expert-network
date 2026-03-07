@@ -46,7 +46,7 @@ export async function GET(
     const [, contentType, base64Data] = match;
     const buffer = Buffer.from(base64Data, "base64");
 
-    const safeFilename = expert.documentName.replace(/[^\w\s.\-()]/g, '_');
+    const safeFilename = expert.documentName.replace(/[^ -~]/g, '_').replace(/"/g, "'");
     const encodedFilename = encodeURIComponent(expert.documentName);
 
     // #region agent log
