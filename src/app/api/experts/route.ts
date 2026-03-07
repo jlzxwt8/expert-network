@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       ...(sessionTypeParam
         ? sessionTypeParam === "BOTH"
           ? {}
-          : { sessionType: sessionTypeParam }
+          : { sessionType: { in: [sessionTypeParam, "BOTH"] } }
         : {}),
     };
 
