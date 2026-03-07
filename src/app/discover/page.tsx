@@ -98,7 +98,7 @@ function ExpertCard({ expert }: { expert: Expert }) {
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">
       <CardContent className="p-4">
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-start">
           <div
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-lg font-semibold text-white"
             aria-hidden
@@ -119,16 +119,11 @@ function ExpertCard({ expert }: { expert: Expert }) {
               )}
             </div>
             <div className="mt-1 flex flex-wrap gap-1">
-              {expert.domains.slice(0, 3).map((d) => (
+              {expert.domains.map((d) => (
                 <Badge key={d} variant="outline" className="text-xs">
                   {d}
                 </Badge>
               ))}
-              {expert.domains.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{expert.domains.length - 3} more
-                </Badge>
-              )}
             </div>
             <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
               <div className="flex">
@@ -147,10 +142,15 @@ function ExpertCard({ expert }: { expert: Expert }) {
                 {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
               </span>
             </div>
-            <Button asChild size="sm" className="mt-3 w-full">
-              <a href={`/experts/${expert.id}`} target="_blank" rel="noopener noreferrer">View Profile</a>
-            </Button>
           </div>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Button asChild size="sm" className="flex-1">
+            <Link href={`/experts/${expert.id}/book?from=browse`}>Book Session</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="flex-1">
+            <a href={`/experts/${expert.id}`} target="_blank" rel="noopener noreferrer">View Profile</a>
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -180,7 +180,7 @@ function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
             <p className="mt-1 text-sm text-muted-foreground">{rec.reason}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm">
-                <Link href={`/experts/${rec.expertId}/book`}>Book Free Session</Link>
+                <Link href={`/experts/${rec.expertId}/book?from=match`}>Book Free Session</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <a href={`/experts/${rec.expertId}`} target="_blank" rel="noopener noreferrer">View Profile</a>
@@ -435,7 +435,7 @@ function DiscoverContent() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 {experts.map((expert) => (
                   <ExpertCard key={expert.id} expert={expert} />
                 ))}
