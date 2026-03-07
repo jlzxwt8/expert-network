@@ -9,6 +9,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/user-menu";
 
 export default function Home() {
   return (
@@ -25,12 +26,7 @@ export default function Home() {
                 Help&Grow Community
               </span>
             </div>
-            <Link
-              href="/profile"
-              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
-            >
-              My Profile
-            </Link>
+            <UserMenu variant="light" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
             Connect with Singapore&apos;s Top Tech Experts

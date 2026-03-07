@@ -53,7 +53,9 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(expert);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { documentData: _dd, ...expertWithoutDocData } = expert;
+    return NextResponse.json(expertWithoutDocData);
   } catch (error) {
     console.error("[experts/[id] GET]", error);
     return NextResponse.json(

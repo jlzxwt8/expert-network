@@ -2,8 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
-import Link from "next/link";
 import {
   Star,
   Shield,
@@ -11,8 +9,8 @@ import {
   Sparkles,
   Send,
   Loader2,
-  User,
 } from "lucide-react";
+import { UserMenu } from "@/components/user-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -206,7 +204,6 @@ export default function DiscoverPage() {
 function DiscoverContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
   const [experts, setExperts] = useState<Expert[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -367,22 +364,7 @@ function DiscoverContent() {
             <h1 className="text-xl font-bold text-foreground">
               Discover Experts
             </h1>
-            {session ? (
-              <Link
-                href="/profile"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-medium hover:opacity-90 transition-opacity"
-                title="My Profile"
-              >
-                {(session.user?.name ?? session.user?.email ?? "U").charAt(0).toUpperCase()}
-              </Link>
-            ) : (
-              <Button asChild variant="outline" size="sm">
-                <Link href="/auth/signin" className="gap-1.5">
-                  <User className="h-4 w-4" />
-                  Sign In
-                </Link>
-              </Button>
-            )}
+            <UserMenu />
           </div>
 
           {/* Domain chips */}

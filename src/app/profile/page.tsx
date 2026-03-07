@@ -5,7 +5,6 @@ import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
-  Save,
   Upload,
   FileText,
   X,
@@ -15,13 +14,13 @@ import {
   Trash2,
   Plus,
   ExternalLink,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { DOMAINS } from "@/lib/constants";
 
 interface ServiceItem {
@@ -53,13 +52,21 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<ExpertProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const [domains, setDomains] = useState<string[]>([]);
   const [bio, setBio] = useState("");
   const [introScript, setIntroScript] = useState("");
   const [services, setServices] = useState<ServiceItem[]>([]);
+
+  const [editingDomains, setEditingDomains] = useState(false);
+  const [savingDomains, setSavingDomains] = useState(false);
+
+  const [editingIntro, setEditingIntro] = useState(false);
+  const [savingIntro, setSavingIntro] = useState(false);
+
+  const [editingServices, setEditingServices] = useState(false);
+  const [savingServices, setSavingServices] = useState(false);
 
   const [uploading, setUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
@@ -100,14 +107,72 @@ export default function ProfilePage() {
     }
   }, [sessionStatus, fetchProfile, router]);
 
+  const showMessage = (msg: string, duration = 3000) => {
+    setSaveMessage(msg);
+    setTimeout(() => setSaveMessage(null), duration);
+  };
+
+  const saveSection = async (data: Record<string, unknown>) => {
+    const res = await fetch("/api/expert/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      throw new Error(d.error ?? "Failed to save");
+    }
+    return res.json();
+  };
+
+  const handleSaveDomains = async () => {
+    setSavingDomains(true);
+    try {
+      await saveSection({ domains });
+      setEditingDomains(false);
+      showMessage("Service domains saved!");
+      setShowRegeneratePrompt(true);
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Save failed", 5000);
+    } finally {
+      setSavingDomains(false);
+    }
+  };
+
+  const handleCancelDomains = () => {
+    setDomains(profile?.domains ?? []);
+    setEditingDomains(false);
+  };
+
   const toggleDomain = (domain: string) => {
     setDomains((prev) =>
       prev.includes(domain) ? prev.filter((d) => d !== domain) : [...prev, domain]
     );
   };
 
+  const handleSaveIntro = async () => {
+    setSavingIntro(true);
+    try {
+      await saveSection({ avatarScript: introScript, bio });
+      setEditingIntro(false);
+      showMessage("Introduction saved!");
+      setShowRegeneratePrompt(true);
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Save failed", 5000);
+    } finally {
+      setSavingIntro(false);
+    }
+  };
+
+  const handleCancelIntro = () => {
+    setIntroScript(profile?.avatarScript ?? "");
+    setBio(profile?.bio ?? "");
+    setEditingIntro(false);
+  };
+
   const handleAddService = () => {
     setServices((prev) => [...prev, { title: "", description: "" }]);
+    if (!editingServices) setEditingServices(true);
   };
 
   const handleServiceChange = (index: number, field: "title" | "description", value: string) => {
@@ -120,6 +185,27 @@ export default function ProfilePage() {
 
   const handleRemoveService = (index: number) => {
     setServices((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveServices = async () => {
+    setSavingServices(true);
+    try {
+      const validServices = services.filter((s) => s.title.trim());
+      await saveSection({ servicesOffered: validServices });
+      setServices(validServices);
+      setEditingServices(false);
+      showMessage("Services saved!");
+      setShowRegeneratePrompt(true);
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Save failed", 5000);
+    } finally {
+      setSavingServices(false);
+    }
+  };
+
+  const handleCancelServices = () => {
+    setServices((profile?.servicesOffered as ServiceItem[] | null) ?? []);
+    setEditingServices(false);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,45 +224,12 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setUploadedFileName(file.name);
+      showMessage("Document uploaded!");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Upload failed");
+      showMessage(err instanceof Error ? err.message : "Upload failed", 5000);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleSave = async () => {
-    if (!profile) return;
-    setSaving(true);
-    setSaveMessage(null);
-
-    try {
-      const validServices = services.filter((s) => s.title.trim());
-      const res = await fetch("/api/expert/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          domains,
-          bio,
-          avatarScript: introScript,
-          servicesOffered: validServices,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to save");
-      }
-
-      setSaveMessage("Profile saved successfully!");
-      setShowRegeneratePrompt(true);
-
-      setTimeout(() => setSaveMessage(null), 3000);
-    } catch (err) {
-      setSaveMessage(err instanceof Error ? err.message : "Save failed");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -195,13 +248,12 @@ export default function ProfilePage() {
       setProfile((prev) =>
         prev ? { ...prev, avatarVideoUrl: data.profileImage } : prev
       );
-      setSaveMessage("Profile image regenerated!");
-      setTimeout(() => setSaveMessage(null), 3000);
+      showMessage("Profile image regenerated!");
     } catch (err) {
-      setSaveMessage(
-        err instanceof Error ? err.message : "Failed to regenerate image"
+      showMessage(
+        err instanceof Error ? err.message : "Failed to regenerate image",
+        5000
       );
-      setTimeout(() => setSaveMessage(null), 5000);
     } finally {
       setRegenerating(false);
     }
@@ -216,33 +268,90 @@ export default function ProfilePage() {
   }
 
   const isExpert = !!profile;
-  const displayName =
-    session?.user?.name ??
+  const nickName =
+    profile?.user?.nickName ??
     (session?.user as { nickName?: string })?.nickName ??
-    session?.user?.email ??
+    session?.user?.name ??
     "User";
+  const email = profile?.user?.email ?? session?.user?.email;
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background pb-12">
       <header className="border-b px-4 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold">My Profile</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold truncate">{nickName}</h1>
+            <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="truncate">{email}</span>
+              {isExpert && (
+                <button
+                  onClick={() => window.open(`/experts/${profile.id}`, "_blank")}
+                  className="shrink-0 flex items-center gap-1 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View Profile
+                </button>
+              )}
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="gap-2 text-muted-foreground"
+            className="gap-2 text-muted-foreground shrink-0"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
           </Button>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {displayName} &middot; {session?.user?.email}
-        </p>
       </header>
 
       <div className="space-y-6 p-4">
+        {saveMessage && (
+          <p
+            className={`text-sm text-center rounded-lg px-4 py-2 ${
+              saveMessage.includes("saved") || saveMessage.includes("uploaded") || saveMessage.includes("regenerated")
+                ? "bg-emerald-500/10 text-emerald-700"
+                : "bg-destructive/10 text-destructive"
+            }`}
+          >
+            {saveMessage}
+          </p>
+        )}
+
+        {showRegeneratePrompt && (
+          <Card className="border-indigo-200 dark:border-indigo-800">
+            <CardContent className="p-4">
+              <p className="text-sm text-muted-foreground mb-3">
+                Regenerate your profile image based on the updated profile?
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={handleRegenerateImage}
+                  disabled={regenerating}
+                >
+                  {regenerating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Regenerate
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setShowRegeneratePrompt(false)}
+                >
+                  Skip
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {!isExpert ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -296,34 +405,62 @@ export default function ProfilePage() {
               </Card>
             )}
 
-            {/* View Public Profile */}
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={() =>
-                window.open(`/experts/${profile.id}`, "_blank")
-              }
-            >
-              <ExternalLink className="h-4 w-4" />
-              View Public Profile
-            </Button>
-
             {/* Service Domains */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Service Domains</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Service Domains</CardTitle>
+                  {!editingDomains ? (
+                    <Button variant="ghost" size="sm" onClick={() => setEditingDomains(true)} className="gap-1">
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCancelDomains}
+                        className="gap-1"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveDomains}
+                        disabled={savingDomains}
+                        className="gap-1"
+                      >
+                        {savingDomains ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-2">
                   {DOMAINS.map((d) => (
-                    <Badge
+                    <label
                       key={d}
-                      variant={domains.includes(d) ? "default" : "outline"}
-                      className="cursor-pointer transition-colors"
-                      onClick={() => toggleDomain(d)}
+                      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                        editingDomains ? "cursor-pointer hover:bg-accent" : "cursor-default opacity-80"
+                      } ${domains.includes(d) ? "border-primary bg-primary/5" : ""}`}
                     >
-                      {d}
-                    </Badge>
+                      <input
+                        type="checkbox"
+                        checked={domains.includes(d)}
+                        onChange={() => editingDomains && toggleDomain(d)}
+                        disabled={!editingDomains}
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className={domains.includes(d) ? "font-medium" : ""}>{d}</span>
+                    </label>
                   ))}
                 </div>
               </CardContent>
@@ -332,15 +469,44 @@ export default function ProfilePage() {
             {/* Introduction Script */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Introduction Script</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Introduction Script</CardTitle>
+                  {!editingIntro ? (
+                    <Button variant="ghost" size="sm" onClick={() => setEditingIntro(true)} className="gap-1">
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={handleCancelIntro} className="gap-1">
+                        <X className="h-3.5 w-3.5" />
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleSaveIntro} disabled={savingIntro} className="gap-1">
+                        {savingIntro ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
-                <Textarea
-                  value={introScript}
-                  onChange={(e) => setIntroScript(e.target.value)}
-                  rows={6}
-                  placeholder="Write your introduction..."
-                />
+                {editingIntro ? (
+                  <Textarea
+                    value={introScript}
+                    onChange={(e) => setIntroScript(e.target.value)}
+                    rows={6}
+                    placeholder="Write your introduction..."
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap min-h-[4rem]">
+                    {introScript || "No introduction yet. Click Edit to add one."}
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -349,55 +515,80 @@ export default function ProfilePage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">Services Offered</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleAddService}
-                    className="gap-1"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add
-                  </Button>
+                  <div className="flex gap-1">
+                    {!editingServices ? (
+                      <Button variant="ghost" size="sm" onClick={() => setEditingServices(true)} className="gap-1">
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </Button>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={handleCancelServices} className="gap-1">
+                          <X className="h-3.5 w-3.5" />
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSaveServices} disabled={savingServices} className="gap-1">
+                          {savingServices ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
+                          Save
+                        </Button>
+                      </>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={handleAddService} className="gap-1">
+                      <Plus className="h-3.5 w-3.5" />
+                      Add
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3">
                 {services.length === 0 && (
                   <p className="text-sm text-muted-foreground py-4 text-center">
-                    No services added yet. Click &quot;Add&quot; to create one.
+                    No services yet. Click Add to create one.
                   </p>
                 )}
                 {services.map((service, index) => (
-                  <div key={index} className="space-y-2 rounded-lg border p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Service {index + 1}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleRemoveService(index)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </Button>
-                    </div>
-                    <Input
-                      value={service.title}
-                      onChange={(e) =>
-                        handleServiceChange(index, "title", e.target.value)
-                      }
-                      placeholder="Service title"
-                      className="text-sm"
-                    />
-                    <Textarea
-                      value={service.description}
-                      onChange={(e) =>
-                        handleServiceChange(index, "description", e.target.value)
-                      }
-                      placeholder="Brief description..."
-                      rows={2}
-                      className="text-sm"
-                    />
+                  <div key={index} className="rounded-lg border p-3">
+                    {editingServices ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">
+                            Service {index + 1}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => handleRemoveService(index)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                        <Input
+                          value={service.title}
+                          onChange={(e) => handleServiceChange(index, "title", e.target.value)}
+                          placeholder="Service title"
+                          className="text-sm"
+                        />
+                        <Textarea
+                          value={service.description}
+                          onChange={(e) => handleServiceChange(index, "description", e.target.value)}
+                          placeholder="Brief description..."
+                          rows={2}
+                          className="text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <h4 className="font-medium text-sm">{service.title}</h4>
+                        {service.description && (
+                          <p className="mt-1 text-sm text-muted-foreground">{service.description}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </CardContent>
@@ -416,14 +607,6 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground rounded-lg border p-3">
                     <FileText className="h-4 w-4 shrink-0" />
                     <span className="truncate flex-1">{uploadedFileName}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 shrink-0"
-                      onClick={() => setUploadedFileName(null)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
                 )}
                 <input
@@ -456,71 +639,6 @@ export default function ProfilePage() {
                 </p>
               </CardContent>
             </Card>
-
-            <Separator />
-
-            {/* Save Button */}
-            <div className="space-y-3">
-              {saveMessage && (
-                <p
-                  className={`text-sm text-center rounded-lg px-4 py-2 ${
-                    saveMessage.includes("success") || saveMessage.includes("regenerated")
-                      ? "bg-emerald-500/10 text-emerald-700"
-                      : "bg-destructive/10 text-destructive"
-                  }`}
-                >
-                  {saveMessage}
-                </p>
-              )}
-
-              {showRegeneratePrompt && (
-                <Card className="border-indigo-200 dark:border-indigo-800">
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Would you like to regenerate your profile image based on the updated profile?
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="flex-1 gap-2"
-                        onClick={handleRegenerateImage}
-                        disabled={regenerating}
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        Regenerate
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => setShowRegeneratePrompt(false)}
-                      >
-                        Skip
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Button
-                size="lg"
-                className="w-full gap-2 text-base font-semibold"
-                onClick={handleSave}
-                disabled={saving || regenerating}
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-5 w-5" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </div>
           </>
         )}
       </div>

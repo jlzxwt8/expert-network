@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const expert = await prisma.expert.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { documentName: true, documentData: true },
     });
 
