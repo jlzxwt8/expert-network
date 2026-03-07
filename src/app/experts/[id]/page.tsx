@@ -6,13 +6,12 @@ import Link from "next/link";
 import {
   Star,
   Shield,
-  Video,
+  Sparkles,
   Link2,
   MapPin,
   Monitor,
   Loader2,
   Linkedin,
-  Github,
   Twitter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,9 +42,11 @@ interface Expert {
   avgRating: number;
   reviewCount: number;
   linkedIn: string | null;
-  github: string | null;
   twitter: string | null;
   substack: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  xiaohongshu: string | null;
   avatarVideoUrl: string | null;
   user: ExpertUser;
 }
@@ -74,15 +75,17 @@ interface ReviewsResponse {
 
 const socialConfig = [
   { key: "linkedIn" as const, label: "LinkedIn", icon: Linkedin, getUrl: (e: Expert) => e.linkedIn },
-  { key: "github" as const, label: "GitHub", icon: Github, getUrl: (e: Expert) => e.github },
   { key: "twitter" as const, label: "X", icon: Twitter, getUrl: (e: Expert) => e.twitter },
   { key: "substack" as const, label: "Substack", icon: Link2, getUrl: (e: Expert) => e.substack },
+  { key: "instagram" as const, label: "Instagram", icon: Link2, getUrl: (e: Expert) => e.instagram },
+  { key: "tiktok" as const, label: "TikTok", icon: Link2, getUrl: (e: Expert) => e.tiktok },
+  { key: "xiaohongshu" as const, label: "XiaoHongShu", icon: Link2, getUrl: (e: Expert) => e.xiaohongshu },
 ];
 
 function HeroSkeleton() {
   return (
     <div className="space-y-4">
-      <div className="aspect-video rounded-xl bg-muted animate-pulse" />
+      <div className="aspect-square rounded-xl bg-muted animate-pulse" />
       <div className="h-8 w-48 rounded bg-muted animate-pulse" />
       <div className="flex gap-2">
         <div className="h-6 w-20 rounded bg-muted animate-pulse" />
@@ -225,23 +228,24 @@ export default function ExpertProfilePage() {
     return url && url.trim() !== "";
   });
   const hasMoreReviews = reviews.length < reviewsTotal;
+  const isImageDataUrl = expert.avatarVideoUrl?.startsWith("data:image");
 
   return (
     <div className="min-h-screen w-full max-w-lg mx-auto px-4 pb-28">
-      {/* Hero */}
+      {/* Hero - Profile Image */}
       <section className="pt-4">
-        <div className="aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-          {expert.avatarVideoUrl ? (
-            <video
-              src={expert.avatarVideoUrl}
-              controls
+        <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+          {isImageDataUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={expert.avatarVideoUrl!}
+              alt={`${name}'s avatar`}
               className="w-full h-full object-cover"
-              poster=""
             />
           ) : (
-            <div className="flex flex-col items-center justify-center text-white/80">
-              <Video className="h-16 w-16 mb-2" />
-              <span className="text-sm">Video coming soon</span>
+            <div className="flex flex-col items-center justify-center text-indigo-300">
+              <Sparkles className="h-16 w-16 mb-2" />
+              <span className="text-sm">Avatar coming soon</span>
             </div>
           )}
         </div>

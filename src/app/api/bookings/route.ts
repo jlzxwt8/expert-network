@@ -79,6 +79,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const meetingLink =
+      typeof body.meetingLink === "string" ? body.meetingLink.trim() : null;
+
     const booking = await prisma.booking.create({
       data: {
         expertId,
@@ -87,6 +90,7 @@ export async function POST(request: NextRequest) {
         startTime: start,
         endTime: end,
         timezone,
+        meetingLink: meetingLink || null,
         status: "CONFIRMED",
       },
       include: {

@@ -9,9 +9,10 @@ import {
   MapPin,
   Loader2,
 } from "lucide-react";
-import { format, isSameDay, parseISO } from "date-fns";
+import { format, isSameDay, parseISO, setHours, setMinutes, addHours, startOfDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 type SessionType = "ONLINE" | "OFFLINE";
@@ -23,6 +24,27 @@ interface AvailableSlot {
   isBooked: boolean;
 }
 
+interface DefaultSlot {
+  id: string;
+  startTime: string;
+  endTime: string;
+}
+
+function generateDefaultSlots(date: Date): DefaultSlot[] {
+  const day = startOfDay(date);
+  const slots: DefaultSlot[] = [];
+  for (let hour = 10; hour < 18; hour++) {
+    const start = setMinutes(setHours(day, hour), 0);
+    const end = addHours(start, 1);
+    slots.push({
+      id: `default-${hour}`,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+    });
+  }
+  return slots;
+}
+
 export default function BookSessionPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -31,11 +53,12 @@ export default function BookSessionPage() {
 
   const [sessionType, setSessionType] = useState<SessionType>("ONLINE");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
-  const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<DefaultSlot | AvailableSlot | null>(null);
+  const [slots, setSlots] = useState<(DefaultSlot | AvailableSlot)[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offlineAddress, setOfflineAddress] = useState("");
 
   const timezone =
     typeof Intl !== "undefined"
@@ -73,6 +96,7 @@ export default function BookSessionPage() {
     setSlotsLoading(true);
     setSlots([]);
     setSelectedSlot(null);
+
     fetch(`/api/experts/${expertId}/slots`)
       .then((res) => res.json())
       .then((data) => {
@@ -81,10 +105,25 @@ export default function BookSessionPage() {
         const forDate = list.filter((s: AvailableSlot) =>
           isSameDay(parseISO(s.startTime), selectedDate)
         );
-        setSlots(forDate);
+
+        if (forDate.length > 0) {
+          setSlots(forDate);
+        } else {
+          const now = new Date();
+          const defaultSlots = generateDefaultSlots(selectedDate).filter(
+            (s) => new Date(s.startTime) > now
+          );
+          setSlots(defaultSlots);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSlots([]);
+        if (!cancelled) {
+          const now = new Date();
+          const defaultSlots = generateDefaultSlots(selectedDate).filter(
+            (s) => new Date(s.startTime) > now
+          );
+          setSlots(defaultSlots);
+        }
       })
       .finally(() => {
         if (!cancelled) setSlotsLoading(false);
@@ -96,6 +135,10 @@ export default function BookSessionPage() {
 
   const handleConfirm = async () => {
     if (!selectedSlot || !expertId) return;
+    if (sessionType === "OFFLINE" && !offlineAddress.trim()) {
+      setError("Please enter a meeting address for offline sessions.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -108,6 +151,7 @@ export default function BookSessionPage() {
           startTime: selectedSlot.startTime,
           endTime: selectedSlot.endTime,
           timezone,
+          ...(sessionType === "OFFLINE" && { meetingLink: offlineAddress.trim() }),
         }),
       });
       const data = await res.json();
@@ -122,7 +166,11 @@ export default function BookSessionPage() {
     }
   };
 
-  const canConfirm = !!selectedDate && !!selectedSlot && !submitting;
+  const canConfirm =
+    !!selectedDate &&
+    !!selectedSlot &&
+    !submitting &&
+    (sessionType === "ONLINE" || offlineAddress.trim().length > 0);
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
@@ -172,6 +220,20 @@ export default function BookSessionPage() {
           </div>
         </section>
 
+        {sessionType === "OFFLINE" && (
+          <section>
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+              Meeting address
+            </h2>
+            <Input
+              value={offlineAddress}
+              onChange={(e) => setOfflineAddress(e.target.value)}
+              placeholder="Enter the meeting location or address"
+              className="min-h-[44px]"
+            />
+          </section>
+        )}
+
         <section>
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">
             Select date
@@ -191,7 +253,7 @@ export default function BookSessionPage() {
             Available times
           </h2>
           <p className="mb-2 text-xs text-muted-foreground">
-            Times shown in {timezone}
+            Times shown in {timezone} · 1 hour per session
           </p>
           {!selectedDate ? (
             <p className="rounded-lg border border-dashed border-muted-foreground/30 py-8 text-center text-sm text-muted-foreground">
@@ -201,7 +263,7 @@ export default function BookSessionPage() {
             <div className="flex items-center justify-center gap-2 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                Loading slots…
+                Loading slots...
               </span>
             </div>
           ) : slots.length === 0 ? (
@@ -209,7 +271,7 @@ export default function BookSessionPage() {
               No available slots for this date
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {slots.map((slot) => (
                 <button
                   key={slot.id}
@@ -244,7 +306,7 @@ export default function BookSessionPage() {
           {submitting ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              Booking…
+              Booking...
             </>
           ) : (
             "Confirm Booking"
