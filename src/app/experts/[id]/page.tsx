@@ -48,6 +48,7 @@ interface Expert {
   tiktok: string | null;
   xiaohongshu: string | null;
   avatarVideoUrl: string | null;
+  avatarScript: string | null;
   documentName: string | null;
   user: ExpertUser;
 }
@@ -287,21 +288,15 @@ export default function ExpertProfilePage() {
         </div>
       </section>
 
-      {/* Bio */}
+      {/* About / Introduction Script */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-foreground mb-3">About</h2>
-        {expert.bio ? (
-          <div
-            className="prose prose-sm dark:prose-invert max-w-none text-muted-foreground"
-            dangerouslySetInnerHTML={{
-              __html: expert.bio
-                .replace(/\n/g, "<br />")
-                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                .replace(/\*(.*?)\*/g, "<em>$1</em>"),
-            }}
-          />
+        {expert.avatarScript ? (
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+            {expert.avatarScript}
+          </p>
         ) : (
-          <p className="text-muted-foreground">No bio available.</p>
+          <p className="text-muted-foreground">No introduction available.</p>
         )}
       </section>
 
