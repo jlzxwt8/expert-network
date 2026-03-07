@@ -46,9 +46,19 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[expert/improve POST]", message, error);
+
+    const isRateLimit =
+      (error as { status?: number })?.status === 429 ||
+      message.includes("RESOURCE_EXHAUSTED") ||
+      message.includes("quota");
+
     return NextResponse.json(
-      { error: `Failed to improve content: ${message}` },
-      { status: 500 }
+      {
+        error: isRateLimit
+          ? "AI quota exceeded. Please try again later."
+          : `Failed to improve content. Please try again.`,
+      },
+      { status: isRateLimit ? 429 : 500 }
     );
   }
 }
