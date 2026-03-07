@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Star,
   Shield,
@@ -13,11 +14,13 @@ import {
   Linkedin,
   Twitter,
   FileDown,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { UserMenu } from "@/components/user-menu";
 
 interface ExpertUser {
   id: string;
@@ -232,7 +235,21 @@ export default function ExpertProfilePage() {
   const hasMoreReviews = reviews.length < reviewsTotal;
 
   return (
-    <div className="min-h-screen w-full max-w-lg mx-auto px-4 pb-28">
+    <div className="min-h-screen w-full max-w-lg mx-auto pb-28">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 py-3">
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Home
+          </Link>
+          <UserMenu />
+        </div>
+      </header>
+
+      <div className="px-4">
       {/* Hero - Profile Image */}
       <section className="pt-4">
         <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
@@ -435,6 +452,8 @@ export default function ExpertProfilePage() {
           </>
         )}
       </section>
+
+      </div>
 
       {/* Sticky Bottom Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t safe-area-inset-bottom">

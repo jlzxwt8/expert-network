@@ -11,7 +11,9 @@ import {
   MapPin,
   ExternalLink,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
+import { UserMenu } from "@/components/user-menu";
 import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,8 +103,20 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
-      <header className="border-b px-4 py-6">
-        <h1 className="text-xl font-bold">Dashboard</h1>
+      <header className="border-b px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <Link
+              href="/"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Home
+            </Link>
+            <h1 className="text-xl font-bold">Dashboard</h1>
+          </div>
+          <UserMenu />
+        </div>
       </header>
 
       <main className="space-y-6 p-4 pb-12">

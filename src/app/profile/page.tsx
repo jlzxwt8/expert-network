@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -10,7 +10,6 @@ import {
   FileDown,
   X,
   ImageIcon,
-  LogOut,
   Sparkles,
   ArrowLeft,
   Trash2,
@@ -24,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DOMAINS } from "@/lib/constants";
+import { UserMenu } from "@/components/user-menu";
 
 interface ServiceItem {
   title: string;
@@ -366,15 +366,7 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="gap-2 text-muted-foreground shrink-0"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
+          <UserMenu />
         </div>
       </header>
 
