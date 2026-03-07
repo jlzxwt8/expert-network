@@ -73,6 +73,9 @@ export default function ProfilePage() {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [improvingIntro, setImprovingIntro] = useState(false);
+  const [improvingServices, setImprovingServices] = useState(false);
+
   const [regenerating, setRegenerating] = useState(false);
   const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
 
@@ -207,6 +210,47 @@ export default function ProfilePage() {
   const handleCancelServices = () => {
     setServices((profile?.servicesOffered as ServiceItem[] | null) ?? []);
     setEditingServices(false);
+  };
+
+  const handleImproveIntro = async () => {
+    if (!introScript.trim()) return;
+    setImprovingIntro(true);
+    try {
+      const res = await fetch("/api/expert/improve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "intro", content: introScript }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setIntroScript(data.improved);
+      showMessage("Introduction improved by AI!");
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "AI improvement failed", 5000);
+    } finally {
+      setImprovingIntro(false);
+    }
+  };
+
+  const handleImproveServices = async () => {
+    const valid = services.filter((s) => s.title.trim());
+    if (valid.length === 0) return;
+    setImprovingServices(true);
+    try {
+      const res = await fetch("/api/expert/improve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "services", content: valid }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setServices(data.improved);
+      showMessage("Services improved by AI!");
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "AI improvement failed", 5000);
+    } finally {
+      setImprovingServices(false);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -498,12 +542,28 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 {editingIntro ? (
-                  <Textarea
-                    value={introScript}
-                    onChange={(e) => setIntroScript(e.target.value)}
-                    rows={6}
-                    placeholder="Write your introduction..."
-                  />
+                  <>
+                    <Textarea
+                      value={introScript}
+                      onChange={(e) => setIntroScript(e.target.value)}
+                      rows={6}
+                      placeholder="Write your introduction..."
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 gap-1.5"
+                      onClick={handleImproveIntro}
+                      disabled={improvingIntro || !introScript.trim()}
+                    >
+                      {improvingIntro ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5" />
+                      )}
+                      Improve with AI
+                    </Button>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap min-h-[4rem]">
                     {introScript || "No introduction yet. Click Edit to add one."}
@@ -593,6 +653,22 @@ export default function ProfilePage() {
                     )}
                   </div>
                 ))}
+                {editingServices && services.some((s) => s.title.trim()) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={handleImproveServices}
+                    disabled={improvingServices}
+                  >
+                    {improvingServices ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    Improve with AI
+                  </Button>
+                )}
               </CardContent>
             </Card>
 

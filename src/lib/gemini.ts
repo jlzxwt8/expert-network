@@ -246,6 +246,44 @@ export async function generateProfileImage(data: {
   }
 }
 
+export async function improveWriting(
+  type: "intro" | "services",
+  content: string
+): Promise<string> {
+  const prompt =
+    type === "intro"
+      ? `You are a professional copywriter for the Help&Grow Expert Network.
+
+Improve this expert's introduction script. Rules:
+- Keep ALL facts, names, and claims unchanged
+- Maintain first-person tone
+- Make it more professional, concise, and engaging
+- Target 45-60 seconds spoken length
+- Do NOT add fabricated details
+- Return ONLY the improved text, no explanations or quotes
+
+Current introduction:
+${content}`
+      : `You are a professional copywriter for the Help&Grow Expert Network.
+
+Improve these service offerings. Rules:
+- Keep the same meaning and number of services
+- Make titles clearer and punchier (3-6 words)
+- Make descriptions more compelling and concise (one sentence each)
+- Do NOT add new services or remove existing ones
+- Return ONLY a JSON array of objects with "title" and "description" keys, no markdown code fences
+
+Current services:
+${content}`;
+
+  const response = await ai.models.generateContent({
+    model: MODEL,
+    contents: prompt,
+  });
+
+  return (response.text ?? "").trim();
+}
+
 export async function matchExperts(
   query: string,
   expertSummaries: string,

@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { improveWriting } from "@/lib/gemini";
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { type, content } = body;
+
+    if (type !== "intro" && type !== "services") {
+      return NextResponse.json(
+        { error: "Invalid type. Must be 'intro' or 'services'." },
+        { status: 400 }
+      );
+    }
+
+    if (!content || (typeof content === "string" && !content.trim())) {
+      return NextResponse.json(
+        { error: "Content is required." },
+        { status: 400 }
+      );
+    }
+
+    const contentStr = typeof content === "string" ? content : JSON.stringify(content);
+    const improved = await improveWriting(type, contentStr);
+
+    if (type === "services") {
+      const cleaned = improved.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return NextResponse.json({ improved: JSON.parse(jsonMatch[0]) });
+      }
+      return NextResponse.json(
+        { error: "AI returned invalid format. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ improved });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[expert/improve POST]", message, error);
+    return NextResponse.json(
+      { error: `Failed to improve content: ${message}` },
+      { status: 500 }
+    );
+  }
+}
