@@ -68,9 +68,17 @@ export async function POST(request: NextRequest) {
     let text = "";
 
     if (fileName.endsWith(".pdf")) {
-      text = await extractTextFromPdf(buffer);
+      try {
+        text = await extractTextFromPdf(buffer);
+      } catch (e) {
+        console.warn("[upload] PDF text extraction failed, saving file without text:", e instanceof Error ? e.message : e);
+      }
     } else if (fileName.endsWith(".docx")) {
-      text = await extractTextFromDocx(buffer);
+      try {
+        text = await extractTextFromDocx(buffer);
+      } catch (e) {
+        console.warn("[upload] DOCX text extraction failed, saving file without text:", e instanceof Error ? e.message : e);
+      }
     } else if (fileName.endsWith(".txt") || fileName.endsWith(".md")) {
       text = buffer.toString("utf-8");
     } else {
