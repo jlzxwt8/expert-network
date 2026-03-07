@@ -55,7 +55,11 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
       <button
         onClick={() => setOpen((v) => !v)}
         onMouseEnter={() => setOpen(true)}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+        className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-opacity hover:opacity-90 ${
+          variant === "light"
+            ? "bg-white/20 text-white ring-2 ring-white/40 backdrop-blur-sm"
+            : "bg-gradient-to-br from-indigo-500 to-purple-600 text-white"
+        }`}
       >
         {initial}
       </button>
