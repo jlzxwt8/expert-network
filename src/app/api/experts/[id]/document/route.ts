@@ -7,19 +7,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-
-    // #region agent log
-    console.log('[DEBUG-ce5563] Document download start', JSON.stringify({id}));
-    // #endregion
-
     const expert = await prisma.expert.findUnique({
       where: { id },
       select: { documentName: true, documentData: true },
     });
-
-    // #region agent log
-    console.log('[DEBUG-ce5563] Document download DB result', JSON.stringify({hasExpert:!!expert,documentName:expert?.documentName,hasDocData:!!expert?.documentData,docDataLen:expert?.documentData?.length??0}));
-    // #endregion
 
     if (!expert?.documentData || !expert.documentName) {
       return NextResponse.json(
@@ -31,11 +22,6 @@ export async function GET(
     const match = expert.documentData.match(
       /^data:([^;]+);base64,(.+)$/
     );
-
-    // #region agent log
-    console.log('[DEBUG-ce5563] Document download regex', JSON.stringify({matched:!!match,contentType:match?.[1]??null,base64Len:match?.[2]?.length??0}));
-    // #endregion
-
     if (!match) {
       return NextResponse.json(
         { error: "Invalid document data" },
@@ -49,10 +35,6 @@ export async function GET(
     const safeFilename = expert.documentName.replace(/[^ -~]/g, '_').replace(/"/g, "'");
     const encodedFilename = encodeURIComponent(expert.documentName);
 
-    // #region agent log
-    console.log('[DEBUG-ce5563] Document download response', JSON.stringify({contentType,bufferLen:buffer.length,safeFilename,encodedFilename}));
-    // #endregion
-
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
@@ -61,9 +43,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    // #region agent log
-    console.error('[DEBUG-ce5563] Document download ERROR', error instanceof Error ? error.message : String(error));
-    // #endregion
     console.error("[expert document GET]", error);
     return NextResponse.json(
       { error: "Internal server error" },

@@ -137,9 +137,6 @@ export default function ExpertProfilePage() {
       }
       const data = await res.json();
       setExpert(data);
-      // #region agent log
-      console.log('[DEBUG-ce5563] Public profile client', JSON.stringify({expertId:data.id,documentName:data.documentName,hasDocumentName:'documentName' in data}));
-      // #endregion
     } catch {
       setError("Failed to load profile");
       setExpert(null);

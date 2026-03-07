@@ -124,10 +124,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // #region agent log
-    console.log('[DEBUG-ce5563] Upload complete', JSON.stringify({expertId:expert.id,documentName:expert.documentName,hasDocData:!!expert.documentData,textExtracted:!!trimmedText,textLen:trimmedText.length}));
-    // #endregion
-
     return NextResponse.json({
       success: true,
       fileName: file.name,
