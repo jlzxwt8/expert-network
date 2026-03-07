@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Monitor,
   MapPin,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
+import { UserMenu } from "@/components/user-menu";
 import { format, isSameDay, parseISO, setHours, setMinutes, addHours, startOfDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -173,7 +176,19 @@ export default function BookSessionPage() {
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <h1 className="text-lg font-semibold">Book a Session</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <Link
+              href="/"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Home
+            </Link>
+            <h1 className="text-lg font-semibold">Book a Session</h1>
+          </div>
+          <UserMenu />
+        </div>
       </header>
 
       <main className="space-y-6 p-4 pb-8">

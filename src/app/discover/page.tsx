@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Star,
   Shield,
@@ -9,6 +10,7 @@ import {
   Sparkles,
   Send,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { Button } from "@/components/ui/button";
@@ -361,9 +363,18 @@ function DiscoverContent() {
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="px-4 pt-4 pb-2">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold text-foreground">
-              Discover Experts
-            </h1>
+            <div>
+              <Link
+                href="/"
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Home
+              </Link>
+              <h1 className="text-xl font-bold text-foreground">
+                Discover Experts
+              </h1>
+            </div>
             <UserMenu />
           </div>
 

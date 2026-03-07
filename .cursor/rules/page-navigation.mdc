@@ -1,0 +1,43 @@
+---
+description: Consistent navigation header pattern for all pages
+globs: src/app/**/page.tsx
+alwaysApply: false
+---
+
+# Page Navigation Pattern
+
+Every page (except the home page at `src/app/page.tsx`) must include:
+
+1. A **"Home" back link** with `ArrowLeft` icon on the left
+2. The **`UserMenu`** component on the right
+
+## Standard Header Template
+
+```tsx
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { UserMenu } from "@/components/user-menu";
+
+// Inside the page component's return:
+<header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 py-3">
+  <div className="flex items-center justify-between">
+    <div>
+      <Link
+        href="/"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Home
+      </Link>
+      <h1 className="text-xl font-bold">Page Title</h1>
+    </div>
+    <UserMenu />
+  </div>
+</header>
+```
+
+## Rules
+
+- The home page (`src/app/page.tsx`) does NOT get a back link — it IS the home.
+- All other pages must use `<UserMenu />` for the user icon (never a standalone Sign Out button).
+- External profile links should open in a new tab (`target="_blank" rel="noopener noreferrer"`).
