@@ -108,34 +108,44 @@ Professional domains: ${data.domains.join(", ")}
 Social profiles:
 ${socialLinks}${resumeSection}
 
-STEP 1 — Research: Use Google Search to look up EACH social profile link AND the expert's name. For LinkedIn, search for the URL directly AND also search for "[name] LinkedIn [company]" to find cached profile data. Gather ONLY verifiable facts:
-- Job title, company, professional headline from LinkedIn
+STEP 1 — Research: Use Google Search to look up EACH social profile link AND the expert's name. For LinkedIn, also search for "[name] LinkedIn [company]" to find cached profile data. Gather ONLY verifiable facts:
+- Job title, company, professional headline
 - Real work history and achievements
 - Follower/subscriber/connection counts (exact numbers only if found)
 - Content themes and recent posts
-- For Instagram/TikTok/XiaoHongShu: follower count, content focus — these indicate KOL/marketing capability
+- For Instagram/TikTok/XiaoHongShu: follower count, content focus
 
-STEP 1.5 — Merge sources: Combine facts from Google Search results WITH the uploaded document (if provided). The uploaded document may contain detailed experience, skills, and achievements. Google Search results may reveal the latest role, headline, and social presence. Use BOTH sources — prioritize the most specific and recent information from either source.
+IMPORTANT: Some platforms (X/Twitter, TikTok, XiaoHongShu/RedBook) block Google indexing. If Google Search returns NO usable results for a platform, honestly state that you could not find information for that platform. Do NOT guess, infer, or fabricate details for platforms you could not search.
 
-CRITICAL RULES:
-- NEVER fabricate or estimate numbers. If you cannot find an exact number, DO NOT mention it.
-- NEVER invent companies, job titles, or achievements not found in search results or the uploaded document.
-- If search returns limited info, rely more heavily on the uploaded document for experience details.
-- A profile that combines both sources is better than one that ignores either.
+STEP 2 — Merge sources and assess what you actually found:
+- For each social link, note whether Google Search returned real data or not.
+- Combine verified facts from Google Search WITH the uploaded document (if provided).
+- The uploaded document (resume/CV) is a TRUSTED source — use it for experience, skills, and achievements.
+- Google Search results are useful for latest role, public presence, and follower counts.
+- If a social link returned no data from search, do NOT pretend you found something. Simply omit it.
 
-STEP 2 — Generate a JSON object with these 3 keys:
+ABSOLUTE RULES — Truth over polish:
+- NEVER fabricate or estimate numbers. If you cannot find a follower count, do NOT mention one.
+- NEVER invent companies, job titles, achievements, or descriptions not found in search results or the uploaded document.
+- NEVER describe content themes for a platform you could not access.
+- A short, honest profile is ALWAYS better than a detailed but fabricated one.
+- If you only have the uploaded document and no search results, say so — build the profile from the document alone.
+
+STEP 3 — Generate a JSON object with these 4 keys:
 
 1. "bio" (STRING — must be a single markdown-formatted string, NOT an object or array):
 Write a concise third-person summary in markdown bullet points:
-- **Current Role**: Job title and company (if found)
+- **Current Role**: Job title and company (only if verified)
 - **Expertise**: 2-3 bullet points on distinct domain areas
 - **Track Record**: 1-2 bullet points with verifiable achievements
-- **Social Presence**: Follower/subscriber counts (only if found via search)
+- **Social Presence**: Only mention platforms where you found real data. For platforms where search returned nothing, omit them entirely.
 Keep under 100 words. No fluff.
 
 2. "services" (ARRAY of objects): 3-4 services following MECE (Mutually Exclusive, Collectively Exhaustive) principle. Each service covers a distinct, non-overlapping area. Format: {"title": "concise service name (3-5 words)", "description": "one-sentence value proposition for founders"}
 
-3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY real facts. Structure: who I am → what I do → how I help founders → book a session CTA.
+3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY real verified facts. Structure: who I am → what I do → how I help founders → book a session CTA.
+
+4. "sourceSummary" (STRING): A brief note listing which social platforms returned useful search data and which did not. Example: "Found data from: LinkedIn, Substack. No data from Google Search: X/Twitter, TikTok, XiaoHongShu (these platforms block search indexing)."
 
 IMPORTANT: "bio" must be a plain string with markdown formatting, never a JSON object or array.
 
@@ -169,10 +179,15 @@ Return ONLY the JSON object, no markdown code fences.`;
     throw new Error("AI returned invalid response format. Please try again.");
   }
 
+  if (parsed.sourceSummary) {
+    console.log("[generateExpertProfile] Source summary:", parsed.sourceSummary);
+  }
+
   return {
     bio: ensureString(parsed.bio),
     services: Array.isArray(parsed.services) ? parsed.services : [],
     videoScript: ensureString(parsed.videoScript),
+    sourceSummary: ensureString(parsed.sourceSummary ?? ""),
   };
 }
 
