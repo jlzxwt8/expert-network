@@ -7,6 +7,7 @@ import {
   Loader2,
   Upload,
   FileText,
+  FileDown,
   X,
   ImageIcon,
   LogOut,
@@ -228,6 +229,7 @@ export default function ProfilePage() {
       if (!res.ok) throw new Error(data.error);
       setUploadedFileName(file.name);
       showMessage("Document uploaded!");
+      fetchProfile();
     } catch (err) {
       showMessage(err instanceof Error ? err.message : "Upload failed", 5000);
     } finally {
@@ -607,10 +609,15 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 {uploadedFileName && (
-                  <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground rounded-lg border p-3">
-                    <FileText className="h-4 w-4 shrink-0" />
+                  <a
+                    href={`/api/experts/${profile.id}/document`}
+                    download
+                    className="flex items-center gap-2 mb-3 text-sm text-muted-foreground rounded-lg border p-3 hover:bg-accent transition-colors"
+                  >
+                    <FileDown className="h-4 w-4 shrink-0" />
                     <span className="truncate flex-1">{uploadedFileName}</span>
-                  </div>
+                    <span className="text-xs shrink-0">Download</span>
+                  </a>
                 )}
                 <input
                   ref={fileInputRef}

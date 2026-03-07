@@ -85,13 +85,6 @@ export async function POST(request: NextRequest) {
 
     const trimmedText = text.trim().slice(0, 5000);
 
-    if (!trimmedText) {
-      return NextResponse.json(
-        { error: "Could not extract text from file." },
-        { status: 400 }
-      );
-    }
-
     const mimeMap: Record<string, string> = {
       ".pdf": "application/pdf",
       ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -107,25 +100,33 @@ export async function POST(request: NextRequest) {
       where: { userId: session.user.id },
     });
 
+    const documentFields = {
+      documentName: file.name,
+      documentData: dataUrl,
+    };
+
     if (!expert) {
       expert = await prisma.expert.create({
         data: {
           userId: session.user.id,
-          avatarScript: trimmedText,
-          documentName: file.name,
-          documentData: dataUrl,
+          ...documentFields,
+          ...(trimmedText ? { avatarScript: trimmedText } : {}),
         },
       });
     } else {
+      const updateData: Record<string, unknown> = { ...documentFields };
+      if (trimmedText && !expert.bio) {
+        updateData.avatarScript = trimmedText;
+      }
       expert = await prisma.expert.update({
         where: { id: expert.id },
-        data: {
-          avatarScript: trimmedText,
-          documentName: file.name,
-          documentData: dataUrl,
-        },
+        data: updateData,
       });
     }
+
+    // #region agent log
+    console.log('[DEBUG-ce5563] Upload complete', JSON.stringify({expertId:expert.id,documentName:expert.documentName,hasDocData:!!expert.documentData,textExtracted:!!trimmedText,textLen:trimmedText.length}));
+    // #endregion
 
     return NextResponse.json({
       success: true,
