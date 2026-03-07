@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Monitor,
   MapPin,
   Loader2,
@@ -65,7 +64,6 @@ export default function BookSessionPage() {
       : "UTC";
 
   const typeFromUrl = searchParams.get("type");
-  const fromDiscover = searchParams.get("from");
   useEffect(() => {
     if (typeFromUrl === "ONLINE" || typeFromUrl === "OFFLINE") {
       setSessionType(typeFromUrl);
@@ -174,20 +172,7 @@ export default function BookSessionPage() {
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <button
-          onClick={() => {
-            if (fromDiscover) {
-              router.back();
-            } else {
-              router.push(`/experts/${expertId}`);
-            }
-          }}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+      <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <h1 className="text-lg font-semibold">Book a Session</h1>
       </header>
 

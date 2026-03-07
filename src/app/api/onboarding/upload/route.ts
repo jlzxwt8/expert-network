@@ -92,6 +92,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const mimeMap: Record<string, string> = {
+      ".pdf": "application/pdf",
+      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ".txt": "text/plain",
+      ".md": "text/markdown",
+    };
+    const ext = Object.keys(mimeMap).find((e) => fileName.endsWith(e)) ?? ".txt";
+    const mime = mimeMap[ext];
+    const base64File = buffer.toString("base64");
+    const dataUrl = `data:${mime};base64,${base64File}`;
+
     let expert = await prisma.expert.findUnique({
       where: { userId: session.user.id },
     });
@@ -101,12 +112,18 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           avatarScript: trimmedText,
+          documentName: file.name,
+          documentData: dataUrl,
         },
       });
     } else {
       expert = await prisma.expert.update({
         where: { id: expert.id },
-        data: { avatarScript: trimmedText },
+        data: {
+          avatarScript: trimmedText,
+          documentName: file.name,
+          documentData: dataUrl,
+        },
       });
     }
 

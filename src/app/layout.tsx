@@ -17,7 +17,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Help&Grow Expert Network",
-  description: "Connect with Singapore's top AI, fintech, and business experts. Book free advisory sessions with verified professionals.",
+  description: "Connect with Singapore's top AI, fintech, and business experts. Book advisory sessions with verified professionals.",
   keywords: ["Singapore", "experts", "AI", "fintech", "startup", "advisory"],
 };
 

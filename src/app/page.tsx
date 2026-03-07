@@ -18,17 +18,25 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-slate-500/10 via-transparent to-transparent" />
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-6">
-            <Users className="h-5 w-5 text-indigo-400" />
-            <span className="text-sm font-medium text-indigo-300 uppercase tracking-wider">
-              Help&Grow Community
-            </span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-indigo-400" />
+              <span className="text-sm font-medium text-indigo-300 uppercase tracking-wider">
+                Help&Grow Community
+              </span>
+            </div>
+            <Link
+              href="/profile"
+              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+            >
+              My Profile
+            </Link>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
             Connect with Singapore&apos;s Top Tech Experts
           </h1>
           <p className="text-lg text-slate-300 mb-8 max-w-md">
-            Join our community of 1,000+ verified professionals. Get free
+            Join our community of 1,000+ verified professionals. Get
             advisory sessions on AI, fintech, and business from experts who
             have been there.
           </p>
@@ -100,10 +108,10 @@ export default function Home() {
               </div>
               <div>
                 <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
-                  Free Sessions
+                  Easy Booking
                 </h3>
                 <p className="text-slate-600 dark:text-slate-400 text-sm">
-                  Book advisory sessions at no cost. Experts give back to the
+                  Book advisory sessions in seconds. Experts give back to the
                   community through their time.
                 </p>
               </div>
@@ -143,7 +151,7 @@ export default function Home() {
                 Book a Session
               </h3>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
-                Pick a time that works for you. Sessions are free and
+                Pick a time that works for you. Sessions are quick and
                 confidential.
               </p>
             </div>

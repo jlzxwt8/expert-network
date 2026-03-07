@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+
+export async function GET(
+  _request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const expert = await prisma.expert.findUnique({
+      where: { id: params.id },
+      select: { documentName: true, documentData: true },
+    });
+
+    if (!expert?.documentData || !expert.documentName) {
+      return NextResponse.json(
+        { error: "No document available" },
+        { status: 404 }
+      );
+    }
+
+    const match = expert.documentData.match(
+      /^data:([^;]+);base64,(.+)$/
+    );
+    if (!match) {
+      return NextResponse.json(
+        { error: "Invalid document data" },
+        { status: 500 }
+      );
+    }
+
+    const [, contentType, base64Data] = match;
+    const buffer = Buffer.from(base64Data, "base64");
+
+    return new NextResponse(buffer, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `attachment; filename="${expert.documentName}"`,
+        "Content-Length": String(buffer.length),
+      },
+    });
+  } catch (error) {
+    console.error("[expert document GET]", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

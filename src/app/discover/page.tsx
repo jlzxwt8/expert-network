@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Star,
@@ -10,6 +11,7 @@ import {
   Sparkles,
   Send,
   Loader2,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -146,7 +148,7 @@ function ExpertCard({ expert }: { expert: Expert }) {
         </div>
         <div className="mt-3 flex gap-2">
           <Button asChild size="sm" className="flex-1">
-            <Link href={`/experts/${expert.id}/book?from=browse`}>Book Session</Link>
+            <a href={`/experts/${expert.id}/book?from=browse`} target="_blank" rel="noopener noreferrer">Book Session</a>
           </Button>
           <Button asChild variant="outline" size="sm" className="flex-1">
             <a href={`/experts/${expert.id}`} target="_blank" rel="noopener noreferrer">View Profile</a>
@@ -180,7 +182,7 @@ function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
             <p className="mt-1 text-sm text-muted-foreground">{rec.reason}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm">
-                <Link href={`/experts/${rec.expertId}/book?from=match`}>Book Free Session</Link>
+                <a href={`/experts/${rec.expertId}/book?from=match`} target="_blank" rel="noopener noreferrer">Book Session</a>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <a href={`/experts/${rec.expertId}`} target="_blank" rel="noopener noreferrer">View Profile</a>
@@ -204,6 +206,7 @@ export default function DiscoverPage() {
 function DiscoverContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [experts, setExperts] = useState<Expert[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -360,9 +363,27 @@ function DiscoverContent() {
     <div className="min-h-screen w-full max-w-lg mx-auto flex flex-col pb-24">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
         <div className="px-4 pt-4 pb-2">
-          <h1 className="text-xl font-bold text-foreground mb-4">
-            Discover Experts
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold text-foreground">
+              Discover Experts
+            </h1>
+            {session ? (
+              <Link
+                href="/profile"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                title="My Profile"
+              >
+                {(session.user?.name ?? session.user?.email ?? "U").charAt(0).toUpperCase()}
+              </Link>
+            ) : (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/auth/signin" className="gap-1.5">
+                  <User className="h-4 w-4" />
+                  Sign In
+                </Link>
+              </Button>
+            )}
+          </div>
 
           {/* Domain chips */}
           <div className="overflow-x-auto no-scrollbar -mx-4 px-4">

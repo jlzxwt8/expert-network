@@ -111,6 +111,10 @@ model Expert {
   bio             String?        @db.Text
   servicesOffered Json?
 
+  // Uploaded document
+  documentName    String?
+  documentData    String?        @db.Text
+
   // AI-generated content
   avatarVideoUrl  String?
   avatarScript    String?        @db.Text

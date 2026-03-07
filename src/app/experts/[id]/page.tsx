@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Star,
   Shield,
@@ -13,6 +12,7 @@ import {
   Loader2,
   Linkedin,
   Twitter,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,7 @@ interface Expert {
   tiktok: string | null;
   xiaohongshu: string | null;
   avatarVideoUrl: string | null;
+  documentName: string | null;
   user: ExpertUser;
 }
 
@@ -351,6 +352,22 @@ export default function ExpertProfilePage() {
         </section>
       )}
 
+      {/* Document Download */}
+      {expert.documentName && (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">Document</h2>
+          <a
+            href={`/api/experts/${id}/document`}
+            download
+            className="flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <FileDown className="h-5 w-5 text-muted-foreground" />
+            <span className="truncate flex-1">{expert.documentName}</span>
+            <span className="text-xs text-muted-foreground shrink-0">Download</span>
+          </a>
+        </section>
+      )}
+
       {/* Reviews */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-foreground mb-3">
@@ -429,16 +446,16 @@ export default function ExpertProfilePage() {
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t safe-area-inset-bottom">
         <div className="max-w-lg mx-auto px-4 py-4 flex gap-3">
           <Button asChild className="flex-1 h-12 text-base font-semibold" size="lg">
-            <Link href={`/experts/${id}/book?type=ONLINE`} className="flex items-center justify-center gap-2">
+            <a href={`/experts/${id}/book?type=ONLINE`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
               <Monitor className="h-5 w-5" />
               Book Online
-            </Link>
+            </a>
           </Button>
           <Button asChild variant="outline" className="flex-1 h-12 text-base font-semibold" size="lg">
-            <Link href={`/experts/${id}/book?type=OFFLINE`} className="flex items-center justify-center gap-2">
+            <a href={`/experts/${id}/book?type=OFFLINE`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
               <MapPin className="h-5 w-5" />
               Book Offline
-            </Link>
+            </a>
           </Button>
         </div>
       </div>
