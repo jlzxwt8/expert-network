@@ -12,6 +12,7 @@ import {
   ImageIcon,
   LogOut,
   Sparkles,
+  ArrowLeft,
   Trash2,
   Plus,
   ExternalLink,
@@ -344,6 +345,13 @@ export default function ProfilePage() {
       <header className="border-b px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
+            <button
+              onClick={() => router.push("/")}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Home
+            </button>
             <h1 className="text-xl font-bold truncate">{nickName}</h1>
             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
               <span className="truncate">{email}</span>
