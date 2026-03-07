@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { matchExperts } from "@/lib/gemini";
+import { matchExperts } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
   try {

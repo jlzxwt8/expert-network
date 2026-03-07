@@ -2,33 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ai } from "@/lib/gemini";
-
-async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  const base64 = buffer.toString("base64");
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            inlineData: {
-              mimeType: "application/pdf",
-              data: base64,
-            },
-          },
-          {
-            text: "Extract all text content from this PDF document. Return ONLY the extracted text, preserving the structure (headings, lists, paragraphs). Do not add any commentary or explanation.",
-          },
-        ],
-      },
-    ],
-  });
-
-  return response.text ?? "";
-}
+import { extractTextFromPdf } from "@/lib/ai";
 
 async function extractTextFromDocx(buffer: Buffer): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
