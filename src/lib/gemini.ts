@@ -26,6 +26,8 @@ function createAIClient(): GoogleGenAI {
 
 const ai = createAIClient();
 
+export { ai };
+
 const MODEL = "gemini-2.5-flash";
 const IMAGE_MODEL = "gemini-2.5-flash-image";
 
@@ -96,7 +98,7 @@ export async function generateExpertProfile(data: {
     .join("\n");
 
   const resumeSection = data.resumeText
-    ? `\n\nAdditional context from uploaded document:\n${data.resumeText.slice(0, 3000)}`
+    ? `\n\nAdditional context from uploaded document (resume/CV):\n${data.resumeText.slice(0, 3000)}`
     : "";
 
   const prompt = `You are creating a professional profile for an expert on the Help&Grow Expert Network — a platform connecting Singapore-based tech professionals with global startup founders.
@@ -106,17 +108,20 @@ Professional domains: ${data.domains.join(", ")}
 Social profiles:
 ${socialLinks}${resumeSection}
 
-STEP 1 — Research: Use Google Search to look up each social profile link above. Gather ONLY verifiable facts:
-- Job title, company, professional headline
+STEP 1 — Research: Use Google Search to look up EACH social profile link AND the expert's name. For LinkedIn, search for the URL directly AND also search for "[name] LinkedIn [company]" to find cached profile data. Gather ONLY verifiable facts:
+- Job title, company, professional headline from LinkedIn
 - Real work history and achievements
 - Follower/subscriber/connection counts (exact numbers only if found)
 - Content themes and recent posts
 - For Instagram/TikTok/XiaoHongShu: follower count, content focus — these indicate KOL/marketing capability
 
+STEP 1.5 — Merge sources: Combine facts from Google Search results WITH the uploaded document (if provided). The uploaded document may contain detailed experience, skills, and achievements. Google Search results may reveal the latest role, headline, and social presence. Use BOTH sources — prioritize the most specific and recent information from either source.
+
 CRITICAL RULES:
 - NEVER fabricate or estimate numbers. If you cannot find an exact number, DO NOT mention it.
-- NEVER invent companies, job titles, or achievements not found in search results.
-- If search returns limited info, write a shorter bio using ONLY what you found. A short truthful bio is better than a long fabricated one.
+- NEVER invent companies, job titles, or achievements not found in search results or the uploaded document.
+- If search returns limited info, rely more heavily on the uploaded document for experience details.
+- A profile that combines both sources is better than one that ignores either.
 
 STEP 2 — Generate a JSON object with these 3 keys:
 
@@ -145,6 +150,15 @@ Return ONLY the JSON object, no markdown code fences.`;
   });
 
   const text = response.text ?? "";
+
+  const grounding = response.candidates?.[0]?.groundingMetadata;
+  if (grounding?.webSearchQueries) {
+    console.log("[generateExpertProfile] Google Search queries:", grounding.webSearchQueries);
+    console.log("[generateExpertProfile] Grounding chunks:", grounding.groundingChunks?.length ?? 0);
+  } else {
+    console.warn("[generateExpertProfile] No grounding metadata — Google Search may not have been used");
+  }
+
   const cleaned = cleanJsonResponse(text);
 
   let parsed;
