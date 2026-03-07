@@ -128,7 +128,7 @@ export default function DashboardPage() {
                 </div>
                 {expertId && (
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/experts/${expertId}`}>
+                    <Link href={`/experts/${expertId}`} target="_blank" rel="noopener noreferrer">
                       View
                       <ExternalLink className="ml-1 h-3.5 w-3.5" />
                     </Link>
