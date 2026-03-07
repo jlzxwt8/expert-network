@@ -47,7 +47,7 @@ interface Expert {
   instagram: string | null;
   tiktok: string | null;
   xiaohongshu: string | null;
-  avatarVideoUrl: string | null;
+  hasAvatar: boolean;
   avatarScript: string | null;
   documentName: string | null;
   user: ExpertUser;
@@ -230,17 +230,16 @@ export default function ExpertProfilePage() {
     return url && url.trim() !== "";
   });
   const hasMoreReviews = reviews.length < reviewsTotal;
-  const isImageDataUrl = expert.avatarVideoUrl?.startsWith("data:image");
 
   return (
     <div className="min-h-screen w-full max-w-lg mx-auto px-4 pb-28">
       {/* Hero - Profile Image */}
       <section className="pt-4">
         <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-          {isImageDataUrl ? (
+          {expert.hasAvatar ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
-              src={expert.avatarVideoUrl!}
+              src={`/api/experts/${id}/avatar`}
               alt={`${name}'s avatar`}
               className="w-full h-full object-cover"
             />

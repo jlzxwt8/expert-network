@@ -54,9 +54,12 @@ export async function GET(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { documentData: _dd, ...expertWithoutDocData } = expert;
+    const { documentData: _dd, avatarVideoUrl: _av, ...rest } = expert;
 
-    return NextResponse.json(expertWithoutDocData);
+    return NextResponse.json({
+      ...rest,
+      hasAvatar: !!expert.avatarVideoUrl,
+    });
   } catch (error) {
     console.error("[experts/[id] GET]", error);
     return NextResponse.json(

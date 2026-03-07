@@ -19,7 +19,9 @@ export async function GET() {
       return NextResponse.json({ error: "Expert profile not found" }, { status: 404 });
     }
 
-    return NextResponse.json(expert);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { avatarVideoUrl: _av, documentData: _dd, ...rest } = expert;
+    return NextResponse.json({ ...rest, hasAvatar: !!expert.avatarVideoUrl });
   } catch (error) {
     console.error("[expert/profile GET]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

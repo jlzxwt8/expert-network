@@ -35,7 +35,7 @@ interface ExpertProfile {
   bio: string | null;
   avatarScript: string | null;
   servicesOffered: ServiceItem[] | null;
-  avatarVideoUrl: string | null;
+  hasAvatar: boolean;
   documentName: string | null;
   isPublished: boolean;
   user: {
@@ -248,7 +248,7 @@ export default function ProfilePage() {
       }
       const data = await res.json();
       setProfile((prev) =>
-        prev ? { ...prev, avatarVideoUrl: data.profileImage } : prev
+        prev ? { ...prev, hasAvatar: !!data.profileImage } : prev
       );
       showMessage("Profile image regenerated!");
     } catch (err) {
@@ -368,7 +368,7 @@ export default function ProfilePage() {
         ) : (
           <>
             {/* Profile Image */}
-            {profile.avatarVideoUrl && (
+            {profile.hasAvatar && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
@@ -380,7 +380,7 @@ export default function ProfilePage() {
                   <div className="aspect-square rounded-xl overflow-hidden bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={profile.avatarVideoUrl}
+                      src={`/api/experts/${profile.id}/avatar`}
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />
