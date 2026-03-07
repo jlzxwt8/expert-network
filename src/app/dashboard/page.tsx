@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Loader2,
   ArrowLeft,
+  Pencil,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { format, parseISO } from "date-fns";
@@ -32,6 +33,7 @@ interface Booking {
   startTime: string;
   endTime: string;
   status: string;
+  meetingLink?: string | null;
   expert?: {
     id: string;
     user: { name: string | null; nickName: string | null };
@@ -140,14 +142,22 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                {expertId && (
+                <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/experts/${expertId}`} target="_blank" rel="noopener noreferrer">
-                      View
-                      <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                    <Link href="/profile">
+                      <Pencil className="mr-1 h-3.5 w-3.5" />
+                      Edit
                     </Link>
                   </Button>
-                )}
+                  {expertId && userData?.expert?.isPublished && (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/experts/${expertId}`} target="_blank" rel="noopener noreferrer">
+                        Public
+                        <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </section>
@@ -272,6 +282,12 @@ function BookingCard({
                 {isOnline ? "Online" : "Offline"}
               </span>
             </div>
+            {!isOnline && booking.meetingLink && (
+              <p className="mt-1.5 text-xs text-muted-foreground flex items-start gap-1">
+                <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>{booking.meetingLink}</span>
+              </p>
+            )}
           </div>
           <Badge variant={statusVariant(booking.status)}>{booking.status}</Badge>
         </div>
