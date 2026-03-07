@@ -1,8 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 const MODEL = "gemini-2.5-flash";
+const IMAGE_MODEL = "gemini-2.5-flash-image";
 
 function cleanJsonResponse(text: string): string {
   let cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -116,104 +117,13 @@ Return ONLY the JSON object, no markdown code fences.`;
   };
 }
 
-const DASHSCOPE_BASE_URL = "https://dashscope-intl.aliyuncs.com/api/v1";
-
-function getDashScopeKey(): string {
-  return process.env.DASHSCOPE_API_KEY || "";
-}
-
-async function submitQwenImageTask(prompt: string): Promise<string | null> {
-  const res = await fetch(
-    `${DASHSCOPE_BASE_URL}/services/aigc/text2image/image-synthesis`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${getDashScopeKey()}`,
-        "Content-Type": "application/json",
-        "X-DashScope-Async": "enable",
-      },
-      body: JSON.stringify({
-        model: "qwen-image-plus",
-        input: { prompt },
-        parameters: {
-          size: "1328*1328",
-          n: 1,
-          prompt_extend: true,
-          watermark: false,
-        },
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("[submitQwenImageTask] Submit failed:", res.status, err);
-    return null;
-  }
-
-  const body = await res.json();
-  return body?.output?.task_id ?? null;
-}
-
-async function pollQwenImageResult(
-  taskId: string,
-  maxWaitMs = 60000
-): Promise<string | null> {
-  const start = Date.now();
-  let interval = 3000;
-
-  while (Date.now() - start < maxWaitMs) {
-    await new Promise((r) => setTimeout(r, interval));
-
-    const res = await fetch(`${DASHSCOPE_BASE_URL}/tasks/${taskId}`, {
-      headers: { Authorization: `Bearer ${getDashScopeKey()}` },
-    });
-
-    if (!res.ok) {
-      console.error("[pollQwenImageResult] Poll failed:", res.status);
-      return null;
-    }
-
-    const body = await res.json();
-    const status = body?.output?.task_status;
-
-    if (status === "SUCCEEDED") {
-      const imageUrl = body?.output?.results?.[0]?.url;
-      return imageUrl ?? null;
-    }
-
-    if (status === "FAILED") {
-      console.error("[pollQwenImageResult] Task failed:", JSON.stringify(body?.output));
-      return null;
-    }
-
-    if (interval < 5000) interval += 1000;
-  }
-
-  console.error("[pollQwenImageResult] Timed out after", maxWaitMs, "ms");
-  return null;
-}
-
-async function downloadImageAsBase64(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const buffer = await res.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const contentType = res.headers.get("content-type") || "image/png";
-    return `data:${contentType};base64,${base64}`;
-  } catch {
-    return null;
-  }
-}
-
 export async function generateProfileImage(data: {
   nickName: string;
   domains: string[];
   bio: string;
 }): Promise<string | null> {
-  if (!getDashScopeKey()) {
-    console.error("[generateProfileImage] DASHSCOPE_API_KEY not set");
+  if (!process.env.GEMINI_API_KEY) {
+    console.error("[generateProfileImage] GEMINI_API_KEY not set");
     return null;
   }
 
@@ -233,13 +143,29 @@ export async function generateProfileImage(data: {
   const prompt = `A stylized digital avatar illustration of a professional expert. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette. Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks in the image.`;
 
   try {
-    const taskId = await submitQwenImageTask(prompt);
-    if (!taskId) return null;
+    const response = await ai.models.generateContent({
+      model: IMAGE_MODEL,
+      contents: prompt,
+      config: {
+        responseModalities: [Modality.IMAGE],
+      },
+    });
 
-    const imageUrl = await pollQwenImageResult(taskId);
-    if (!imageUrl) return null;
+    const parts = response.candidates?.[0]?.content?.parts;
+    if (!parts) {
+      console.error("[generateProfileImage] No parts in response");
+      return null;
+    }
 
-    return await downloadImageAsBase64(imageUrl);
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        const mimeType = part.inlineData.mimeType || "image/png";
+        return `data:${mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+
+    console.error("[generateProfileImage] No image data in response");
+    return null;
   } catch (error) {
     console.error("[generateProfileImage]", error);
     return null;
