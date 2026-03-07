@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { LogOut, User } from "lucide-react";
+import { CalendarDays, LogOut, User } from "lucide-react";
 
 interface UserMenuProps {
   variant?: "light" | "dark";
@@ -72,6 +72,14 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
           >
             <User className="h-4 w-4" />
             My Profile
+          </Link>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <CalendarDays className="h-4 w-4" />
+            My Bookings
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
