@@ -1,9 +1,9 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, PersonGeneration } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 const MODEL = "gemini-2.5-flash";
-const IMAGE_MODEL = "gemini-2.5-flash-image";
+const IMAGE_MODEL = "imagen-3.0-generate-002";
 
 function cleanJsonResponse(text: string): string {
   let cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -143,29 +143,24 @@ export async function generateProfileImage(data: {
   const prompt = `A stylized digital avatar illustration of a professional expert. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette. Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks in the image.`;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await ai.models.generateImages({
       model: IMAGE_MODEL,
-      contents: prompt,
+      prompt,
       config: {
-        responseModalities: [Modality.IMAGE],
+        numberOfImages: 1,
+        aspectRatio: "1:1",
+        personGeneration: PersonGeneration.ALLOW_ADULT,
       },
     });
 
-    const parts = response.candidates?.[0]?.content?.parts;
-    if (!parts) {
-      console.error("[generateProfileImage] No parts in response");
+    const image = response.generatedImages?.[0]?.image;
+    if (!image?.imageBytes) {
+      console.error("[generateProfileImage] No image data in response");
       return null;
     }
 
-    for (const part of parts) {
-      if (part.inlineData?.data) {
-        const mimeType = part.inlineData.mimeType || "image/png";
-        return `data:${mimeType};base64,${part.inlineData.data}`;
-      }
-    }
-
-    console.error("[generateProfileImage] No image data in response");
-    return null;
+    const mimeType = image.mimeType || "image/png";
+    return `data:${mimeType};base64,${image.imageBytes}`;
   } catch (error) {
     console.error("[generateProfileImage]", error);
     return null;
