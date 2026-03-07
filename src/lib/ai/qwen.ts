@@ -15,11 +15,11 @@ import {
 } from "./types";
 
 const DASHSCOPE_BASE_URL =
-  "https://dashscope.aliyuncs.com/compatible-mode/v1";
+  "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
 const DASHSCOPE_TASK_URL =
-  "https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis";
+  "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis";
 const DASHSCOPE_TASK_STATUS_URL =
-  "https://dashscope.aliyuncs.com/api/v1/tasks";
+  "https://dashscope-intl.aliyuncs.com/api/v1/tasks";
 
 const QWEN_MODEL = "qwen-max";
 const WANX_MODEL = "wanx-v1";
