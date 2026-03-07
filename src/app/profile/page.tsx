@@ -78,6 +78,7 @@ export default function ProfilePage() {
 
   const [regenerating, setRegenerating] = useState(false);
   const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -279,6 +280,23 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePublish = async () => {
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/onboarding/publish", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to publish");
+      }
+      setProfile((prev) => (prev ? { ...prev, isPublished: true } : prev));
+      showMessage("Profile published! It's now visible to founders.");
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Publish failed", 5000);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const handleRegenerateImage = async () => {
     setRegenerating(true);
     setShowRegeneratePrompt(false);
@@ -329,13 +347,13 @@ export default function ProfilePage() {
             <h1 className="text-xl font-bold truncate">{nickName}</h1>
             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
               <span className="truncate">{email}</span>
-              {isExpert && (
+              {isExpert && profile.isPublished && (
                 <button
                   onClick={() => window.open(`/experts/${profile.id}`, "_blank")}
                   className="shrink-0 flex items-center gap-1 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
-                  View Profile
+                  Public Profile
                 </button>
               )}
             </div>
@@ -394,6 +412,39 @@ export default function ProfilePage() {
                   Skip
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isExpert && !profile.isPublished && (
+          <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-amber-100 dark:bg-amber-900/50 p-1.5 mt-0.5">
+                  <ExternalLink className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    Profile not published
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    Your profile is only visible to you. Publish it to appear in the expert directory and let founders book sessions.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="mt-3 w-full gap-2"
+                onClick={handlePublish}
+                disabled={publishing}
+              >
+                {publishing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
+                Publish Profile
+              </Button>
             </CardContent>
           </Card>
         )}
