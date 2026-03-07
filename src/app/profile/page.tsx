@@ -92,6 +92,9 @@ export default function ProfilePage() {
         (data.servicesOffered as ServiceItem[] | null) ?? []
       );
       setUploadedFileName(data.documentName ?? null);
+      // #region agent log
+      console.log('[DEBUG-ce5563] Profile client', JSON.stringify({documentName:data.documentName,documentNameType:typeof data.documentName}));
+      // #endregion
     } catch {
       setProfile(null);
     } finally {

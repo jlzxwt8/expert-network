@@ -19,6 +19,10 @@ export async function GET() {
       return NextResponse.json({ error: "Expert profile not found" }, { status: 404 });
     }
 
+    // #region agent log
+    console.log('[DEBUG-ce5563] Profile GET', JSON.stringify({expertId:expert.id,documentName:expert.documentName,hasDocumentData:!!expert.documentData,documentNameType:typeof expert.documentName}));
+    // #endregion
+
     return NextResponse.json(expert);
   } catch (error) {
     console.error("[expert/profile GET]", error);

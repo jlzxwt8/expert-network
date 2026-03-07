@@ -55,6 +55,11 @@ export async function GET(
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { documentData: _dd, ...expertWithoutDocData } = expert;
+
+    // #region agent log
+    console.log('[DEBUG-ce5563] Public expert GET', JSON.stringify({expertId:expert.id,documentName:expert.documentName,hasDocumentData:!!expert.documentData,responseHasDocName:'documentName' in expertWithoutDocData}));
+    // #endregion
+
     return NextResponse.json(expertWithoutDocData);
   } catch (error) {
     console.error("[experts/[id] GET]", error);
