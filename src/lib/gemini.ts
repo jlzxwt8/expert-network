@@ -1,9 +1,54 @@
-import { GoogleGenAI, PersonGeneration } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
+import * as fs from "fs";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+function setupServiceAccountAuth() {
+  const encoded = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!encoded || process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
+
+  const keyPath = "/tmp/gcp-sa-key.json";
+  fs.writeFileSync(keyPath, Buffer.from(encoded, "base64").toString("utf-8"));
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = keyPath;
+}
+
+function createAIClient(): GoogleGenAI {
+  const project = process.env.GOOGLE_CLOUD_PROJECT;
+  const location = process.env.GOOGLE_CLOUD_LOCATION || "us-central1";
+
+  if (project) {
+    setupServiceAccountAuth();
+    console.log(`[Gemini] Using Vertex AI (project=${project}, location=${location})`);
+    return new GoogleGenAI({ vertexai: true, project, location });
+  }
+
+  console.log("[Gemini] Using AI Studio API key");
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+}
+
+const ai = createAIClient();
 
 const MODEL = "gemini-2.5-flash";
-const IMAGE_MODEL = "imagen-3.0-generate-002";
+const IMAGE_MODEL = "gemini-2.5-flash-image";
+
+async function generateImage(prompt: string): Promise<string | null> {
+  const response = await ai.models.generateContent({
+    model: IMAGE_MODEL,
+    contents: prompt,
+    config: {
+      responseModalities: ["IMAGE"],
+    },
+  });
+
+  const parts = response.candidates?.[0]?.content?.parts;
+  if (!parts) return null;
+
+  for (const part of parts) {
+    if (part.inlineData?.data) {
+      const mimeType = part.inlineData.mimeType || "image/png";
+      return `data:${mimeType};base64,${part.inlineData.data}`;
+    }
+  }
+  return null;
+}
 
 function cleanJsonResponse(text: string): string {
   let cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -122,8 +167,8 @@ export async function generateProfileImage(data: {
   domains: string[];
   bio: string;
 }): Promise<string | null> {
-  if (!process.env.GEMINI_API_KEY) {
-    console.error("[generateProfileImage] GEMINI_API_KEY not set");
+  if (!process.env.GOOGLE_CLOUD_PROJECT && !process.env.GEMINI_API_KEY) {
+    console.error("[generateProfileImage] Neither GOOGLE_CLOUD_PROJECT nor GEMINI_API_KEY is set");
     return null;
   }
 
@@ -143,24 +188,7 @@ export async function generateProfileImage(data: {
   const prompt = `A stylized digital avatar illustration of a professional expert. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette. Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks in the image.`;
 
   try {
-    const response = await ai.models.generateImages({
-      model: IMAGE_MODEL,
-      prompt,
-      config: {
-        numberOfImages: 1,
-        aspectRatio: "1:1",
-        personGeneration: PersonGeneration.ALLOW_ADULT,
-      },
-    });
-
-    const image = response.generatedImages?.[0]?.image;
-    if (!image?.imageBytes) {
-      console.error("[generateProfileImage] No image data in response");
-      return null;
-    }
-
-    const mimeType = image.mimeType || "image/png";
-    return `data:${mimeType};base64,${image.imageBytes}`;
+    return await generateImage(prompt);
   } catch (error) {
     console.error("[generateProfileImage]", error);
     return null;
