@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, MicOff } from "lucide-react";
+import { Mic, MicOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useVoiceInput } from "@/hooks/use-voice-input";
 import { cn } from "@/lib/utils";
@@ -13,12 +13,9 @@ interface VoiceInputButtonProps {
 }
 
 /**
- * A mic button that uses the Web Speech API for browser-native dictation.
+ * Mic button that records audio and transcribes it via Qwen3-ASR-Flash.
  *
- * Future: When Typeless (https://www.typeless.com/) ships a web SDK,
- * this component can delegate to it for higher-quality dictation with
- * filler removal, auto-formatting, and personalized tone. The component
- * API remains unchanged for consumers.
+ * States: idle → recording (pulse) → processing (spinner) → idle
  */
 export function VoiceInputButton({
   onTranscript,
@@ -28,6 +25,7 @@ export function VoiceInputButton({
 }: VoiceInputButtonProps) {
   const {
     isListening,
+    isProcessing,
     isSupported,
     startListening,
     stopListening,
@@ -45,11 +43,14 @@ export function VoiceInputButton({
 
   if (!isSupported) return null;
 
+  const busy = isListening || isProcessing;
+
   return (
     <Button
       type="button"
       variant={isListening ? "destructive" : "outline"}
       size={size}
+      disabled={isProcessing}
       className={cn(
         "shrink-0 transition-all",
         isListening && "animate-pulse",
@@ -62,9 +63,17 @@ export function VoiceInputButton({
           startListening();
         }
       }}
-      title={isListening ? "Stop dictation" : "Start voice input"}
+      title={
+        isProcessing
+          ? "Transcribing…"
+          : isListening
+            ? "Stop recording"
+            : "Start voice input"
+      }
     >
-      {isListening ? (
+      {isProcessing ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : busy ? (
         <MicOff className="h-4 w-4" />
       ) : (
         <Mic className="h-4 w-4" />

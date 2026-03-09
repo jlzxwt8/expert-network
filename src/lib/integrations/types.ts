@@ -3,7 +3,7 @@
  *
  * Each integration follows the provider pattern:
  *   1. Define an interface here
- *   2. Implement it in a dedicated file (e.g. fish-audio.ts)
+ *   2. Implement it in a dedicated file (e.g. qwen-tts.ts)
  *   3. Register the provider in config.ts
  *   4. Consumers access providers via getProvider<T>(name)
  */

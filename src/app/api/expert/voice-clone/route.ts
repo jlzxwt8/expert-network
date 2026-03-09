@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       data: { fishAudioModelId: modelId },
     });
 
-    return NextResponse.json({ fishAudioModelId: modelId });
+    return NextResponse.json({ voiceModelId: modelId });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[expert/voice-clone POST]", message, error);

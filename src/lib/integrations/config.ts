@@ -17,8 +17,8 @@ import type {
 
 export const integrations = {
   voiceSynthesis: {
-    enabled: !!process.env.FISH_AUDIO_API_KEY,
-    provider: "fish-audio" as const,
+    enabled: !!process.env.DASHSCOPE_API_KEY,
+    provider: "qwen-tts" as const,
   },
   memory: {
     enabled: !!process.env.MEM9_SPACE_ID || !!process.env.MEM9_ENABLED,
@@ -42,8 +42,8 @@ let _meetingRecording: MeetingRecordingProvider | null = null;
 export async function getVoiceSynthesis(): Promise<VoiceSynthesisProvider | null> {
   if (!integrations.voiceSynthesis.enabled) return null;
   if (!_voiceSynthesis) {
-    const { FishAudioProvider } = await import("./fish-audio");
-    _voiceSynthesis = new FishAudioProvider();
+    const { QwenTTSProvider } = await import("./qwen-tts");
+    _voiceSynthesis = new QwenTTSProvider();
   }
   return _voiceSynthesis;
 }
@@ -60,7 +60,6 @@ export async function getMemory(): Promise<MemoryProvider | null> {
 export async function getMeetingRecording(): Promise<MeetingRecordingProvider | null> {
   if (!integrations.meetingRecording.enabled) return null;
   if (!_meetingRecording) {
-    // Future: dynamically import the configured meeting recording provider
     return null;
   }
   return _meetingRecording;

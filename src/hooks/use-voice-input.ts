@@ -3,38 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Browser-native voice input hook using the Web Speech API.
+ * Voice input hook using MediaRecorder + server-side Qwen3-ASR-Flash.
  *
- * Architecture note: This uses SpeechRecognition as the default provider.
- * When Typeless (https://www.typeless.com/) releases a web SDK, this hook
- * can be extended to delegate to it — the consumer API stays the same.
+ * Flow:
+ *   1. User clicks "start" → MediaRecorder begins capturing audio
+ *   2. User clicks "stop"  → recording sent to /api/speech-to-text
+ *   3. Server calls Qwen3-ASR-Flash and returns the transcript
+ *   4. onTranscript callback fires with the final text
  *
- * Typeless advantages over raw Web Speech API:
- *   - Filler word removal ("um", "uh")
- *   - Auto-correction when speaker changes their mind mid-sentence
- *   - Auto-formatting (lists, structure)
- *   - Personalized style/tone per app context
- *   - 100+ languages with seamless mixing
- *
- * For now, Web Speech API provides a working baseline that's available in
- * modern browsers (Chrome, Edge, Safari) with no external dependency.
+ * This replaces the previous Web Speech API implementation, giving:
+ *   - Consistent cross-browser support (MediaRecorder works everywhere)
+ *   - Higher accuracy (Qwen3-ASR vs browser-native SR)
+ *   - 100+ language support with code-switching
+ *   - All usage under the same DashScope API key
  */
-
-interface SpeechRecognitionInstance extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: Event) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-}
-
-type SpeechRecognitionEvent = Event & {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-};
 
 interface UseVoiceInputOptions {
   language?: string;
@@ -44,6 +26,7 @@ interface UseVoiceInputOptions {
 
 interface UseVoiceInputReturn {
   isListening: boolean;
+  isProcessing: boolean;
   isSupported: boolean;
   transcript: string;
   startListening: () => void;
@@ -54,66 +37,85 @@ interface UseVoiceInputReturn {
 export function useVoiceInput(
   options: UseVoiceInputOptions = {}
 ): UseVoiceInputReturn {
-  const { language = "en-US", continuous = true, onTranscript } = options;
+  const { onTranscript } = options;
   const [isListening, setIsListening] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
 
   const isSupported =
-    typeof window !== "undefined" &&
-    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+    typeof window !== "undefined" && typeof MediaRecorder !== "undefined";
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (!isSupported) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition: SpeechRecognitionInstance = new Ctor();
-    recognition.continuous = continuous;
-    recognition.interimResults = true;
-    recognition.lang = language;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = "";
-      let final = "";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      chunksRef.current = [];
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          final += result[0].transcript;
-        } else {
-          interim += result[0].transcript;
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        if (blob.size < 500) {
+          setIsProcessing(false);
+          return;
         }
-      }
 
-      if (final) {
-        setTranscript((prev) => {
-          const updated = prev + final;
-          onTranscriptRef.current?.(updated, true);
-          return updated;
-        });
-      } else if (interim) {
-        onTranscriptRef.current?.(interim, false);
-      }
-    };
+        setIsProcessing(true);
+        try {
+          const formData = new FormData();
+          formData.append("audio", blob, "recording.webm");
 
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
+          const res = await fetch("/api/speech-to-text", {
+            method: "POST",
+            body: formData,
+          });
 
-    recognition.onend = () => {
-      setIsListening(false);
-    };
+          if (res.ok) {
+            const { text } = await res.json();
+            if (text) {
+              setTranscript((prev) => {
+                const updated = prev ? `${prev} ${text}` : text;
+                onTranscriptRef.current?.(updated, true);
+                return updated;
+              });
+            }
+          } else {
+            console.error("ASR failed:", res.status);
+          }
+        } catch (err) {
+          console.error("ASR request error:", err);
+        } finally {
+          setIsProcessing(false);
+        }
+      };
 
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-  }, [isSupported, continuous, language]);
+      recorderRef.current = recorder;
+      recorder.start(1000);
+      setIsListening(true);
+    } catch (err) {
+      console.error("Microphone access denied:", err);
+    }
+  }, [isSupported]);
 
   const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+    }
     setIsListening(false);
   }, []);
 
@@ -123,12 +125,16 @@ export function useVoiceInput(
 
   useEffect(() => {
     return () => {
-      recognitionRef.current?.stop();
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      }
     };
   }, []);
 
   return {
     isListening,
+    isProcessing,
     isSupported,
     transcript,
     startListening,
