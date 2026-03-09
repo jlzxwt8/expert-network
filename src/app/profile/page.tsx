@@ -549,15 +549,15 @@ export default function ProfilePage() {
         ) : (
           <>
             {/* Profile Image */}
-            {profile.hasAvatar && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    Profile Image
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Profile Image
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {profile.hasAvatar ? (
                   <div className="aspect-square rounded-xl overflow-hidden bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -566,27 +566,32 @@ export default function ProfilePage() {
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <Button
-                    variant="outline"
-                    className="mt-3 w-full gap-2"
-                    onClick={handleRegenerateImage}
-                    disabled={regenerating}
-                  >
-                    {regenerating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4" />
-                        Regenerate Image
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                ) : (
+                  <div className="aspect-square rounded-xl bg-muted flex flex-col items-center justify-center gap-3">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">No profile image yet</p>
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  className="mt-3 w-full gap-2"
+                  onClick={handleRegenerateImage}
+                  disabled={regenerating}
+                >
+                  {regenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      {profile.hasAvatar ? "Regenerate Image" : "Generate Image"}
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Voice Introduction */}
             <Card>
