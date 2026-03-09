@@ -6,7 +6,23 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
+  const raw = process.env.DATABASE_URL!;
+  const parsed = new URL(raw);
+
+  const adapter = new PrismaMariaDb({
+    host: parsed.hostname,
+    port: parseInt(parsed.port || "3306"),
+    user: decodeURIComponent(parsed.username),
+    password: decodeURIComponent(parsed.password),
+    database: parsed.pathname.replace(/^\//, "") || undefined,
+    ssl: parsed.searchParams.get("sslaccept") === "strict"
+      ? { rejectUnauthorized: true }
+      : parsed.hostname.includes("tidbcloud.com")
+        ? { rejectUnauthorized: false }
+        : undefined,
+    connectTimeout: 10000,
+  });
+
   return new PrismaClient({ adapter });
 }
 
