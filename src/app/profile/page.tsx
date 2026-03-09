@@ -61,7 +61,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<ExpertProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [sectionMsg, setSectionMsg] = useState<{ text: string; section: string } | null>(null);
 
   const [domains, setDomains] = useState<string[]>([]);
   const [bio, setBio] = useState("");
@@ -83,7 +83,7 @@ export default function ProfilePage() {
 
   const [improvingIntro, setImprovingIntro] = useState(false);
   const [improvingServices, setImprovingServices] = useState(false);
-  const saveMessageRef = useRef<HTMLParagraphElement>(null);
+  const toastRef = useRef<HTMLParagraphElement>(null);
 
   const [regenerating, setRegenerating] = useState(false);
   const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
@@ -127,13 +127,16 @@ export default function ProfilePage() {
     }
   }, [sessionStatus, fetchProfile, router]);
 
-  const showMessage = (msg: string, duration = 3000) => {
-    setSaveMessage(msg);
-    setTimeout(() => setSaveMessage(null), duration);
+  const showMessage = (msg: string, section: string, duration = 3000) => {
+    setSectionMsg({ text: msg, section });
+    setTimeout(() => setSectionMsg((prev) => (prev?.text === msg ? null : prev)), duration);
     requestAnimationFrame(() => {
-      saveMessageRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      toastRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   };
+
+  const isSuccess = (text: string) =>
+    /saved|uploaded|regenerated|generated|improved|published|updated/i.test(text);
 
   const saveSection = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/expert/profile", {
@@ -153,10 +156,10 @@ export default function ProfilePage() {
     try {
       await saveSection({ domains });
       setEditingDomains(false);
-      showMessage("Service domains saved!");
+      showMessage("Service domains saved!", "domains");
       setShowRegeneratePrompt(true);
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", 5000);
+      showMessage(err instanceof Error ? err.message : "Save failed", "domains", 5000);
     } finally {
       setSavingDomains(false);
     }
@@ -178,10 +181,10 @@ export default function ProfilePage() {
     try {
       await saveSection({ avatarScript: introScript, bio });
       setEditingIntro(false);
-      showMessage("Introduction saved!");
+      showMessage("Introduction saved!", "intro");
       setShowRegeneratePrompt(true);
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", 5000);
+      showMessage(err instanceof Error ? err.message : "Save failed", "intro", 5000);
     } finally {
       setSavingIntro(false);
     }
@@ -217,10 +220,10 @@ export default function ProfilePage() {
       await saveSection({ servicesOffered: validServices });
       setServices(validServices);
       setEditingServices(false);
-      showMessage("Services saved!");
+      showMessage("Services saved!", "services");
       setShowRegeneratePrompt(true);
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", 5000);
+      showMessage(err instanceof Error ? err.message : "Save failed", "services", 5000);
     } finally {
       setSavingServices(false);
     }
@@ -243,9 +246,9 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setIntroScript(data.improved);
-      showMessage("Introduction improved by AI!");
+      showMessage("Introduction improved by AI!", "intro");
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "AI improvement failed", 5000);
+      showMessage(err instanceof Error ? err.message : "AI improvement failed", "intro", 5000);
     } finally {
       setImprovingIntro(false);
     }
@@ -264,9 +267,9 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setServices(data.improved);
-      showMessage("Services improved by AI!");
+      showMessage("Services improved by AI!", "services");
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "AI improvement failed", 5000);
+      showMessage(err instanceof Error ? err.message : "AI improvement failed", "services", 5000);
     } finally {
       setImprovingServices(false);
     }
@@ -288,10 +291,10 @@ export default function ProfilePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setUploadedFileName(file.name);
-      showMessage("Document uploaded!");
+      showMessage("Document uploaded!", "document");
       fetchProfile();
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Upload failed", 5000);
+      showMessage(err instanceof Error ? err.message : "Upload failed", "document", 5000);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -307,9 +310,9 @@ export default function ProfilePage() {
         throw new Error(data.error ?? "Failed to publish");
       }
       setProfile((prev) => (prev ? { ...prev, isPublished: true } : prev));
-      showMessage("Profile published! It's now visible to founders.");
+      showMessage("Profile published! It's now visible to founders.", "publish");
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Publish failed", 5000);
+      showMessage(err instanceof Error ? err.message : "Publish failed", "publish", 5000);
     } finally {
       setPublishing(false);
     }
@@ -331,10 +334,11 @@ export default function ProfilePage() {
         prev ? { ...prev, hasAvatar: !!data.profileImage } : prev
       );
       setAvatarCacheBuster(`?t=${Date.now()}`);
-      showMessage("Profile image regenerated!");
+      showMessage("Profile image regenerated!", "image");
     } catch (err) {
       showMessage(
         err instanceof Error ? err.message : "Failed to regenerate image",
+        "image",
         5000
       );
     } finally {
@@ -354,10 +358,11 @@ export default function ProfilePage() {
       }
       setProfile((prev) => (prev ? { ...prev, hasAudio: true } : prev));
       setAudioCacheBuster(`?t=${Date.now()}`);
-      showMessage("Voice introduction generated!");
+      showMessage("Voice introduction generated!", "voice");
     } catch (err) {
       showMessage(
         err instanceof Error ? err.message : "Failed to generate audio",
+        "voice",
         5000
       );
     } finally {
@@ -383,10 +388,11 @@ export default function ProfilePage() {
 
       setProfile((prev) => (prev ? { ...prev, hasVoiceClone: true } : prev));
       setShowVoiceRecorder(false);
-      showMessage("Voice updated! Click 'Regenerate Voice Intro' to apply it.");
+      showMessage("Voice updated! Click 'Regenerate Voice Intro' to apply it.", "voice");
     } catch (err) {
       showMessage(
         err instanceof Error ? err.message : "Voice cloning failed",
+        "voice",
         5000
       );
     } finally {
@@ -403,9 +409,9 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gender }),
       });
-      showMessage("Gender updated — regenerate voice intro to use the new default voice.");
+      showMessage("Gender updated — regenerate voice intro to use the new default voice.", "voice");
     } catch {
-      showMessage("Failed to save gender", 5000);
+      showMessage("Failed to save gender", "voice", 5000);
     }
   };
 
@@ -416,6 +422,20 @@ export default function ProfilePage() {
       </div>
     );
   }
+
+  const renderToast = (section: string) =>
+    sectionMsg?.section === section ? (
+      <p
+        ref={toastRef}
+        className={`text-sm text-center rounded-lg px-4 py-2 ${
+          isSuccess(sectionMsg.text)
+            ? "bg-emerald-500/10 text-emerald-700"
+            : "bg-destructive/10 text-destructive"
+        }`}
+      >
+        {sectionMsg.text}
+      </p>
+    ) : null;
 
   const isExpert = !!profile;
   const nickName =
@@ -456,19 +476,6 @@ export default function ProfilePage() {
       </header>
 
       <div className="space-y-6 p-4">
-        {saveMessage && (
-          <p
-            ref={saveMessageRef}
-            className={`text-sm text-center rounded-lg px-4 py-2 ${
-              saveMessage.includes("saved") || saveMessage.includes("uploaded") || saveMessage.includes("regenerated")
-                ? "bg-emerald-500/10 text-emerald-700"
-                : "bg-destructive/10 text-destructive"
-            }`}
-          >
-            {saveMessage}
-          </p>
-        )}
-
         {showRegeneratePrompt && (
           <Card className="border-indigo-200 dark:border-indigo-800">
             <CardContent className="p-4">
@@ -504,7 +511,8 @@ export default function ProfilePage() {
 
         {isExpert && !profile.isPublished && (
           <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-            <CardContent className="p-4">
+            <CardContent className="p-4 space-y-3">
+              {renderToast("publish")}
               <div className="flex items-start gap-3">
                 <div className="rounded-full bg-amber-100 dark:bg-amber-900/50 p-1.5 mt-0.5">
                   <ExternalLink className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -556,7 +564,8 @@ export default function ProfilePage() {
                   Profile Image
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {renderToast("image")}
                 {profile.hasAvatar ? (
                   <div className="aspect-square rounded-xl overflow-hidden bg-muted">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -602,6 +611,7 @@ export default function ProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {renderToast("voice")}
                 {/* Gender for default voice */}
                 <div className="flex items-center justify-between rounded-lg border p-2.5">
                   <span className="text-sm text-muted-foreground">
@@ -750,7 +760,8 @@ export default function ProfilePage() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {renderToast("domains")}
                 <div className="space-y-2">
                   {DOMAINS.map((d) => (
                     <label
@@ -801,7 +812,8 @@ export default function ProfilePage() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {renderToast("intro")}
                 {editingIntro ? (
                   <>
                     <Textarea
@@ -868,6 +880,7 @@ export default function ProfilePage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                {renderToast("services")}
                 {services.length === 0 && (
                   <p className="text-sm text-muted-foreground py-4 text-center">
                     No services yet. Click Add to create one.
@@ -941,7 +954,8 @@ export default function ProfilePage() {
                   Service Document
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {renderToast("document")}
                 {uploadedFileName && (
                   <a
                     href={`/api/experts/${profile.id}/document`}
