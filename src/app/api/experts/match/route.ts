@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { matchExperts } from "@/lib/ai";
+import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,11 +45,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const expertSummaries = experts
-      .map(
-        (e) =>
-          `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nDomains: ${domainStrings(e.domains).join(", ")}\nSession types: ${e.sessionType}\nBio: ${e.bio ?? "(none)"}\nServices: ${JSON.stringify(e.servicesOffered ?? [])}`
+    // Enrich each expert summary with relevant memories (in parallel)
+    const memoryResults = await Promise.all(
+      experts.map((e) =>
+        searchExpertMemories(e.id, query, 3).catch(() => [] as string[])
       )
+    );
+
+    const expertSummaries = experts
+      .map((e, i) => {
+        const base = `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nDomains: ${domainStrings(e.domains).join(", ")}\nSession types: ${e.sessionType}\nBio: ${e.bio ?? "(none)"}\nServices: ${JSON.stringify(e.servicesOffered ?? [])}`;
+        const memories = memoryResults[i];
+        if (memories.length > 0) {
+          return `${base}\nAgent Memory: ${memories.join("; ")}`;
+        }
+        return base;
+      })
       .join("\n\n---\n\n");
 
     const result = await matchExperts(query, expertSummaries, history);

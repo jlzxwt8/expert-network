@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { storeReviewEvent } from "@/lib/integrations/mem9-lifecycle";
 
 export async function POST(request: NextRequest) {
   try {
@@ -97,6 +98,13 @@ export async function POST(request: NextRequest) {
         reviewCount: agg._count,
       },
     });
+
+    storeReviewEvent({
+      expertId: booking.expertId,
+      founderName: review.founder.nickName ?? review.founder.name ?? "Client",
+      rating,
+      comment,
+    }).catch(() => {});
 
     return NextResponse.json(review);
   } catch (error) {

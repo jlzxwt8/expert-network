@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { SessionType } from "@/generated/prisma/client";
+import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 
 const SESSION_TYPES: SessionType[] = ["ONLINE", "OFFLINE", "BOTH"];
 
@@ -98,6 +99,14 @@ export async function POST(request: NextRequest) {
         founder: true,
       },
     });
+
+    storeBookingEvent({
+      expertId,
+      founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
+      sessionType: booking.sessionType,
+      startTime: booking.startTime,
+      status: booking.status,
+    }).catch(() => {});
 
     return NextResponse.json(booking);
   } catch (error) {
