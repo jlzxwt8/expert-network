@@ -229,7 +229,7 @@ echo "┌─ 6. EDGE CASES & ERROR HANDLING ────────────
 check "GET /api/experts/nonexistent"                "404" "$BASE/api/experts/nonexistent-id-12345"
 check "GET /api/experts/nonexistent/avatar"          "404" "$BASE/api/experts/nonexistent-id-12345/avatar"
 check "POST /api/onboarding (empty body, no auth)"   "401" "$BASE/api/onboarding" "POST" '{}'
-check "POST /api/experts/match (empty query)"         "200" "$BASE/api/experts/match" "POST" '{"query":""}'
+check "POST /api/experts/match (empty query → 400)"   "400" "$BASE/api/experts/match" "POST" '{"query":""}'
 
 echo "└────────────────────────────────────────────"
 echo ""

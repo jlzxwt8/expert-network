@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { Mail, Chrome, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import { Separator } from "@/components/ui/separator";
 
 function SignInForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { status } = useSession();
   const role = searchParams.get("role");
   const isExpert = role === "expert";
   const callbackUrl =
@@ -27,6 +29,12 @@ function SignInForm() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace(callbackUrl);
+    }
+  }, [status, callbackUrl, router]);
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
