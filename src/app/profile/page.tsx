@@ -61,7 +61,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<ExpertProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sectionMsg, setSectionMsg] = useState<{ text: string; section: string } | null>(null);
+  const [sectionMsg, setSectionMsg] = useState<{ text: string; section: string; isError: boolean } | null>(null);
 
   const [domains, setDomains] = useState<string[]>([]);
   const [bio, setBio] = useState("");
@@ -127,16 +127,13 @@ export default function ProfilePage() {
     }
   }, [sessionStatus, fetchProfile, router]);
 
-  const showMessage = (msg: string, section: string, duration = 3000) => {
-    setSectionMsg({ text: msg, section });
+  const showMessage = (msg: string, section: string, isError = false, duration = 3000) => {
+    setSectionMsg({ text: msg, section, isError });
     setTimeout(() => setSectionMsg((prev) => (prev?.text === msg ? null : prev)), duration);
     requestAnimationFrame(() => {
       toastRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   };
-
-  const isSuccess = (text: string) =>
-    /saved|uploaded|regenerated|generated|improved|published|updated/i.test(text);
 
   const saveSection = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/expert/profile", {
@@ -159,7 +156,7 @@ export default function ProfilePage() {
       showMessage("Service domains saved!", "domains");
       setShowRegeneratePrompt(true);
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", "domains", 5000);
+      showMessage(err instanceof Error ? err.message : "Save failed", "domains", true, 5000);
     } finally {
       setSavingDomains(false);
     }
@@ -184,7 +181,7 @@ export default function ProfilePage() {
       showMessage("Introduction saved!", "intro");
       setShowRegeneratePrompt(true);
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", "intro", 5000);
+      showMessage(err instanceof Error ? err.message : "Save failed", "intro", true, 5000);
     } finally {
       setSavingIntro(false);
     }
@@ -223,7 +220,7 @@ export default function ProfilePage() {
       showMessage("Services saved!", "services");
       setShowRegeneratePrompt(true);
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Save failed", "services", 5000);
+      showMessage(err instanceof Error ? err.message : "Save failed", "services", true, 5000);
     } finally {
       setSavingServices(false);
     }
@@ -248,7 +245,7 @@ export default function ProfilePage() {
       setIntroScript(data.improved);
       showMessage("Introduction improved by AI!", "intro");
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "AI improvement failed", "intro", 5000);
+      showMessage(err instanceof Error ? err.message : "AI improvement failed", "intro", true, 5000);
     } finally {
       setImprovingIntro(false);
     }
@@ -269,7 +266,7 @@ export default function ProfilePage() {
       setServices(data.improved);
       showMessage("Services improved by AI!", "services");
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "AI improvement failed", "services", 5000);
+      showMessage(err instanceof Error ? err.message : "AI improvement failed", "services", true, 5000);
     } finally {
       setImprovingServices(false);
     }
@@ -294,7 +291,7 @@ export default function ProfilePage() {
       showMessage("Document uploaded!", "document");
       fetchProfile();
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Upload failed", "document", 5000);
+      showMessage(err instanceof Error ? err.message : "Upload failed", "document", true, 5000);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -312,7 +309,7 @@ export default function ProfilePage() {
       setProfile((prev) => (prev ? { ...prev, isPublished: true } : prev));
       showMessage("Profile published! It's now visible to founders.", "publish");
     } catch (err) {
-      showMessage(err instanceof Error ? err.message : "Publish failed", "publish", 5000);
+      showMessage(err instanceof Error ? err.message : "Publish failed", "publish", true, 5000);
     } finally {
       setPublishing(false);
     }
@@ -339,6 +336,7 @@ export default function ProfilePage() {
       showMessage(
         err instanceof Error ? err.message : "Failed to regenerate image",
         "image",
+        true,
         5000
       );
     } finally {
@@ -363,6 +361,7 @@ export default function ProfilePage() {
       showMessage(
         err instanceof Error ? err.message : "Failed to generate audio",
         "voice",
+        true,
         5000
       );
     } finally {
@@ -393,6 +392,7 @@ export default function ProfilePage() {
       showMessage(
         err instanceof Error ? err.message : "Voice cloning failed",
         "voice",
+        true,
         5000
       );
     } finally {
@@ -411,7 +411,7 @@ export default function ProfilePage() {
       });
       showMessage("Gender updated — regenerate voice intro to use the new default voice.", "voice");
     } catch {
-      showMessage("Failed to save gender", "voice", 5000);
+      showMessage("Failed to save gender", "voice", true, 5000);
     }
   };
 
@@ -428,9 +428,9 @@ export default function ProfilePage() {
       <p
         ref={toastRef}
         className={`text-sm text-center rounded-lg px-4 py-2 ${
-          isSuccess(sectionMsg.text)
-            ? "bg-emerald-500/10 text-emerald-700"
-            : "bg-destructive/10 text-destructive"
+          sectionMsg.isError
+            ? "bg-destructive/10 text-destructive"
+            : "bg-emerald-500/10 text-emerald-700"
         }`}
       >
         {sectionMsg.text}
