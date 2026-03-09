@@ -16,9 +16,10 @@ import {
   FileDown,
   ArrowLeft,
   Globe,
+  Play,
+  Pause,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AudioPlayer } from "@/components/audio-player";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -127,6 +128,8 @@ export default function ExpertProfilePage() {
   const [loading, setLoading] = useState(true);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const reviewsRef = useRef<Review[]>([]);
   reviewsRef.current = reviews;
 
@@ -253,21 +256,68 @@ export default function ExpertProfilePage() {
       </header>
 
       <div className="px-4">
-      {/* Hero - Profile Image */}
+      {/* Hero - Profile Image with speaking avatar */}
       <section className="pt-4">
-        <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
-          {expert.hasAvatar ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={`/api/experts/${id}/avatar`}
-              alt={`${name}'s avatar`}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-indigo-300">
-              <Sparkles className="h-16 w-16 mb-2" />
-              <span className="text-sm">Avatar coming soon</span>
-            </div>
+        {expert.hasAudio && (
+          <audio
+            ref={audioRef}
+            src={`/api/experts/${id}/audio`}
+            preload="none"
+            onPlay={() => setIsAudioPlaying(true)}
+            onPause={() => setIsAudioPlaying(false)}
+            onEnded={() => setIsAudioPlaying(false)}
+          />
+        )}
+        <div className="relative">
+          <div className={`aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center transition-all duration-300 ${isAudioPlaying ? "ring-4 ring-indigo-400/50 ring-offset-2" : ""}`}>
+            {expert.hasAvatar ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={`/api/experts/${id}/avatar`}
+                alt={`${name}'s avatar`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-indigo-300">
+                <Sparkles className="h-16 w-16 mb-2" />
+                <span className="text-sm">Avatar coming soon</span>
+              </div>
+            )}
+          </div>
+
+          {expert.hasAudio && (
+            <button
+              onClick={() => {
+                const audio = audioRef.current;
+                if (!audio) return;
+                if (isAudioPlaying) {
+                  audio.pause();
+                } else {
+                  audio.play();
+                }
+              }}
+              className={`absolute bottom-3 right-3 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-lg transition-all ${
+                isAudioPlaying
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white/90 text-slate-800 backdrop-blur hover:bg-white"
+              }`}
+            >
+              {isAudioPlaying ? (
+                <>
+                  <Pause className="h-4 w-4" />
+                  <span className="flex gap-0.5 items-center">
+                    <span className="inline-block h-3 w-0.5 bg-white rounded-full animate-pulse" />
+                    <span className="inline-block h-4 w-0.5 bg-white rounded-full animate-pulse [animation-delay:150ms]" />
+                    <span className="inline-block h-2 w-0.5 bg-white rounded-full animate-pulse [animation-delay:300ms]" />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 ml-0.5" />
+                  Listen
+                </>
+              )}
+            </button>
           )}
         </div>
         <div className="mt-4">
@@ -310,13 +360,6 @@ export default function ExpertProfilePage() {
       {/* About / Introduction Script */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-foreground mb-3">About</h2>
-        {expert.hasAudio && (
-          <AudioPlayer
-            src={`/api/experts/${id}/audio`}
-            label={`Listen to ${name}'s introduction`}
-            className="mb-4"
-          />
-        )}
         {expert.avatarScript ? (
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
             {expert.avatarScript}

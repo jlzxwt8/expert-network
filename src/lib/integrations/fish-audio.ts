@@ -16,17 +16,24 @@ const DEFAULT_MODEL = "s1";
  */
 export class FishAudioProvider implements VoiceSynthesisProvider {
   private apiKey: string;
-  private defaultVoiceId: string | undefined;
+  private defaultVoiceMale: string | undefined;
+  private defaultVoiceFemale: string | undefined;
 
   constructor() {
     const key = process.env.FISH_AUDIO_API_KEY;
     if (!key) throw new Error("FISH_AUDIO_API_KEY is not set");
     this.apiKey = key;
-    this.defaultVoiceId = process.env.FISH_AUDIO_VOICE_ID || undefined;
+    this.defaultVoiceMale = process.env.FISH_AUDIO_VOICE_ID_MALE || undefined;
+    this.defaultVoiceFemale = process.env.FISH_AUDIO_VOICE_ID_FEMALE || undefined;
+  }
+
+  getDefaultVoiceId(gender?: string | null): string | undefined {
+    if (gender === "female") return this.defaultVoiceFemale ?? this.defaultVoiceMale;
+    return this.defaultVoiceMale ?? this.defaultVoiceFemale;
   }
 
   async synthesize(input: VoiceSynthesisInput): Promise<VoiceSynthesisResult> {
-    const voiceId = input.voiceId ?? this.defaultVoiceId;
+    const voiceId = input.voiceId;
     const format = input.format ?? "mp3";
 
     const body: Record<string, unknown> = {
@@ -59,5 +66,42 @@ export class FishAudioProvider implements VoiceSynthesisProvider {
     const audioBase64 = Buffer.from(arrayBuf).toString("base64");
 
     return { audioBase64, format };
+  }
+
+  async cloneVoice(
+    title: string,
+    audio: Buffer | Uint8Array,
+    transcript?: string
+  ): Promise<string> {
+    const formData = new FormData();
+    formData.append("visibility", "private");
+    formData.append("type", "tts");
+    formData.append("title", title);
+    formData.append("train_mode", "fast");
+    formData.append("enhance_audio_quality", "true");
+    formData.append(
+      "voices",
+      new Blob([new Uint8Array(audio)], { type: "audio/webm" }),
+      "voice.webm"
+    );
+    if (transcript) {
+      formData.append("texts", transcript);
+    }
+
+    const res = await fetch(`${API_BASE}/model`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(
+        `Fish Audio voice clone failed (${res.status}): ${errText.slice(0, 200)}`
+      );
+    }
+
+    const data = await res.json();
+    return data._id;
   }
 }

@@ -15,6 +15,10 @@
 export interface VoiceSynthesisProvider {
   /** Generate speech audio from text. Returns base64-encoded audio. */
   synthesize(input: VoiceSynthesisInput): Promise<VoiceSynthesisResult>;
+  /** Resolve the default voice model ID for a given gender. */
+  getDefaultVoiceId?(gender?: string | null): string | undefined;
+  /** Clone a voice from an audio sample. Returns the new voice model ID. */
+  cloneVoice?(title: string, audio: Buffer | Uint8Array, transcript?: string): Promise<string>;
   /** List available voice models. */
   listVoices?(): Promise<VoiceModel[]>;
 }

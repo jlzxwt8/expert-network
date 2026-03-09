@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -12,9 +12,9 @@ export async function POST() {
     }
 
     const voiceSynthesis = await getVoiceSynthesis();
-    if (!voiceSynthesis) {
+    if (!voiceSynthesis || !voiceSynthesis.cloneVoice) {
       return NextResponse.json(
-        { error: "Voice synthesis is not configured" },
+        { error: "Voice cloning is not configured" },
         { status: 503 }
       );
     }
@@ -31,39 +31,40 @@ export async function POST() {
       );
     }
 
-    const script = expert.avatarScript;
-    if (!script) {
+    const formData = await request.formData();
+    const audioFile = formData.get("audio");
+    if (!audioFile || !(audioFile instanceof Blob)) {
       return NextResponse.json(
-        { error: "No introduction script found. Generate your profile first." },
+        { error: "Missing audio file" },
         { status: 400 }
       );
     }
 
-    const voiceId =
-      expert.fishAudioModelId ??
-      voiceSynthesis.getDefaultVoiceId?.(expert.gender) ??
-      undefined;
+    const arrayBuf = await audioFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuf);
 
-    const result = await voiceSynthesis.synthesize({
-      text: script,
-      voiceId,
-      format: "mp3",
-      speed: 1.0,
-    });
+    if (buffer.length < 1000) {
+      return NextResponse.json(
+        { error: "Audio file too small — please record at least 10 seconds" },
+        { status: 400 }
+      );
+    }
 
-    const dataUrl = `data:audio/mp3;base64,${result.audioBase64}`;
+    const title = `${expert.user.nickName ?? expert.user.name ?? "Expert"} — voice clone`;
+
+    const modelId = await voiceSynthesis.cloneVoice(title, buffer);
 
     await prisma.expert.update({
       where: { id: expert.id },
-      data: { audioIntroUrl: dataUrl },
+      data: { fishAudioModelId: modelId },
     });
 
-    return NextResponse.json({ audioIntroUrl: dataUrl });
+    return NextResponse.json({ fishAudioModelId: modelId });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[expert/generate-audio POST]", message, error);
+    console.error("[expert/voice-clone POST]", message, error);
     return NextResponse.json(
-      { error: "Failed to generate audio intro", detail: message },
+      { error: "Failed to clone voice", detail: message },
       { status: 500 }
     );
   }

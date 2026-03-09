@@ -18,9 +18,11 @@ import {
   Pencil,
   Check,
   Volume2,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/audio-player";
+import { VoiceRecorder } from "@/components/voice-recorder";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +42,8 @@ interface ExpertProfile {
   servicesOffered: ServiceItem[] | null;
   hasAvatar: boolean;
   hasAudio: boolean;
+  hasVoiceClone: boolean;
+  gender: string | null;
   documentName: string | null;
   isPublished: boolean;
   user: {
@@ -87,6 +91,9 @@ export default function ProfilePage() {
   const [avatarCacheBuster, setAvatarCacheBuster] = useState("");
   const [generatingAudio, setGeneratingAudio] = useState(false);
   const [audioCacheBuster, setAudioCacheBuster] = useState("");
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [cloningVoice, setCloningVoice] = useState(false);
+  const [editingGender, setEditingGender] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -358,6 +365,50 @@ export default function ProfilePage() {
     }
   };
 
+  const handleVoiceReRecord = async (blob: Blob) => {
+    setCloningVoice(true);
+    try {
+      const formData = new FormData();
+      formData.append("audio", blob, "voice.webm");
+
+      const cloneRes = await fetch("/api/expert/voice-clone", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!cloneRes.ok) {
+        const err = await cloneRes.json().catch(() => ({}));
+        throw new Error(err.error || "Voice cloning failed");
+      }
+
+      setProfile((prev) => (prev ? { ...prev, hasVoiceClone: true } : prev));
+      setShowVoiceRecorder(false);
+      showMessage("Voice updated! Click 'Regenerate Voice Intro' to apply it.");
+    } catch (err) {
+      showMessage(
+        err instanceof Error ? err.message : "Voice cloning failed",
+        5000
+      );
+    } finally {
+      setCloningVoice(false);
+    }
+  };
+
+  const handleGenderChange = async (gender: string) => {
+    setProfile((prev) => (prev ? { ...prev, gender } : prev));
+    setEditingGender(false);
+    try {
+      await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gender }),
+      });
+      showMessage("Gender updated — regenerate voice intro to use the new default voice.");
+    } catch {
+      showMessage("Failed to save gender", 5000);
+    }
+  };
+
   if (sessionStatus === "loading" || loading) {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center">
@@ -540,16 +591,56 @@ export default function ProfilePage() {
             {/* Voice Introduction */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Voice Introduction</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Volume2 className="h-4 w-4" />
+                  Voice Introduction
+                </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                {/* Gender for default voice */}
+                <div className="flex items-center justify-between rounded-lg border p-2.5">
+                  <span className="text-sm text-muted-foreground">
+                    Default voice:{" "}
+                    <span className="font-medium text-foreground">
+                      {profile?.gender === "female" ? "Female" : profile?.gender === "male" ? "Male" : "Male (default)"}
+                    </span>
+                  </span>
+                  {editingGender ? (
+                    <div className="flex gap-1">
+                      {[
+                        { value: "male", label: "Male" },
+                        { value: "female", label: "Female" },
+                      ].map((opt) => (
+                        <Button
+                          key={opt.value}
+                          size="sm"
+                          variant={profile?.gender === opt.value ? "default" : "outline"}
+                          className="h-7 text-xs px-2"
+                          onClick={() => handleGenderChange(opt.value)}
+                        >
+                          {opt.label}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setEditingGender(true)}
+                    >
+                      Change
+                    </Button>
+                  )}
+                </div>
+
                 {profile?.hasAudio && (
                   <AudioPlayer
                     src={`/api/experts/${profile.id}/audio${audioCacheBuster}`}
                     label="Your voice introduction"
-                    className="mb-3"
                   />
                 )}
+
                 <Button
                   variant="outline"
                   className="w-full gap-2"
@@ -568,11 +659,51 @@ export default function ProfilePage() {
                     </>
                   )}
                 </Button>
+
                 {!profile?.avatarScript && (
-                  <p className="mt-2 text-xs text-muted-foreground text-center">
+                  <p className="text-xs text-muted-foreground text-center">
                     Complete your introduction script first
                   </p>
                 )}
+
+                {showVoiceRecorder ? (
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <p className="text-sm text-muted-foreground text-center">
+                      Record a new voice sample (10–30s of natural speech)
+                    </p>
+                    <VoiceRecorder
+                      onRecordingComplete={handleVoiceReRecord}
+                      disabled={cloningVoice}
+                      minSeconds={10}
+                      maxSeconds={60}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowVoiceRecorder(false)}
+                      disabled={cloningVoice}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2 text-muted-foreground"
+                    onClick={() => setShowVoiceRecorder(true)}
+                  >
+                    <Mic className="h-3.5 w-3.5" />
+                    {profile?.hasVoiceClone ? "Re-record Voice" : "Record Your Voice"}
+                  </Button>
+                )}
+
+                <p className="text-xs text-muted-foreground text-center">
+                  {profile?.hasVoiceClone
+                    ? "Edit the introduction script below, then click Regenerate to update the audio."
+                    : "Record your voice to personalize the AI narration, or use the default voice."}
+                </p>
               </CardContent>
             </Card>
 

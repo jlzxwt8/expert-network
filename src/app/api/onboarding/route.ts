@@ -71,12 +71,17 @@ export async function POST(request: NextRequest) {
     const onboardingStep = parseOnboardingStep(body.onboardingStep);
     const bio =
       typeof body.bio === "string" ? body.bio : undefined;
+    const gender =
+      typeof body.gender === "string" && ["male", "female", "other"].includes(body.gender)
+        ? body.gender
+        : undefined;
 
     const updateData: Record<string, unknown> = {};
     if (Object.keys(socialLinks).length > 0) Object.assign(updateData, socialLinks);
     if (sessionType !== null) updateData.sessionType = sessionType;
     if (onboardingStep !== null) updateData.onboardingStep = onboardingStep;
     if (bio !== undefined) updateData.bio = bio;
+    if (gender !== undefined) updateData.gender = gender;
 
     if (Object.keys(updateData).length === 0 && newDomains === undefined) {
       return NextResponse.json(

@@ -108,11 +108,15 @@ model Expert {
   instagram       String?
   xiaohongshu     String?
 
+  // Personal info
+  gender          String?
+
   // Professional info
   domains         ExpertDomain[]
   sessionType     SessionType    @default(BOTH)
   bio             String?        @db.LongText
   audioIntroUrl   String?        @db.LongText
+  fishAudioModelId String?
   mem9SpaceId     String?
   servicesOffered Json?
 

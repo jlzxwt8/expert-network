@@ -24,12 +24,13 @@ export async function GET() {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { avatarVideoUrl: _av, audioIntroUrl: _ai, documentData: _dd, domains: domainRows, ...rest } = expert;
+    const { avatarVideoUrl: _av, audioIntroUrl: _ai, documentData: _dd, fishAudioModelId: _fm, domains: domainRows, ...rest } = expert;
     return NextResponse.json({
       ...rest,
       domains: domainStrings(domainRows),
       hasAvatar: !!expert.avatarVideoUrl,
       hasAudio: !!expert.audioIntroUrl,
+      hasVoiceClone: !!expert.fishAudioModelId,
     });
   } catch (error) {
     console.error("[expert/profile GET]", error);

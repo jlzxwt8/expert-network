@@ -12,6 +12,7 @@ import {
   Sparkles,
   Upload,
   FileText,
+  Volume2,
 } from "lucide-react";
 
 import {
@@ -20,6 +21,8 @@ import {
   ONBOARDING_STEPS,
 } from "@/lib/constants";
 import { VoiceInputButton } from "@/components/voice-input-button";
+import { VoiceRecorder } from "@/components/voice-recorder";
+import { AudioPlayer } from "@/components/audio-player";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,11 +39,13 @@ import { cn } from "@/lib/utils";
 type Step =
   | "GREETING"
   | "NICKNAME"
+  | "GENDER"
   | "SOCIAL_LINKS"
   | "DOMAINS"
   | "DOCUMENT_UPLOAD"
   | "SESSION_PREFS"
   | "AI_GENERATION"
+  | "VOICE_SAMPLE"
   | "PREVIEW";
 
 type Message = {
@@ -78,6 +83,8 @@ function getProgressValue(step: Step): number {
     case "GREETING":
     case "NICKNAME":
       return 10;
+    case "GENDER":
+      return 15;
     case "SOCIAL_LINKS":
     case "DOMAINS":
     case "DOCUMENT_UPLOAD":
@@ -85,6 +92,8 @@ function getProgressValue(step: Step): number {
       return 25;
     case "AI_GENERATION":
       return 50;
+    case "VOICE_SAMPLE":
+      return 65;
     case "PREVIEW":
       return 75;
     default:
@@ -118,6 +127,10 @@ export default function OnboardingPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [userNickName, setUserNickName] = useState("");
+  const [selectedGender, setSelectedGender] = useState<string>("");
+  const [cloningVoice, setCloningVoice] = useState(false);
+  const [voiceCloned, setVoiceCloned] = useState(false);
+  const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -200,6 +213,17 @@ export default function OnboardingPage() {
     addGreeting();
   }, [status, messages.length]);
 
+  // Gender selection
+  useEffect(() => {
+    if (currentStep !== "GENDER") return;
+    addStepMessage("gender", {
+      id: "gender",
+      role: "ai",
+      content: `Nice to meet you, ${userNickName || "there"}! How should we set your default voice?`,
+      type: "options",
+    });
+  }, [currentStep, addStepMessage, userNickName]);
+
   // Social link questions
   useEffect(() => {
     if (currentStep !== "SOCIAL_LINKS" || currentSocialIndex >= SOCIAL_PLATFORMS.length)
@@ -259,6 +283,18 @@ export default function OnboardingPage() {
     });
   }, [currentStep, addStepMessage]);
 
+  // Voice sample question
+  useEffect(() => {
+    if (currentStep !== "VOICE_SAMPLE") return;
+    addStepMessage("voice-sample", {
+      id: "voice-sample",
+      role: "ai",
+      content:
+        "Your profile is ready! To make your avatar speak in your own voice, record a short voice sample (10–30 seconds). Just speak naturally — read any text or introduce yourself. You can also skip this step.",
+      type: "text",
+    });
+  }, [currentStep, addStepMessage]);
+
   const saveOnboarding = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/onboarding", {
       method: "POST",
@@ -267,6 +303,25 @@ export default function OnboardingPage() {
     });
     if (!res.ok) throw new Error("Failed to save");
     return res.json();
+  };
+
+  const handleGenderSelect = async (gender: string) => {
+    const labels: Record<string, string> = { male: "Male", female: "Female", other: "Prefer not to say" };
+    setSelectedGender(gender);
+
+    setMessages((prev) => [
+      ...prev,
+      { id: "user-gender", role: "user", content: labels[gender] ?? gender },
+    ]);
+
+    try {
+      await saveOnboarding({ gender });
+    } catch {
+      // Silently fail
+    }
+
+    setCurrentStep("SOCIAL_LINKS");
+    setCurrentSocialIndex(0);
   };
 
   const handleNicknameSubmit = async (value: string) => {
@@ -290,8 +345,7 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
-    setCurrentStep("SOCIAL_LINKS");
-    setCurrentSocialIndex(0);
+    setCurrentStep("GENDER");
   };
 
   const handleSocialSubmit = async (value: string, skip = false) => {
@@ -450,7 +504,7 @@ export default function OnboardingPage() {
         videoScript: data.videoScript ?? "",
         profileImage: data.profileImage ?? null,
       });
-      setCurrentStep("PREVIEW");
+      setCurrentStep("VOICE_SAMPLE");
     } catch (err) {
       console.error("AI generation error:", err);
       setMessages((prev) => [
@@ -463,6 +517,72 @@ export default function OnboardingPage() {
         },
       ]);
       setCurrentStep("SESSION_PREFS");
+    }
+  };
+
+  const handleVoiceRecording = async (blob: Blob) => {
+    setCloningVoice(true);
+    setMessages((prev) => [
+      ...prev,
+      { id: "user-voice", role: "user", content: "Voice sample recorded" },
+    ]);
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", blob, "voice.webm");
+
+      const cloneRes = await fetch("/api/expert/voice-clone", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!cloneRes.ok) {
+        const err = await cloneRes.json().catch(() => ({}));
+        throw new Error(err.error || "Voice cloning failed");
+      }
+
+      setVoiceCloned(true);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "voice-cloned",
+          role: "ai",
+          content: "Voice cloned! Now generating your audio introduction...",
+          type: "text",
+        },
+      ]);
+
+      const audioRes = await fetch("/api/expert/generate-audio", {
+        method: "POST",
+      });
+
+      if (audioRes.ok) {
+        const audioData = await audioRes.json();
+        setAudioIntroUrl(audioData.audioIntroUrl ?? null);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "audio-ready",
+            role: "ai",
+            content: "Your voice introduction is ready! Preview it below.",
+            type: "text",
+          },
+        ]);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Voice cloning failed";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `voice-error-${Date.now()}`,
+          role: "ai",
+          content: `${msg}. You can try again or skip this step.`,
+          type: "text",
+        },
+      ]);
+    } finally {
+      setCloningVoice(false);
     }
   };
 
@@ -561,6 +681,13 @@ export default function OnboardingPage() {
                 <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
                   <Sparkles className="h-16 w-16 text-indigo-300" />
                 </div>
+              )}
+              {audioIntroUrl && (
+                <AudioPlayer
+                  src={audioIntroUrl}
+                  label="Your voice introduction"
+                  className="mt-3"
+                />
               )}
             </CardHeader>
 
@@ -787,6 +914,29 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {currentStep === "GENDER" && (
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: "male", label: "Male", emoji: "👨" },
+              { value: "female", label: "Female", emoji: "👩" },
+              { value: "other", label: "Skip", emoji: "⏭️" },
+            ].map((opt) => (
+              <Button
+                key={opt.value}
+                variant={selectedGender === opt.value ? "default" : "outline"}
+                className={cn(
+                  "min-h-[56px] flex-col gap-1",
+                  selectedGender === opt.value && "bg-indigo-600 hover:bg-indigo-700"
+                )}
+                onClick={() => handleGenderSelect(opt.value)}
+              >
+                <span className="text-lg">{opt.emoji}</span>
+                <span className="text-xs">{opt.label}</span>
+              </Button>
+            ))}
+          </div>
+        )}
+
         {currentStep === "SOCIAL_LINKS" && platform && (
           <div className="space-y-2">
             <div className="flex gap-2">
@@ -931,6 +1081,53 @@ export default function OnboardingPage() {
         {currentStep === "AI_GENERATION" && (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          </div>
+        )}
+
+        {currentStep === "VOICE_SAMPLE" && (
+          <div className="space-y-3">
+            {!voiceCloned && (
+              <VoiceRecorder
+                onRecordingComplete={handleVoiceRecording}
+                disabled={cloningVoice}
+                minSeconds={10}
+                maxSeconds={60}
+              />
+            )}
+
+            {audioIntroUrl && (
+              <AudioPlayer
+                src={audioIntroUrl}
+                label="Your voice introduction preview"
+              />
+            )}
+
+            <Button
+              variant={voiceCloned ? "default" : "outline"}
+              className={cn(
+                "w-full min-h-[44px]",
+                voiceCloned && "bg-indigo-600 hover:bg-indigo-700"
+              )}
+              onClick={() => setCurrentStep("PREVIEW")}
+              disabled={cloningVoice}
+            >
+              {cloningVoice ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing voice...
+                </>
+              ) : voiceCloned ? (
+                <>
+                  <Volume2 className="mr-2 h-4 w-4" />
+                  Continue to Preview
+                </>
+              ) : (
+                <>
+                  <SkipForward className="mr-2 h-4 w-4" />
+                  Skip Voice Recording
+                </>
+              )}
+            </Button>
           </div>
         )}
       </div>
