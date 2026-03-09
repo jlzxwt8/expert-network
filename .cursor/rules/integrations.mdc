@@ -1,0 +1,50 @@
+---
+description: External service integrations — provider pattern, mem9, voice, meeting recording
+globs: src/lib/integrations/**
+alwaysApply: false
+---
+
+# Integration Layer
+
+All external services live in `src/lib/integrations/` following the provider pattern.
+
+## Architecture
+
+```
+types.ts          → Interfaces (VoiceSynthesisProvider, MemoryProvider, etc.)
+config.ts         → Feature flags + lazy singleton registry
+qwen-tts.ts       → TTS + voice cloning via Qwen3-TTS-Flash (DashScope)
+mem9.ts           → Persistent cloud memory via mem9.ai
+mem9-lifecycle.ts  → Fire-and-forget helpers (seed profile, store events, search)
+fish-audio.ts     → Legacy Fish Audio provider (kept for reference, not imported)
+```
+
+## Adding a New Integration
+
+1. Define the interface in `types.ts`
+2. Implement in a dedicated file (e.g. `new-service.ts`)
+3. Add feature flag + lazy loader in `config.ts`
+4. Wire lifecycle events in the relevant API routes
+
+## mem9 (Persistent Memory)
+
+- Free tier, no API key — space IDs are the only credential
+- Each expert gets their own space (`Expert.mem9SpaceId`)
+- Auto-provisioned on profile publish via `ensureExpertSpace()`
+- Profile data seeded as initial memories (bio, domains, services, social links)
+- Bookings and reviews stored as events
+- AI match enriched with memory search results
+- All mem9 calls are fire-and-forget (`.catch(() => {})`) — never block the request
+
+## Voice Synthesis (Qwen3-TTS)
+
+- Standard voices: `qwen3-tts-flash` with named voices (Ethan, Cherry, etc.)
+- Cloned voices: `qwen3-tts-vc-2026-01-22` with voice ID from cloning
+- Voice IDs stored in `Expert.fishAudioModelId` (legacy column name, stores Qwen voice IDs)
+- Gender-based defaults: male → "Ethan", female → "Cherry"
+
+## Voice Input (Qwen3-ASR)
+
+- Server-side ASR via `POST /api/speech-to-text`
+- Client records with `MediaRecorder`, sends audio blob to server
+- `useVoiceInput` hook in `src/hooks/use-voice-input.ts`

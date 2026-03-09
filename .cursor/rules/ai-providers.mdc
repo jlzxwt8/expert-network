@@ -1,0 +1,39 @@
+---
+description: AI provider configuration — DashScope/Qwen models and API endpoints
+globs: src/lib/ai/**
+alwaysApply: false
+---
+
+# AI Providers
+
+All AI features use Alibaba DashScope via `DASHSCOPE_API_KEY` (Singapore endpoint).
+
+## Models
+
+| Feature | Model | Endpoint |
+|---------|-------|----------|
+| LLM (text) | `qwen-max` | `dashscope-intl.aliyuncs.com` (OpenAI-compatible) |
+| Image generation | `qwen-image-2.0-pro` | `/api/v1/services/aigc/multimodal-generation/generation` |
+| TTS (standard) | `qwen3-tts-flash` | same multimodal endpoint |
+| TTS (cloned voice) | `qwen3-tts-vc-2026-01-22` | same multimodal endpoint |
+| Voice cloning | `qwen-voice-enrollment` | `/api/v1/services/audio/tts/customization` |
+| ASR | `qwen3-asr-flash` | same multimodal endpoint |
+
+## Important
+
+- Always use `dashscope-intl.aliyuncs.com` (international/Singapore), never `dashscope.aliyuncs.com` (Beijing)
+- Image generation returns a temporary URL (24h) — download and store as base64
+- TTS non-streaming returns audio URL (24h) — download and convert to base64
+- Voice cloning creates a voice ID tied to a specific `target_model` — the TTS model must match
+- Default system voices: `Ethan` (male), `Cherry` (female) — 17 total built-in voices
+
+## Provider Pattern
+
+`src/lib/ai/` contains swappable providers behind a common interface:
+
+- `src/lib/ai/types.ts` — shared interfaces (`ProfileInput`, `ImageInput`, etc.)
+- `src/lib/ai/qwen.ts` — Qwen/DashScope implementation (origin deployment)
+- `src/lib/ai/gemini.ts` — Gemini/Vertex AI implementation (hackathon deployment)
+- `src/lib/ai/index.ts` — selects provider based on `AI_PROVIDER` env var
+
+When adding AI features, implement in both providers or gracefully degrade.

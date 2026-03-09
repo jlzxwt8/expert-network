@@ -1,0 +1,56 @@
+---
+description: API route conventions — auth, error handling, side effects
+globs: src/app/api/**
+alwaysApply: false
+---
+
+# API Route Conventions
+
+## Authentication
+
+Use `getServerSession(authOptions)` from NextAuth for protected routes:
+
+```typescript
+const session = await getServerSession(authOptions);
+if (!session?.user?.id) {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+```
+
+Public routes (expert listing, avatar, audio, memories) skip auth.
+
+## Error Handling
+
+Always catch and log with a route identifier prefix:
+
+```typescript
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error("[route/name POST]", message, error);
+  return NextResponse.json(
+    { error: "Human-readable message", detail: message },
+    { status: 500 }
+  );
+}
+```
+
+## Fire-and-Forget Side Effects
+
+For non-critical operations (mem9 storage, analytics), use fire-and-forget:
+
+```typescript
+storeBookingEvent({ ... }).catch(() => {});
+```
+
+Never `await` these in the request path — they should not slow down or fail the response.
+
+## Onboarding Flow
+
+Steps in order: `SOCIAL_LINKS` → `DOMAINS` → `SESSION_PREFS` → `AI_GENERATION` → `PREVIEW` → `PUBLISHED`
+
+The frontend adds `GREETING`, `NICKNAME`, `GENDER`, and `VOICE_SAMPLE` steps client-side (not in the DB enum).
+
+## Environment Variables
+
+All AI services use `DASHSCOPE_API_KEY`. No separate keys for TTS, ASR, or image generation.
+Memory uses `MEM9_ENABLED=true` (no API key). Never commit real API keys to `.env` in version control.

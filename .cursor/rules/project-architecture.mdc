@@ -1,0 +1,53 @@
+---
+description: Core architecture, tech stack, and deployment strategy for Expert Network
+alwaysApply: true
+---
+
+# Project Architecture
+
+Expert Network is a platform connecting domain experts with founders/mentees for mentoring sessions.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript (strict) |
+| Database | TiDB Cloud Zero (MySQL-compatible) via Prisma 7 |
+| ORM | Prisma with `@prisma/adapter-mariadb` driver adapter |
+| Auth | NextAuth.js (Google OAuth + Email magic links) |
+| UI | Tailwind CSS + shadcn/ui components |
+| AI | Alibaba DashScope (Qwen) — LLM, image, TTS, ASR |
+| Memory | mem9 — persistent cloud memory per expert agent |
+| Hosting | Vercel (serverless) |
+
+## Deployments
+
+| Deployment | URL | AI Provider | Database |
+|-----------|-----|-------------|----------|
+| Origin (production) | expert-network.vercel.app | Qwen (DashScope) | TiDB Cloud Zero |
+| Hackathon | expert-network-hackathon.vercel.app | Gemini (Vertex AI) | Supabase PostgreSQL |
+
+This codebase targets the **origin** deployment. Changes go to `main` branch → auto-deploy via Vercel.
+
+## Database
+
+- Provider: `mysql` in `prisma/schema.prisma`
+- No `url` in datasource block (Prisma 7 reads `DATABASE_URL` automatically)
+- SSL required: `?sslaccept=strict` in connection string
+- `src/lib/prisma.ts` manually parses URL for explicit `ssl: { rejectUnauthorized: true }`
+- Arrays stored as JSON or one-to-many relations (no `String[]` — MySQL limitation)
+- Use `createMany` + `findMany`, not `createManyAndReturn` (MySQL limitation)
+
+## Key Directories
+
+```
+src/app/api/          → API routes (Next.js Route Handlers)
+src/app/              → Pages (App Router)
+src/lib/ai/           → AI provider implementations (Qwen, Gemini)
+src/lib/integrations/ → External service integrations (TTS, memory, etc.)
+src/components/       → Shared React components
+src/hooks/            → Custom React hooks
+prisma/               → Database schema
+scripts/              → Build-time scripts (TiDB setup, etc.)
+```
