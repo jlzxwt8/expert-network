@@ -16,15 +16,11 @@ import {
 
 const DASHSCOPE_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
-const DASHSCOPE_TASK_URL =
-  "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis";
-const DASHSCOPE_TASK_STATUS_URL =
-  "https://dashscope-intl.aliyuncs.com/api/v1/tasks";
+const DASHSCOPE_IMAGE_URL =
+  "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
 
 const QWEN_MODEL = "qwen-max";
-const WANX_MODEL = "wanx-v1";
-const WANX_POLL_INTERVAL_MS = 2000;
-const WANX_TIMEOUT_MS = 60_000;
+const WAN_IMAGE_MODEL = "wan2.6-t2i";
 
 function createQwenClient(): OpenAI {
   const apiKey = process.env.DASHSCOPE_API_KEY;
@@ -198,86 +194,52 @@ Return ONLY the JSON object, no markdown code fences.`;
     const prompt = buildImagePrompt(data);
 
     try {
-      const taskId = await this.submitWanxTask(apiKey, prompt);
-      const imageUrl = await this.pollWanxTask(apiKey, taskId);
+      const res = await fetch(DASHSCOPE_IMAGE_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: WAN_IMAGE_MODEL,
+          input: {
+            messages: [
+              {
+                role: "user",
+                content: [{ text: prompt }],
+              },
+            ],
+          },
+          parameters: {
+            size: "1024*1024",
+            n: 1,
+            prompt_extend: true,
+            watermark: false,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        console.error(`[Qwen/wan2.6] Image gen failed (${res.status}): ${body}`);
+        return null;
+      }
+
+      const result = await res.json();
+      const imageUrl =
+        result?.output?.choices?.[0]?.message?.content?.[0]?.image;
+
+      if (!imageUrl) {
+        console.error("[Qwen/wan2.6] No image URL in response:", JSON.stringify(result).slice(0, 300));
+        return null;
+      }
+
+      console.log("[Qwen/wan2.6] Image generated, downloading...");
       return await this.downloadImageAsDataUrl(imageUrl);
     } catch (error) {
       console.error("[Qwen/generateProfileImage]", error);
       return null;
     }
-  }
-
-  private async submitWanxTask(
-    apiKey: string,
-    prompt: string
-  ): Promise<string> {
-    const res = await fetch(DASHSCOPE_TASK_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "X-DashScope-Async": "enable",
-      },
-      body: JSON.stringify({
-        model: WANX_MODEL,
-        input: { prompt },
-        parameters: { size: "1024*1024", n: 1 },
-      }),
-    });
-
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`wanx submit failed (${res.status}): ${body}`);
-    }
-
-    const data = await res.json();
-    const taskId = data?.output?.task_id;
-    if (!taskId) {
-      throw new Error(
-        `wanx submit returned no task_id: ${JSON.stringify(data)}`
-      );
-    }
-
-    console.log(`[Qwen/wanx] Task submitted: ${taskId}`);
-    return taskId;
-  }
-
-  private async pollWanxTask(
-    apiKey: string,
-    taskId: string
-  ): Promise<string> {
-    const deadline = Date.now() + WANX_TIMEOUT_MS;
-
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, WANX_POLL_INTERVAL_MS));
-
-      const res = await fetch(`${DASHSCOPE_TASK_STATUS_URL}/${taskId}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
-
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`wanx poll failed (${res.status}): ${body}`);
-      }
-
-      const data = await res.json();
-      const status = data?.output?.task_status;
-
-      if (status === "SUCCEEDED") {
-        const url = data.output.results?.[0]?.url;
-        if (!url) throw new Error("wanx SUCCEEDED but no image URL returned");
-        console.log(`[Qwen/wanx] Task completed: ${taskId}`);
-        return url;
-      }
-
-      if (status === "FAILED") {
-        throw new Error(
-          `wanx task failed: ${JSON.stringify(data.output)}`
-        );
-      }
-    }
-
-    throw new Error(`wanx task timed out after ${WANX_TIMEOUT_MS}ms`);
   }
 
   private async downloadImageAsDataUrl(url: string): Promise<string> {
