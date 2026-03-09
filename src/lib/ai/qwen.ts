@@ -20,7 +20,7 @@ const DASHSCOPE_IMAGE_URL =
   "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation";
 
 const QWEN_MODEL = "qwen-max";
-const WAN_IMAGE_MODEL = "wan2.6-t2i";
+const IMAGE_MODEL = "qwen-image-2.0-pro";
 
 function createQwenClient(): OpenAI {
   const apiKey = process.env.DASHSCOPE_API_KEY;
@@ -201,7 +201,7 @@ Return ONLY the JSON object, no markdown code fences.`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: WAN_IMAGE_MODEL,
+          model: IMAGE_MODEL,
           input: {
             messages: [
               {
@@ -221,7 +221,7 @@ Return ONLY the JSON object, no markdown code fences.`;
 
       if (!res.ok) {
         const body = await res.text();
-        console.error(`[Qwen/wan2.6] Image gen failed (${res.status}): ${body}`);
+        console.error(`[Qwen/image] Image gen failed (${res.status}): ${body}`);
         return null;
       }
 
@@ -230,11 +230,11 @@ Return ONLY the JSON object, no markdown code fences.`;
         result?.output?.choices?.[0]?.message?.content?.[0]?.image;
 
       if (!imageUrl) {
-        console.error("[Qwen/wan2.6] No image URL in response:", JSON.stringify(result).slice(0, 300));
+        console.error("[Qwen/image] No image URL in response:", JSON.stringify(result).slice(0, 300));
         return null;
       }
 
-      console.log("[Qwen/wan2.6] Image generated, downloading...");
+      console.log("[Qwen/image] Image generated, downloading...");
       return await this.downloadImageAsDataUrl(imageUrl);
     } catch (error) {
       console.error("[Qwen/generateProfileImage]", error);
