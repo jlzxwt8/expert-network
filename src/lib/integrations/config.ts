@@ -36,6 +36,7 @@ export const integrations = {
 
 let _voiceSynthesis: VoiceSynthesisProvider | null = null;
 let _memory: MemoryProvider | null = null;
+// eslint-disable-next-line prefer-const
 let _meetingRecording: MeetingRecordingProvider | null = null;
 
 export async function getVoiceSynthesis(): Promise<VoiceSynthesisProvider | null> {
