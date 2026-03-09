@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { domainStrings } from "@/lib/domains";
 import type { SessionType } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     const where = {
       isPublished: true,
       ...(domains && domains.length > 0
-        ? { domains: { hasSome: domains } }
+        ? { domains: { some: { domain: { in: domains } } } }
         : {}),
       ...(sessionTypeParam
         ? sessionTypeParam === "BOTH"
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
         skip,
         take,
         include: {
+          domains: true,
           user: {
             select: {
               id: true,
@@ -72,8 +74,13 @@ export async function GET(request: NextRequest) {
       prisma.expert.count({ where }),
     ]);
 
+    const result = experts.map((e) => {
+      const { domains: domainRows, ...rest } = e;
+      return { ...rest, domains: domainStrings(domainRows) };
+    });
+
     return NextResponse.json({
-      experts,
+      experts: result,
       total,
       skip,
       take,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { domainStrings } from "@/lib/domains";
 import { matchExperts } from "@/lib/ai";
 
 export async function POST(request: NextRequest) {
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
     const experts = await prisma.expert.findMany({
       where: { isPublished: true },
       include: {
+        domains: true,
         user: {
           select: {
             nickName: true,
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
     const expertSummaries = experts
       .map(
         (e) =>
-          `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nDomains: ${e.domains.join(", ")}\nSession types: ${e.sessionType}\nBio: ${e.bio ?? "(none)"}\nServices: ${JSON.stringify(e.servicesOffered ?? [])}`
+          `ID: ${e.id}\nName: ${e.user.nickName ?? e.user.name ?? "Unknown"}\nDomains: ${domainStrings(e.domains).join(", ")}\nSession types: ${e.sessionType}\nBio: ${e.bio ?? "(none)"}\nServices: ${JSON.stringify(e.servicesOffered ?? [])}`
       )
       .join("\n\n---\n\n");
 

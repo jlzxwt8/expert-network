@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 // ─── NextAuth Models ───
@@ -26,6 +26,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -34,6 +35,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -106,18 +109,18 @@ model Expert {
   xiaohongshu     String?
 
   // Professional info
-  domains         String[]       @default([])
+  domains         ExpertDomain[]
   sessionType     SessionType    @default(BOTH)
-  bio             String?        @db.Text
+  bio             String?        @db.LongText
   servicesOffered Json?
 
   // Uploaded document
   documentName    String?
-  documentData    String?        @db.Text
+  documentData    String?        @db.LongText
 
   // AI-generated content
-  avatarVideoUrl  String?
-  avatarScript    String?        @db.Text
+  avatarVideoUrl  String?        @db.LongText
+  avatarScript    String?        @db.LongText
 
   // Onboarding state
   onboardingStep  OnboardingStep @default(SOCIAL_LINKS)
@@ -134,6 +137,16 @@ model Expert {
   bookings        Booking[]
   reviews         Review[]
   availableSlots  AvailableSlot[]
+}
+
+model ExpertDomain {
+  id       String @id @default(cuid())
+  expertId String
+  expert   Expert @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  domain   String
+
+  @@unique([expertId, domain])
+  @@index([expertId])
 }
 
 model AvailableSlot {
@@ -187,4 +200,6 @@ model Review {
   createdAt DateTime @default(now())
 
   @@index([expertId])
+  @@index([founderId])
+  @@index([bookingId])
 }

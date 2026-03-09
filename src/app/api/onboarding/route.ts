@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { domainStrings, setExpertDomains } from "@/lib/domains";
 import type { OnboardingStep, SessionType } from "@/generated/prisma/client";
 
 const SOCIAL_LINK_KEYS = [
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const domains =
+    const newDomains =
       Array.isArray(body.domains) && body.domains.every((d: unknown) => typeof d === "string")
         ? (body.domains as string[])
         : undefined;
@@ -73,12 +74,11 @@ export async function POST(request: NextRequest) {
 
     const updateData: Record<string, unknown> = {};
     if (Object.keys(socialLinks).length > 0) Object.assign(updateData, socialLinks);
-    if (domains !== undefined) updateData.domains = domains;
     if (sessionType !== null) updateData.sessionType = sessionType;
     if (onboardingStep !== null) updateData.onboardingStep = onboardingStep;
     if (bio !== undefined) updateData.bio = bio;
 
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updateData).length === 0 && newDomains === undefined) {
       return NextResponse.json(
         { error: "No valid fields to update" },
         { status: 400 }
@@ -97,13 +97,25 @@ export async function POST(request: NextRequest) {
         } as Parameters<typeof prisma.expert.create>[0]["data"],
       });
     } else {
-      expert = await prisma.expert.update({
-        where: { id: expert.id },
-        data: updateData,
-      });
+      if (Object.keys(updateData).length > 0) {
+        expert = await prisma.expert.update({
+          where: { id: expert.id },
+          data: updateData,
+        });
+      }
     }
 
-    return NextResponse.json(expert);
+    if (newDomains !== undefined) {
+      await setExpertDomains(expert.id, newDomains);
+    }
+
+    const result = await prisma.expert.findUnique({
+      where: { id: expert.id },
+      include: { domains: true },
+    });
+
+    const { domains: domainRows, ...rest } = result!;
+    return NextResponse.json({ ...rest, domains: domainStrings(domainRows) });
   } catch (error) {
     console.error("[onboarding POST]", error);
     return NextResponse.json(
@@ -122,7 +134,7 @@ export async function GET() {
 
     const expert = await prisma.expert.findUnique({
       where: { userId: session.user.id },
-      include: { user: true },
+      include: { user: true, domains: true },
     });
 
     if (!expert) {
@@ -133,8 +145,9 @@ export async function GET() {
       });
     }
 
+    const { domains: domainRows, ...rest } = expert;
     return NextResponse.json({
-      expert,
+      expert: { ...rest, domains: domainStrings(domainRows) },
       onboardingStep: expert.onboardingStep,
       isPublished: expert.isPublished,
     });

@@ -113,12 +113,20 @@ export async function POST(
       );
     }
 
-    const slots = await prisma.availableSlot.createManyAndReturn({
-      data: validSlots.map((s) => ({
+    const data = validSlots.map((s) => ({
+      expertId,
+      startTime: s.startTime,
+      endTime: s.endTime,
+    }));
+
+    await prisma.availableSlot.createMany({ data });
+
+    const slots = await prisma.availableSlot.findMany({
+      where: {
         expertId,
-        startTime: s.startTime,
-        endTime: s.endTime,
-      })),
+        startTime: { in: validSlots.map((s) => s.startTime) },
+      },
+      orderBy: { startTime: "asc" },
     });
 
     return NextResponse.json({ created: slots.length, slots });

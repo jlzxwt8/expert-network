@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { domainStrings, setExpertDomains } from "@/lib/domains";
 
 export async function GET() {
   try {
@@ -12,7 +13,10 @@ export async function GET() {
 
     const expert = await prisma.expert.findUnique({
       where: { userId: session.user.id },
-      include: { user: { select: { id: true, name: true, nickName: true, email: true, image: true } } },
+      include: {
+        domains: true,
+        user: { select: { id: true, name: true, nickName: true, email: true, image: true } },
+      },
     });
 
     if (!expert) {
@@ -20,8 +24,12 @@ export async function GET() {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { avatarVideoUrl: _av, documentData: _dd, ...rest } = expert;
-    return NextResponse.json({ ...rest, hasAvatar: !!expert.avatarVideoUrl });
+    const { avatarVideoUrl: _av, documentData: _dd, domains: domainRows, ...rest } = expert;
+    return NextResponse.json({
+      ...rest,
+      domains: domainStrings(domainRows),
+      hasAvatar: !!expert.avatarVideoUrl,
+    });
   } catch (error) {
     console.error("[expert/profile GET]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -45,9 +53,10 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
     const updateData: Record<string, unknown> = {};
+    let newDomains: string[] | undefined;
 
     if (Array.isArray(body.domains)) {
-      updateData.domains = body.domains;
+      newDomains = body.domains as string[];
     }
     if (typeof body.bio === "string") {
       updateData.bio = body.bio;
@@ -59,17 +68,31 @@ export async function PATCH(request: NextRequest) {
       updateData.servicesOffered = body.servicesOffered;
     }
 
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updateData).length === 0 && newDomains === undefined) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
-    const updated = await prisma.expert.update({
+    if (Object.keys(updateData).length > 0) {
+      await prisma.expert.update({
+        where: { id: expert.id },
+        data: updateData,
+      });
+    }
+
+    if (newDomains !== undefined) {
+      await setExpertDomains(expert.id, newDomains);
+    }
+
+    const updated = await prisma.expert.findUnique({
       where: { id: expert.id },
-      data: updateData,
-      include: { user: { select: { id: true, name: true, nickName: true, email: true, image: true } } },
+      include: {
+        domains: true,
+        user: { select: { id: true, name: true, nickName: true, email: true, image: true } },
+      },
     });
 
-    return NextResponse.json(updated);
+    const { domains: domainRows, ...rest } = updated!;
+    return NextResponse.json({ ...rest, domains: domainStrings(domainRows) });
   } catch (error) {
     console.error("[expert/profile PATCH]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

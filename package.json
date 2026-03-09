@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/setup-tidb.mjs && prisma db push --skip-generate --accept-data-loss && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate"
@@ -12,7 +12,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@google/genai": "^1.44.0",
-    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/adapter-mariadb": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -29,11 +29,11 @@
     "framer-motion": "^12.35.0",
     "lucide-react": "^0.577.0",
     "mammoth": "^1.11.0",
+    "mysql2": "^3.19.0",
     "next": "14.2.35",
     "next-auth": "^4.24.13",
     "nodemailer": "^7.0.13",
     "openai": "^6.27.0",
-    "pg": "^8.20.0",
     "prisma": "^7.4.2",
     "react": "^18",
     "react-day-picker": "^9.14.0",

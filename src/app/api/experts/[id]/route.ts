@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { domainStrings } from "@/lib/domains";
 
 export async function GET(
   _request: NextRequest,
@@ -20,6 +21,7 @@ export async function GET(
         isPublished: true,
       },
       include: {
+        domains: true,
         user: {
           select: {
             id: true,
@@ -54,10 +56,11 @@ export async function GET(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { documentData: _dd, avatarVideoUrl: _av, ...rest } = expert;
+    const { documentData: _dd, avatarVideoUrl: _av, domains: domainRows, ...rest } = expert;
 
     return NextResponse.json({
       ...rest,
+      domains: domainStrings(domainRows),
       hasAvatar: !!expert.avatarVideoUrl,
     });
   } catch (error) {
