@@ -102,16 +102,18 @@ model Expert {
 
   // Social links
   linkedIn        String?
+  website         String?
   twitter         String?
   substack        String?
   instagram       String?
-  tiktok          String?
   xiaohongshu     String?
 
   // Professional info
   domains         ExpertDomain[]
   sessionType     SessionType    @default(BOTH)
   bio             String?        @db.LongText
+  audioIntroUrl   String?        @db.LongText
+  mem9SpaceId     String?
   servicesOffered Json?
 
   // Uploaded document

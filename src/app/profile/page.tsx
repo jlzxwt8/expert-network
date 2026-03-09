@@ -17,8 +17,10 @@ import {
   ExternalLink,
   Pencil,
   Check,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AudioPlayer } from "@/components/audio-player";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +39,7 @@ interface ExpertProfile {
   avatarScript: string | null;
   servicesOffered: ServiceItem[] | null;
   hasAvatar: boolean;
+  hasAudio: boolean;
   documentName: string | null;
   isPublished: boolean;
   user: {
@@ -82,6 +85,8 @@ export default function ProfilePage() {
   const [showRegeneratePrompt, setShowRegeneratePrompt] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [avatarCacheBuster, setAvatarCacheBuster] = useState("");
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [audioCacheBuster, setAudioCacheBuster] = useState("");
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -330,6 +335,29 @@ export default function ProfilePage() {
     }
   };
 
+  const handleGenerateAudio = async () => {
+    setGeneratingAudio(true);
+    try {
+      const res = await fetch("/api/expert/generate-audio", {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to generate audio");
+      }
+      setProfile((prev) => (prev ? { ...prev, hasAudio: true } : prev));
+      setAudioCacheBuster(`?t=${Date.now()}`);
+      showMessage("Voice introduction generated!");
+    } catch (err) {
+      showMessage(
+        err instanceof Error ? err.message : "Failed to generate audio",
+        5000
+      );
+    } finally {
+      setGeneratingAudio(false);
+    }
+  };
+
   if (sessionStatus === "loading" || loading) {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center">
@@ -508,6 +536,45 @@ export default function ProfilePage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Voice Introduction */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Voice Introduction</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {profile?.hasAudio && (
+                  <AudioPlayer
+                    src={`/api/experts/${profile.id}/audio${audioCacheBuster}`}
+                    label="Your voice introduction"
+                    className="mb-3"
+                  />
+                )}
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={handleGenerateAudio}
+                  disabled={generatingAudio || !profile?.avatarScript}
+                >
+                  {generatingAudio ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating Audio...
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="h-4 w-4" />
+                      {profile?.hasAudio ? "Regenerate Voice Intro" : "Generate Voice Intro"}
+                    </>
+                  )}
+                </Button>
+                {!profile?.avatarScript && (
+                  <p className="mt-2 text-xs text-muted-foreground text-center">
+                    Complete your introduction script first
+                  </p>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Service Domains */}
             <Card>

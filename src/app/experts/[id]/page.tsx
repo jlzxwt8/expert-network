@@ -15,8 +15,11 @@ import {
   Twitter,
   FileDown,
   ArrowLeft,
+  Globe,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AudioPlayer } from "@/components/audio-player";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -45,12 +48,13 @@ interface Expert {
   avgRating: number;
   reviewCount: number;
   linkedIn: string | null;
+  website: string | null;
   twitter: string | null;
   substack: string | null;
   instagram: string | null;
-  tiktok: string | null;
   xiaohongshu: string | null;
   hasAvatar: boolean;
+  hasAudio: boolean;
   avatarScript: string | null;
   documentName: string | null;
   user: ExpertUser;
@@ -80,10 +84,10 @@ interface ReviewsResponse {
 
 const socialConfig = [
   { key: "linkedIn" as const, label: "LinkedIn", icon: Linkedin, getUrl: (e: Expert) => e.linkedIn },
+  { key: "website" as const, label: "Website", icon: Globe, getUrl: (e: Expert) => e.website },
   { key: "twitter" as const, label: "X", icon: Twitter, getUrl: (e: Expert) => e.twitter },
   { key: "substack" as const, label: "Substack", icon: Link2, getUrl: (e: Expert) => e.substack },
   { key: "instagram" as const, label: "Instagram", icon: Link2, getUrl: (e: Expert) => e.instagram },
-  { key: "tiktok" as const, label: "TikTok", icon: Link2, getUrl: (e: Expert) => e.tiktok },
   { key: "xiaohongshu" as const, label: "XiaoHongShu", icon: Link2, getUrl: (e: Expert) => e.xiaohongshu },
 ];
 
@@ -307,6 +311,13 @@ export default function ExpertProfilePage() {
       {/* About / Introduction Script */}
       <section className="mt-8">
         <h2 className="text-lg font-semibold text-foreground mb-3">About</h2>
+        {expert.hasAudio && (
+          <AudioPlayer
+            src={`/api/experts/${id}/audio`}
+            label={`Listen to ${name}'s introduction`}
+            className="mb-4"
+          />
+        )}
         {expert.avatarScript ? (
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
             {expert.avatarScript}

@@ -1,9 +1,9 @@
 export interface ProfileInput {
   linkedIn?: string;
+  website?: string;
   twitter?: string;
   substack?: string;
   instagram?: string;
-  tiktok?: string;
   xiaohongshu?: string;
   domains: string[];
   nickName: string;
@@ -94,10 +94,10 @@ export function buildImagePrompt(data: ImageInput): string {
 export function formatSocialLinks(data: ProfileInput): string {
   return [
     data.linkedIn && `LinkedIn: ${data.linkedIn}`,
+    data.website && `Official Website: ${data.website}`,
     data.twitter && `X/Twitter: ${data.twitter}`,
     data.substack && `Substack: ${data.substack}`,
     data.instagram && `Instagram: ${data.instagram}`,
-    data.tiktok && `TikTok: ${data.tiktok}`,
     data.xiaohongshu && `XiaoHongShu: ${data.xiaohongshu}`,
   ]
     .filter(Boolean)

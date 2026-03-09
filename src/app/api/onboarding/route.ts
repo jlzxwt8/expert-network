@@ -7,10 +7,10 @@ import type { OnboardingStep, SessionType } from "@/generated/prisma/client";
 
 const SOCIAL_LINK_KEYS = [
   "linkedIn",
+  "website",
   "twitter",
   "substack",
   "instagram",
-  "tiktok",
   "xiaohongshu",
 ] as const;
 

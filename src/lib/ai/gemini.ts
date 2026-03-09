@@ -67,9 +67,10 @@ STEP 1 — Research: Use Google Search to look up EACH social profile link AND t
 - Real work history and achievements
 - Follower/subscriber/connection counts (exact numbers only if found)
 - Content themes and recent posts
-- For Instagram/TikTok/XiaoHongShu: follower count, content focus
+- For Instagram/XiaoHongShu: follower count, content focus
+- For Official Website: services offered, company info, testimonials
 
-IMPORTANT: Some platforms (X/Twitter, TikTok, XiaoHongShu/RedBook) block Google indexing. If Google Search returns NO usable results for a platform, honestly state that you could not find information for that platform. Do NOT guess, infer, or fabricate details for platforms you could not search.
+IMPORTANT: Some platforms (X/Twitter, XiaoHongShu/RedBook) block Google indexing. If Google Search returns NO usable results for a platform, honestly state that you could not find information for that platform. Do NOT guess, infer, or fabricate details for platforms you could not search.
 
 STEP 2 — Merge sources and assess what you actually found:
 - For each social link, note whether Google Search returned real data or not.
@@ -99,7 +100,7 @@ Keep under 100 words. No fluff.
 
 3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY real verified facts. Structure: who I am → what I do → how I help founders → book a session CTA.
 
-4. "sourceSummary" (STRING): A brief note listing which social platforms returned useful search data and which did not. Example: "Found data from: LinkedIn, Substack. No data from Google Search: X/Twitter, TikTok, XiaoHongShu (these platforms block search indexing)."
+4. "sourceSummary" (STRING): A brief note listing which social platforms returned useful search data and which did not. Example: "Found data from: LinkedIn, Official Website, Substack. No data from Google Search: X/Twitter, XiaoHongShu (these platforms block search indexing)."
 
 IMPORTANT: "bio" must be a plain string with markdown formatting, never a JSON object or array.
 

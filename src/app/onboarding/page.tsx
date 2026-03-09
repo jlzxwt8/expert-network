@@ -19,6 +19,7 @@ import {
   SOCIAL_PLATFORMS,
   ONBOARDING_STEPS,
 } from "@/lib/constants";
+import { VoiceInputButton } from "@/components/voice-input-button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -771,6 +772,10 @@ export default function OnboardingPage() {
                 if (e.key === "Enter") handleNicknameSubmit(inputValue);
               }}
             />
+            <VoiceInputButton
+              onTranscript={(text) => setInputValue(text)}
+              className="min-h-[44px] min-w-[44px]"
+            />
             <Button
               onClick={() => handleNicknameSubmit(inputValue)}
               disabled={!inputValue.trim()}
@@ -793,6 +798,10 @@ export default function OnboardingPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleSocialSubmit(inputValue);
                 }}
+              />
+              <VoiceInputButton
+                onTranscript={(text) => setInputValue(text)}
+                className="min-h-[44px] min-w-[44px]"
               />
               <Button
                 onClick={() => handleSocialSubmit(inputValue)}

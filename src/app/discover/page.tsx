@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { VoiceInputButton } from "@/components/voice-input-button";
 import {
   Select,
   SelectContent,
@@ -538,6 +539,9 @@ function DiscoverContent() {
                   }}
                   disabled={chatLoading}
                   className="flex-1"
+                />
+                <VoiceInputButton
+                  onTranscript={(text) => setChatInput((prev) => prev ? `${prev} ${text}` : text)}
                 />
                 <Button
                   size="icon"

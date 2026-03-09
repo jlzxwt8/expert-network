@@ -140,7 +140,7 @@ Keep under 100 words. No fluff.
 
 3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY facts from the research or document. Structure: who I am → what I do → how I help founders → book a session CTA.
 
-4. "sourceSummary" (STRING): Which platforms had useful search data and which did not. Example: "Found data from: LinkedIn, Substack. No data: X/Twitter, TikTok."
+4. "sourceSummary" (STRING): Which platforms had useful search data and which did not. Example: "Found data from: LinkedIn, Official Website, Substack. No data: X/Twitter."
 
 ABSOLUTE RULES — Truth over polish:
 - NEVER fabricate or estimate numbers.

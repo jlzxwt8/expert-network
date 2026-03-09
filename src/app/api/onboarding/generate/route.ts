@@ -30,10 +30,10 @@ export async function POST() {
 
     const generated = await generateExpertProfile({
       linkedIn: expert.linkedIn ?? undefined,
+      website: expert.website ?? undefined,
       twitter: expert.twitter ?? undefined,
       substack: expert.substack ?? undefined,
       instagram: expert.instagram ?? undefined,
-      tiktok: expert.tiktok ?? undefined,
       xiaohongshu: expert.xiaohongshu ?? undefined,
       domains,
       nickName,
