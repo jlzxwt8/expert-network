@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  serverExternalPackages: ["@ton/crypto", "@ton/ton"],
+};
 
 export default nextConfig;
