@@ -246,6 +246,7 @@ export default function OnboardingPage() {
     });
   }, [currentStep, addStepMessage]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleWalletConnect = async (address: string) => {
     setWalletLoading(true);
     try {
