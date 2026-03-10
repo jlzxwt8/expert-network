@@ -24,7 +24,7 @@ export async function GET() {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { avatarVideoUrl: _av, audioIntroUrl: _ai, documentData: _dd, fishAudioModelId: _fm, domains: domainRows, ...rest } = expert;
+    const { avatarVideoUrl: _av, audioIntroUrl: _ai, documentData: _dd, fishAudioModelId: _fm, tonMnemonicEnc: _tm, domains: domainRows, ...rest } = expert;
     return NextResponse.json({
       ...rest,
       domains: domainStrings(domainRows),

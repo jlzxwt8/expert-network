@@ -19,6 +19,9 @@ import {
   Check,
   Volume2,
   Mic,
+  Wallet,
+  Copy,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/audio-player";
@@ -44,6 +47,8 @@ interface ExpertProfile {
   hasAudio: boolean;
   hasVoiceClone: boolean;
   gender: string | null;
+  tonWalletAddress: string | null;
+  tonWalletType: string | null;
   documentName: string | null;
   isPublished: boolean;
   user: {
@@ -94,6 +99,7 @@ export default function ProfilePage() {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [cloningVoice, setCloningVoice] = useState(false);
   const [editingGender, setEditingGender] = useState(false);
+  const [walletCopied, setWalletCopied] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -415,6 +421,13 @@ export default function ProfilePage() {
     }
   };
 
+  const copyWalletAddress = () => {
+    if (!profile?.tonWalletAddress) return;
+    navigator.clipboard.writeText(profile.tonWalletAddress).catch(() => {});
+    setWalletCopied(true);
+    setTimeout(() => setWalletCopied(false), 2000);
+  };
+
   if (sessionStatus === "loading" || loading) {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center">
@@ -719,6 +732,51 @@ export default function ProfilePage() {
                     ? "Edit the introduction script below, then click Regenerate to update the audio."
                     : "Record your voice to personalize the AI narration, or use the default voice."}
                 </p>
+              </CardContent>
+            </Card>
+
+            {/* TON Wallet */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  TON Wallet
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {renderToast("wallet")}
+                {profile.tonWalletAddress ? (
+                  <div className="flex items-center gap-2 rounded-lg border p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {profile.tonWalletType === "tonconnect"
+                            ? "Your Wallet"
+                            : "Managed Wallet"}
+                        </span>
+                      </div>
+                      <p className="font-mono text-sm truncate mt-0.5">
+                        {profile.tonWalletAddress}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={copyWalletAddress}
+                    >
+                      {walletCopied ? (
+                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No wallet connected. You can set one up from the onboarding flow.
+                  </p>
+                )}
               </CardContent>
             </Card>
 

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { CalendarDays, LogOut, User } from "lucide-react";
+import { useTelegram } from "@/components/telegram-provider";
 
 interface UserMenuProps {
   variant?: "light" | "dark";
@@ -11,6 +12,7 @@ interface UserMenuProps {
 
 export function UserMenu({ variant = "dark" }: UserMenuProps) {
   const { data: session, status } = useSession();
+  const { isTelegram } = useTelegram();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +29,7 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
   if (status === "loading") return null;
 
   if (!session) {
+    if (isTelegram) return null; // Auto-authenticated inside Telegram
     return (
       <Link
         href="/auth/signin"

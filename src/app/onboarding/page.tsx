@@ -13,6 +13,9 @@ import {
   Upload,
   FileText,
   Volume2,
+  Wallet,
+  Copy,
+  CheckCircle,
 } from "lucide-react";
 
 import {
@@ -40,6 +43,7 @@ type Step =
   | "GREETING"
   | "NICKNAME"
   | "GENDER"
+  | "WALLET"
   | "SOCIAL_LINKS"
   | "DOMAINS"
   | "DOCUMENT_UPLOAD"
@@ -85,6 +89,8 @@ function getProgressValue(step: Step): number {
       return 10;
     case "GENDER":
       return 15;
+    case "WALLET":
+      return 20;
     case "SOCIAL_LINKS":
     case "DOMAINS":
     case "DOCUMENT_UPLOAD":
@@ -131,6 +137,10 @@ export default function OnboardingPage() {
   const [cloningVoice, setCloningVoice] = useState(false);
   const [voiceCloned, setVoiceCloned] = useState(false);
   const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletType, setWalletType] = useState<string | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletCopied, setWalletCopied] = useState(false);
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -223,6 +233,91 @@ export default function OnboardingPage() {
       type: "options",
     });
   }, [currentStep, addStepMessage, userNickName]);
+
+  // Wallet step
+  useEffect(() => {
+    if (currentStep !== "WALLET") return;
+    addStepMessage("wallet", {
+      id: "wallet",
+      role: "ai",
+      content:
+        "Would you like to connect a TON wallet? You can connect your own via TON Connect, or we can create one for you. You can also skip this step.",
+      type: "text",
+    });
+  }, [currentStep, addStepMessage]);
+
+  const handleWalletConnect = async (address: string) => {
+    setWalletLoading(true);
+    try {
+      const res = await fetch("/api/expert/wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "connect", address }),
+      });
+      if (!res.ok) throw new Error("Failed to save wallet");
+      const data = await res.json();
+      setWalletAddress(data.address);
+      setWalletType("tonconnect");
+      setMessages((prev) => [
+        ...prev,
+        { id: "user-wallet", role: "user", content: `Connected: ${data.address.slice(0, 8)}...${data.address.slice(-6)}` },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: `wallet-err-${Date.now()}`, role: "ai", content: "Failed to connect wallet. You can try again or skip.", type: "text" },
+      ]);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const handleWalletAutoCreate = async () => {
+    setWalletLoading(true);
+    setMessages((prev) => [
+      ...prev,
+      { id: "user-wallet-skip", role: "user", content: "Create a wallet for me" },
+    ]);
+    try {
+      const res = await fetch("/api/expert/wallet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "auto-create" }),
+      });
+      if (!res.ok) throw new Error("Failed to create wallet");
+      const data = await res.json();
+      setWalletAddress(data.address);
+      setWalletType("custodial");
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: "wallet-created",
+          role: "ai",
+          content: `Your TON wallet has been created: ${data.address.slice(0, 8)}...${data.address.slice(-6)}`,
+          type: "text",
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: `wallet-err-${Date.now()}`, role: "ai", content: "Failed to create wallet. You can continue without one.", type: "text" },
+      ]);
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const handleWalletContinue = () => {
+    setCurrentStep("SOCIAL_LINKS");
+    setCurrentSocialIndex(0);
+  };
+
+  const copyWalletAddress = () => {
+    if (!walletAddress) return;
+    navigator.clipboard.writeText(walletAddress).catch(() => {});
+    setWalletCopied(true);
+    setTimeout(() => setWalletCopied(false), 2000);
+  };
 
   // Social link questions
   useEffect(() => {
@@ -320,8 +415,7 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
-    setCurrentStep("SOCIAL_LINKS");
-    setCurrentSocialIndex(0);
+    setCurrentStep("WALLET");
   };
 
   const handleNicknameSubmit = async (value: string) => {
@@ -934,6 +1028,71 @@ export default function OnboardingPage() {
                 <span className="text-xs">{opt.label}</span>
               </Button>
             ))}
+          </div>
+        )}
+
+        {currentStep === "WALLET" && (
+          <div className="space-y-3">
+            {walletAddress ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 rounded-xl border-2 border-indigo-200 bg-indigo-50 p-4">
+                  <Wallet className="h-5 w-5 text-indigo-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">
+                      {walletType === "tonconnect" ? "Your Wallet" : "Managed Wallet"}
+                    </p>
+                    <p className="font-mono text-sm truncate">{walletAddress}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={copyWalletAddress}
+                  >
+                    {walletCopied ? (
+                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <Button
+                  onClick={handleWalletContinue}
+                  className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Continue
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button
+                  onClick={handleWalletAutoCreate}
+                  disabled={walletLoading}
+                  className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {walletLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating wallet...
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="mr-2 h-4 w-4" />
+                      Create a TON Wallet for Me
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleWalletContinue}
+                  disabled={walletLoading}
+                  className="min-h-[44px] w-full text-muted-foreground"
+                >
+                  <SkipForward className="mr-2 h-4 w-4" />
+                  Skip Wallet Setup
+                </Button>
+              </>
+            )}
           </div>
         )}
 
