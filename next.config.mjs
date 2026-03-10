@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["@ton/crypto", "@ton/ton"],
+  experimental: {
+    serverComponentsExternalPackages: [
+      "@ton/crypto",
+      "@ton/ton",
+      "@telegram-apps/init-data-node",
+    ],
+  },
 };
 
 export default nextConfig;
