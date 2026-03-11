@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useTelegram } from "@/components/telegram-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -117,6 +118,7 @@ function getProgressValue(step: Step): number {
 export default function OnboardingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { isTelegram, authDone } = useTelegram();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatAreaRef = useRef<HTMLDivElement>(null);
 
@@ -177,7 +179,7 @@ export default function OnboardingPage() {
   );
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (status === "unauthenticated" && !isTelegram) {
       router.push("/auth/signin?role=expert");
       return;
     }
@@ -191,7 +193,7 @@ export default function OnboardingPage() {
         }).catch(console.error);
       }
     }
-  }, [status, session, router]);
+  }, [status, session, router, isTelegram]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -830,7 +832,7 @@ export default function OnboardingPage() {
     }
   };
 
-  if (status === "loading") {
+  if (isTelegram && !authDone) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
@@ -838,7 +840,15 @@ export default function OnboardingPage() {
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!isTelegram && status === "loading") {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!isTelegram && status === "unauthenticated") {
     return null;
   }
 

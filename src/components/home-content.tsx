@@ -21,30 +21,17 @@ import { useAuth } from "@/hooks/use-auth";
 export function HomeContent() {
   const router = useRouter();
   const { isTelegram } = useTelegram();
-  const { user, status } = useAuth();
+  const { status } = useAuth();
   const [autoRouting, setAutoRouting] = useState(false);
 
-  // Inside Telegram: once authenticated, auto-route to discover or onboarding
+  // Inside Telegram: if authenticated, auto-route to discover
   useEffect(() => {
     if (!isTelegram || status !== "authenticated") return;
     setAutoRouting(true);
-
-    const checkExpert = async () => {
-      try {
-        const res = await fetch("/api/expert/profile");
-        if (res.ok) {
-          router.replace("/discover");
-        } else {
-          router.replace("/onboarding");
-        }
-      } catch {
-        router.replace("/discover");
-      }
-    };
-    checkExpert();
+    router.replace("/discover");
   }, [isTelegram, status, router]);
 
-  if (isTelegram && (status === "loading" || autoRouting)) {
+  if (isTelegram && status === "authenticated" && autoRouting) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
@@ -78,22 +65,27 @@ export function HomeContent() {
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             {isTelegram ? (
-              // Inside Telegram: skip sign-in, go directly to actions
               <>
-                {status === "authenticated" && user ? (
-                  <Button
-                    asChild
-                    size="lg"
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 font-semibold"
-                  >
-                    <Link href="/discover">Explore Experts</Link>
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2 text-white">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Connecting...</span>
-                  </div>
-                )}
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 font-semibold"
+                >
+                  <Link href="/discover" className="flex items-center gap-2">
+                    Explore Experts
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
+                >
+                  <Link href="/onboarding">
+                    Become an Expert
+                  </Link>
+                </Button>
               </>
             ) : (
               <>

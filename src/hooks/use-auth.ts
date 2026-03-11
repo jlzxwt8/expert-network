@@ -2,7 +2,6 @@
 
 import { useSession } from "next-auth/react";
 import { useTelegram } from "@/components/telegram-provider";
-import { useTelegramAuth } from "./use-telegram-auth";
 
 interface AuthState {
   user: {
@@ -17,25 +16,22 @@ interface AuthState {
 }
 
 /**
- * Unified auth hook — uses Telegram auth inside Mini App,
- * NextAuth on the web. Both result in a NextAuth session cookie,
- * so after initial Telegram auth, useSession() works everywhere.
+ * Unified auth hook — Telegram auth is handled globally by TelegramProvider,
+ * which sets a NextAuth session cookie. After that, useSession() works for both
+ * Telegram and web users.
  */
 export function useAuth(): AuthState {
-  const { isTelegram, ready } = useTelegram();
-  const tgAuth = useTelegramAuth();
+  const { isTelegram, ready, authDone } = useTelegram();
   const { data: session, status: nextAuthStatus } = useSession();
 
   if (!ready) {
     return { user: null, status: "loading", isTelegram: false };
   }
 
-  // Inside Telegram: wait for Telegram auth to complete, then rely on session
   if (isTelegram) {
-    if (tgAuth.status === "loading") {
+    if (!authDone) {
       return { user: null, status: "loading", isTelegram: true };
     }
-    // After Telegram auth sets the cookie, NextAuth session picks it up
     if (nextAuthStatus === "authenticated" && session?.user) {
       return {
         user: {
@@ -49,11 +45,9 @@ export function useAuth(): AuthState {
         isTelegram: true,
       };
     }
-    // Telegram auth completed but session not yet refreshed
-    if (tgAuth.status === "authenticated") {
-      return { user: null, status: "authenticated", isTelegram: true };
-    }
-    return { user: null, status: "unauthenticated", isTelegram: true };
+    // Auth done but session not yet refreshed — still counts as authenticated
+    // since the cookie was set; useSession may need a page reload to pick it up
+    return { user: null, status: "authenticated", isTelegram: true };
   }
 
   // Web: standard NextAuth

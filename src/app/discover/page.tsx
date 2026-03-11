@@ -216,7 +216,7 @@ export default function DiscoverPage() {
 
 function DiscoverContent() {
   const { status: sessionStatus } = useSession();
-  const { isTelegram } = useTelegram();
+  const { isTelegram, ready: tgReady } = useTelegram();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [experts, setExperts] = useState<Expert[]>([]);
@@ -233,10 +233,10 @@ function DiscoverContent() {
   expertsRef.current = experts;
 
   useEffect(() => {
-    if (!isTelegram && sessionStatus === "unauthenticated") {
+    if (tgReady && !isTelegram && sessionStatus === "unauthenticated") {
       router.push("/auth/signin?callbackUrl=/discover");
     }
-  }, [sessionStatus, isTelegram, router]);
+  }, [sessionStatus, isTelegram, tgReady, router]);
 
   const domainsParam = searchParams.get("domains") ?? "";
   const domains = useMemo(

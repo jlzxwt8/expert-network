@@ -12,7 +12,7 @@ interface UserMenuProps {
 
 export function UserMenu({ variant = "dark" }: UserMenuProps) {
   const { data: session, status } = useSession();
-  const { isTelegram } = useTelegram();
+  const { isTelegram, ready } = useTelegram();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -26,10 +26,10 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (status === "loading") return null;
+  if (!ready || status === "loading") return null;
 
   if (!session) {
-    if (isTelegram) return null; // Auto-authenticated inside Telegram
+    if (isTelegram) return null;
     return (
       <Link
         href="/auth/signin"
