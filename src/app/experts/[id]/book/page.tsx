@@ -197,7 +197,7 @@ export default function BookSessionPage() {
         body: JSON.stringify(bookingPayload()),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create checkout");
+      if (!res.ok) throw new Error(data.detail || data.error || "Failed to create checkout");
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       } else {
