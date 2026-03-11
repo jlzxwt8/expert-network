@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { Mail, Chrome, Loader2 } from "lucide-react";
+import { useTelegram } from "@/components/telegram-provider";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ function SignInForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { status } = useSession();
+  const { isTelegram } = useTelegram();
   const role = searchParams.get("role");
   const isExpert = role === "expert";
   const callbackUrl =
@@ -31,10 +33,14 @@ function SignInForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isTelegram) {
+      router.replace(callbackUrl);
+      return;
+    }
     if (status === "authenticated") {
       router.replace(callbackUrl);
     }
-  }, [status, callbackUrl, router]);
+  }, [status, callbackUrl, router, isTelegram]);
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
