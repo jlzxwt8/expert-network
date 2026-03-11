@@ -199,9 +199,12 @@ export default function OnboardingPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // Greeting
+  // Greeting — trigger when NextAuth session is authenticated, or when
+  // Telegram auth has completed (the cookie is set but useSession may lag)
+  const canStartOnboarding = status === "authenticated" || (isTelegram && authDone);
+
   useEffect(() => {
-    if (status !== "authenticated" || messages.length > 0) return;
+    if (!canStartOnboarding || messages.length > 0) return;
 
     const addGreeting = async () => {
       addedQuestionsRef.current.add("greeting");
@@ -232,7 +235,7 @@ export default function OnboardingPage() {
     };
 
     addGreeting();
-  }, [status, messages.length]);
+  }, [canStartOnboarding, messages.length]);
 
   // Gender selection
   useEffect(() => {
