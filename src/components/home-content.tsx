@@ -31,7 +31,7 @@ export function HomeContent() {
                 Help&Grow Community
               </span>
             </div>
-            {!isTelegram && <UserMenu variant="light" />}
+            <UserMenu variant="light" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-4">
             Connect with Singapore&apos;s Top Tech Experts

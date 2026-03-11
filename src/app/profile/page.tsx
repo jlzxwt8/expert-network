@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Loader2,
   Upload,
@@ -65,7 +65,7 @@ interface ExpertProfile {
 }
 
 export default function ProfilePage() {
-  const { data: session, status: sessionStatus } = useSession();
+  const { status: sessionStatus, isTelegram, user: authUser } = useAuth();
   const router = useRouter();
 
   const [profile, setProfile] = useState<ExpertProfile | null>(null);
@@ -141,10 +141,10 @@ export default function ProfilePage() {
   useEffect(() => {
     if (sessionStatus === "authenticated") {
       fetchProfile();
-    } else if (sessionStatus === "unauthenticated") {
+    } else if (sessionStatus === "unauthenticated" && !isTelegram) {
       router.push("/auth/signin");
     }
-  }, [sessionStatus, fetchProfile, router]);
+  }, [sessionStatus, isTelegram, fetchProfile, router]);
 
   const showMessage = (msg: string, section: string, isError = false, duration = 3000) => {
     setSectionMsg({ text: msg, section, isError });
@@ -525,10 +525,9 @@ export default function ProfilePage() {
   const isExpert = !!profile;
   const nickName =
     profile?.user?.nickName ??
-    (session?.user as { nickName?: string })?.nickName ??
-    session?.user?.name ??
+    authUser?.name ??
     "User";
-  const email = profile?.user?.email ?? session?.user?.email;
+  const email = profile?.user?.email ?? authUser?.email;
   const telegramUsername = profile?.user?.telegramUsername ?? null;
 
   return (

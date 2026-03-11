@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
 import {
   User,
   Calendar,
@@ -46,7 +46,7 @@ interface Booking {
 }
 
 export default function DashboardPage() {
-  const { status: sessionStatus } = useSession();
+  const { status: sessionStatus } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
