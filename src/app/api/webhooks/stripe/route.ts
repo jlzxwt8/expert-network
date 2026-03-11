@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyWebhookSignature, retrievePaymentIntent } from "@/lib/stripe";
+import { getStripeServer } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 import type { SessionType } from "@/generated/prisma/client";
 
 export async function POST(request: NextRequest) {
+  const stripe = getStripeServer();
   const sig = request.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -16,10 +17,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let event: Record<string, unknown>;
+  let event;
   try {
     const body = await request.text();
-    event = await verifyWebhookSignature(body, sig, webhookSecret);
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[webhooks/stripe] Signature verification failed:", msg);
@@ -27,38 +28,34 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const eventType = event.type as string;
-    const dataObject = (event.data as { object: Record<string, unknown> })?.object;
-
-    switch (eventType) {
+    switch (event.type) {
       case "checkout.session.completed": {
-        const session = dataObject;
-        const sessionMeta = session.metadata as Record<string, string> | undefined;
-        if (sessionMeta?.type !== "booking_deposit") break;
+        const session = event.data.object;
+        if (session.metadata?.type !== "booking_deposit") break;
 
         const pi =
           typeof session.payment_intent === "string"
             ? session.payment_intent
-            : (session.payment_intent as { id?: string })?.id;
+            : session.payment_intent?.id;
 
         let paymentMethodId: string | undefined;
         let customerId: string | undefined;
         let piMeta: Record<string, string> = {};
 
         if (pi) {
-          const paymentIntent = await retrievePaymentIntent(pi);
+          const paymentIntent = await stripe.paymentIntents.retrieve(pi);
           paymentMethodId =
             typeof paymentIntent.payment_method === "string"
               ? paymentIntent.payment_method
-              : undefined;
+              : paymentIntent.payment_method?.id ?? undefined;
           customerId =
             typeof paymentIntent.customer === "string"
               ? paymentIntent.customer
-              : undefined;
+              : paymentIntent.customer?.id ?? undefined;
           piMeta = (paymentIntent.metadata as Record<string, string>) ?? {};
         }
 
-        const meta = { ...(sessionMeta ?? {}), ...piMeta };
+        const meta = { ...((session.metadata ?? {}) as Record<string, string>), ...piMeta };
 
         const booking = await prisma.booking.create({
           data: {
@@ -75,7 +72,7 @@ export async function POST(request: NextRequest) {
             currency: meta.currency || "SGD",
             paymentMethod: "stripe",
             paymentStatus: "deposit_paid",
-            stripeCheckoutSessionId: session.id as string,
+            stripeCheckoutSessionId: session.id,
             stripePaymentIntentId: pi || null,
             stripeCustomerId: customerId || null,
             stripePaymentMethodId: paymentMethodId || null,
@@ -120,16 +117,16 @@ export async function POST(request: NextRequest) {
       }
 
       case "payment_intent.succeeded": {
-        const piMeta = dataObject.metadata as Record<string, string> | undefined;
-        if (piMeta?.type !== "booking_remainder") break;
+        const pi = event.data.object;
+        if (pi.metadata?.type !== "booking_remainder") break;
 
-        const bookingId = piMeta.bookingId;
+        const bookingId = pi.metadata.bookingId;
         if (bookingId) {
           await prisma.booking.update({
             where: { id: bookingId },
             data: {
               paymentStatus: "fully_paid",
-              stripeRemainderPIId: dataObject.id as string,
+              stripeRemainderPIId: pi.id,
               remainderChargedAt: new Date(),
             },
           });
