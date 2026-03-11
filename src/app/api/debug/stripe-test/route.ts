@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { getStripeServer } from "@/lib/stripe";
+import { retrieveBalance } from "@/lib/stripe";
 
 export async function GET() {
   try {
-    const stripe = getStripeServer();
-    const balance = await stripe.balance.retrieve();
+    const balance = await retrieveBalance();
+    const available = balance.available as { currency: string }[] | undefined;
 
     return NextResponse.json({
       ok: true,
-      currency: balance.available?.[0]?.currency,
+      currency: available?.[0]?.currency,
       nodeVersion: process.version,
+      method: "direct-fetch",
     });
   } catch (e) {
     return NextResponse.json({

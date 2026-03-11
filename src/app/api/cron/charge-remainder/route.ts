@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getStripeServer } from "@/lib/stripe";
+import { createPaymentIntent } from "@/lib/stripe";
 import { sendSessionReminder } from "@/lib/telegram-bot";
 
 /**
@@ -32,8 +32,6 @@ export async function GET(request: NextRequest) {
     let failed = 0;
     let tonDue = 0;
 
-    const stripe = getStripeServer();
-
     for (const booking of bookings) {
       const remainderCents =
         (booking.totalAmountCents || 0) - (booking.depositAmountCents || 0);
@@ -57,7 +55,7 @@ export async function GET(request: NextRequest) {
         booking.stripePaymentMethodId
       ) {
         try {
-          const pi = await stripe.paymentIntents.create({
+          const pi = await createPaymentIntent({
             amount: remainderCents,
             currency: (booking.currency || "sgd").toLowerCase(),
             customer: booking.stripeCustomerId,
