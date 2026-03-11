@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Shield,
@@ -11,33 +9,13 @@ import {
   Users,
   MessageSquare,
   CheckCircle,
-  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { useTelegram } from "@/components/telegram-provider";
-import { useAuth } from "@/hooks/use-auth";
 
 export function HomeContent() {
-  const router = useRouter();
   const { isTelegram } = useTelegram();
-  const { status } = useAuth();
-  const [autoRouting, setAutoRouting] = useState(false);
-
-  // Inside Telegram: if authenticated, auto-route to discover
-  useEffect(() => {
-    if (!isTelegram || status !== "authenticated") return;
-    setAutoRouting(true);
-    router.replace("/discover");
-  }, [isTelegram, status, router]);
-
-  if (isTelegram && status === "authenticated" && autoRouting) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen w-full max-w-lg mx-auto flex flex-col">

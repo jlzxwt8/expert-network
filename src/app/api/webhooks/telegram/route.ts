@@ -160,7 +160,8 @@ export async function POST(request: NextRequest) {
       await sendMessage(botToken, chatId, welcomeText, {
         reply_markup: {
           inline_keyboard: [
-            [webAppButton("🚀 Open Full App")],
+            [webAppButton("🚀 Open Full App", "/")],
+            [webAppButton("🔍 Browse Experts")],
           ],
         },
       });
