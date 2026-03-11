@@ -63,14 +63,21 @@ export async function PATCH(request: NextRequest) {
           : null
         : undefined;
     const role = parseRole(body.role);
+    const telegramUsername =
+      body.telegramUsername !== undefined
+        ? typeof body.telegramUsername === "string"
+          ? body.telegramUsername.replace(/^@/, "").trim() || null
+          : null
+        : undefined;
 
-    const updateData: { nickName?: string | null; role?: UserRole } = {};
+    const updateData: { nickName?: string | null; role?: UserRole; telegramUsername?: string | null } = {};
     if (nickName !== undefined) updateData.nickName = nickName;
     if (role !== null) updateData.role = role;
+    if (telegramUsername !== undefined) updateData.telegramUsername = telegramUsername;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: "No valid fields to update (nickName, role)" },
+        { error: "No valid fields to update" },
         { status: 400 }
       );
     }

@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTelegram } from "@/components/telegram-provider";
 import Link from "next/link";
 import {
   Star,
@@ -215,6 +216,7 @@ export default function DiscoverPage() {
 
 function DiscoverContent() {
   const { status: sessionStatus } = useSession();
+  const { isTelegram } = useTelegram();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [experts, setExperts] = useState<Expert[]>([]);
@@ -231,10 +233,10 @@ function DiscoverContent() {
   expertsRef.current = experts;
 
   useEffect(() => {
-    if (sessionStatus === "unauthenticated") {
+    if (!isTelegram && sessionStatus === "unauthenticated") {
       router.push("/auth/signin?callbackUrl=/discover");
     }
-  }, [sessionStatus, router]);
+  }, [sessionStatus, isTelegram, router]);
 
   const domainsParam = searchParams.get("domains") ?? "";
   const domains = useMemo(
@@ -290,7 +292,9 @@ function DiscoverContent() {
       params.set("take", String(take));
 
       try {
-        const res = await fetch(`/api/experts?${params.toString()}`);
+        const headers: Record<string, string> = {};
+        if (isTelegram) headers["x-telegram-mini-app"] = "true";
+        const res = await fetch(`/api/experts?${params.toString()}`, { headers });
         if (!res.ok) throw new Error("Failed to fetch");
         const data: ExpertsResponse = await res.json();
         if (append) {
@@ -307,7 +311,7 @@ function DiscoverContent() {
         setLoadingMore(false);
       }
     },
-    [domains, sessionType, sort]
+    [domains, sessionType, sort, isTelegram]
   );
 
   const filterKey = `${domains.join(",")}|${sessionType}|${sort}`;

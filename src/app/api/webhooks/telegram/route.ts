@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { chat } from "@/lib/chat-engine";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { notifyExpertBooking } from "@/lib/telegram-bot";
 import type { SessionType } from "@/generated/prisma/client";
 
 const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || "";
@@ -114,6 +115,15 @@ export async function POST(request: NextRequest) {
         chatId,
         `✅ *Booking confirmed!*\nYour session with ${booking.expert.user.nickName || booking.expert.user.name || "the expert"} is booked. You'll receive details shortly.`
       );
+
+      const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
+      notifyExpertBooking({
+        expertTelegramUsername: booking.expert.user.telegramUsername,
+        founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
+        sessionType: booking.sessionType,
+        startTime: booking.startTime,
+        depositAmount: depositLabel,
+      }).catch(() => {});
 
       return NextResponse.json({ ok: true });
     }

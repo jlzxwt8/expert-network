@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStripeServer } from "@/lib/stripe";
+import { sendSessionReminder } from "@/lib/telegram-bot";
 
 /**
  * Vercel Cron job: charges the remainder for bookings where the session
@@ -107,8 +108,49 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Send reminders for sessions starting within the next 25 hours
+    // (since cron runs daily, this covers roughly the next day)
+    const reminderStart = new Date();
+    const reminderEnd = new Date(Date.now() + 25 * 60 * 60 * 1000);
+
+    const upcomingBookings = await prisma.booking.findMany({
+      where: {
+        status: "CONFIRMED",
+        paymentStatus: "deposit_paid",
+        startTime: { gte: reminderStart, lte: reminderEnd },
+      },
+      include: {
+        expert: { include: { user: true } },
+        founder: true,
+      },
+    });
+
+    let reminders = 0;
+    for (const b of upcomingBookings) {
+      const expertName =
+        b.expert.user.nickName ?? b.expert.user.name ?? "Expert";
+
+      // Remind founder
+      sendSessionReminder({
+        telegramUsername: b.founder.telegramUsername,
+        expertName,
+        sessionType: b.sessionType,
+        startTime: b.startTime,
+      }).catch(() => {});
+
+      // Remind expert
+      sendSessionReminder({
+        telegramUsername: b.expert.user.telegramUsername,
+        expertName: b.founder.nickName ?? b.founder.name ?? "Client",
+        sessionType: b.sessionType,
+        startTime: b.startTime,
+      }).catch(() => {});
+
+      reminders++;
+    }
+
     console.log(
-      `[cron/charge-remainder] Processed ${bookings.length} bookings: ${charged} charged, ${failed} failed, ${tonDue} TON/TG due`
+      `[cron/charge-remainder] Processed ${bookings.length} bookings: ${charged} charged, ${failed} failed, ${tonDue} TON/TG due, ${reminders} reminders sent`
     );
 
     return NextResponse.json({
@@ -116,6 +158,7 @@ export async function GET(request: NextRequest) {
       charged,
       failed,
       tonDue,
+      reminders,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

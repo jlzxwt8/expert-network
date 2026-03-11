@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripeServer } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 import type { SessionType } from "@/generated/prisma/client";
 
 export async function POST(request: NextRequest) {
@@ -89,6 +90,25 @@ export async function POST(request: NextRequest) {
           sessionType: booking.sessionType,
           startTime: booking.startTime,
           status: booking.status,
+        }).catch(() => {});
+
+        const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
+
+        // Telegram notifications (fire-and-forget)
+        notifyExpertBooking({
+          expertTelegramUsername: booking.expert.user.telegramUsername,
+          founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
+          sessionType: booking.sessionType,
+          startTime: booking.startTime,
+          depositAmount: depositLabel,
+        }).catch(() => {});
+
+        notifyFounderBooking({
+          founderTelegramUsername: booking.founder.telegramUsername,
+          expertName: booking.expert.user.nickName ?? booking.expert.user.name ?? "Expert",
+          sessionType: booking.sessionType,
+          startTime: booking.startTime,
+          depositAmount: depositLabel,
         }).catch(() => {});
 
         console.log(

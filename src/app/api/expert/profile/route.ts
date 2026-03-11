@@ -15,7 +15,7 @@ export async function GET() {
       where: { userId: session.user.id },
       include: {
         domains: true,
-        user: { select: { id: true, name: true, nickName: true, email: true, image: true } },
+        user: { select: { id: true, name: true, nickName: true, email: true, image: true, telegramUsername: true } },
       },
     });
 
@@ -95,7 +95,7 @@ export async function PATCH(request: NextRequest) {
       where: { id: expert.id },
       include: {
         domains: true,
-        user: { select: { id: true, name: true, nickName: true, email: true, image: true } },
+        user: { select: { id: true, name: true, nickName: true, email: true, image: true, telegramUsername: true } },
       },
     });
 

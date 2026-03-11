@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 type Step =
   | "GREETING"
   | "NICKNAME"
+  | "TELEGRAM_ID"
   | "GENDER"
   | "WALLET"
   | "SOCIAL_LINKS"
@@ -89,6 +90,8 @@ function getProgressValue(step: Step): number {
     case "GREETING":
     case "NICKNAME":
       return 10;
+    case "TELEGRAM_ID":
+      return 12;
     case "GENDER":
       return 15;
     case "WALLET":
@@ -488,6 +491,54 @@ export default function OnboardingPage() {
       });
     } catch {
       // Silently fail
+    }
+
+    setCurrentStep("TELEGRAM_ID");
+  };
+
+  // Telegram username step
+  useEffect(() => {
+    if (currentStep !== "TELEGRAM_ID") return;
+    addStepMessage("telegram-id", {
+      id: "telegram-id",
+      role: "ai",
+      content: `Great, ${userNickName || "there"}! Do you have a Telegram account? If so, share your username (e.g. @yourname) and I'll send you updates and reminders there. You can also skip this.`,
+      type: "input",
+    });
+  }, [currentStep, addStepMessage, userNickName]);
+
+  const handleTelegramSubmit = async (value: string, skip = false) => {
+    const username = skip ? "" : value.trim().replace(/^@/, "");
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "user-telegram",
+        role: "user",
+        content: skip ? "(Skipped)" : `@${username}`,
+      },
+    ]);
+    setInputValue("");
+
+    if (username) {
+      try {
+        await fetch("/api/user", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ telegramUsername: username }),
+        });
+        // Send greeting via bot
+        fetch("/api/telegram/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "greeting",
+            telegramUsername: username,
+          }),
+        }).catch(() => {});
+      } catch {
+        // Silently fail
+      }
     }
 
     setCurrentStep("GENDER");
@@ -1055,6 +1106,36 @@ export default function OnboardingPage() {
               className="min-h-[44px] min-w-[44px] shrink-0"
             >
               <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {currentStep === "TELEGRAM_ID" && (
+          <div className="flex gap-2">
+            <Input
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="@username"
+              className="min-h-[44px] flex-1"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleTelegramSubmit(inputValue);
+              }}
+            />
+            <Button
+              onClick={() => handleTelegramSubmit(inputValue)}
+              disabled={!inputValue.trim()}
+              size="icon"
+              className="min-h-[44px] min-w-[44px] shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => handleTelegramSubmit("", true)}
+              variant="ghost"
+              className="min-h-[44px] shrink-0 gap-1"
+            >
+              <SkipForward className="h-4 w-4" />
+              Skip
             </Button>
           </div>
         )}

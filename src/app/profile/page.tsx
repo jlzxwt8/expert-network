@@ -23,6 +23,7 @@ import {
   Copy,
   CheckCircle,
   DollarSign,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/audio-player";
@@ -62,6 +63,7 @@ interface ExpertProfile {
     nickName: string | null;
     email: string | null;
     image: string | null;
+    telegramUsername: string | null;
   };
 }
 
@@ -105,6 +107,9 @@ export default function ProfilePage() {
   const [cloningVoice, setCloningVoice] = useState(false);
   const [editingGender, setEditingGender] = useState(false);
   const [walletCopied, setWalletCopied] = useState(false);
+  const [editingTelegram, setEditingTelegram] = useState(false);
+  const [tgUsername, setTgUsername] = useState("");
+  const [savingTelegram, setSavingTelegram] = useState(false);
   const [editingPricing, setEditingPricing] = useState(false);
   const [savingPricing, setSavingPricing] = useState(false);
   const [pOnline, setPOnline] = useState("");
@@ -129,6 +134,7 @@ export default function ProfilePage() {
       setUploadedFileName(data.documentName ?? null);
       setPOnline(data.priceOnlineCents ? String(data.priceOnlineCents / 100) : "");
       setPOffline(data.priceOfflineCents ? String(data.priceOfflineCents / 100) : "");
+      setTgUsername(data.user?.telegramUsername ?? "");
     } catch {
       setProfile(null);
     } finally {
@@ -454,6 +460,35 @@ export default function ProfilePage() {
     setEditingPricing(false);
   };
 
+  const handleSaveTelegram = async () => {
+    setSavingTelegram(true);
+    try {
+      const res = await fetch("/api/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telegramUsername: tgUsername }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setEditingTelegram(false);
+      showMessage("Telegram username saved!", "telegram");
+      // Send greeting if username was set
+      if (tgUsername.trim()) {
+        fetch("/api/telegram/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "greeting",
+            telegramUsername: tgUsername.replace(/^@/, "").trim(),
+          }),
+        }).catch(() => {});
+      }
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Save failed", "telegram", true, 5000);
+    } finally {
+      setSavingTelegram(false);
+    }
+  };
+
   const copyWalletAddress = () => {
     if (!profile?.tonWalletAddress) return;
     navigator.clipboard.writeText(profile.tonWalletAddress).catch(() => {});
@@ -490,6 +525,7 @@ export default function ProfilePage() {
     session?.user?.name ??
     "User";
   const email = profile?.user?.email ?? session?.user?.email;
+  const telegramUsername = profile?.user?.telegramUsername ?? null;
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background pb-12">
@@ -506,6 +542,11 @@ export default function ProfilePage() {
             <h1 className="text-xl font-bold truncate">{nickName}</h1>
             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
               <span className="truncate">{email}</span>
+              {telegramUsername && (
+                <span className="shrink-0 text-sky-600 dark:text-sky-400">
+                  @{telegramUsername}
+                </span>
+              )}
               {isExpert && profile.isPublished && (
                 <button
                   onClick={() => window.open(`/experts/${profile.id}`, "_blank")}
@@ -588,6 +629,54 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Telegram Username */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Send className="h-4 w-4" />
+                Telegram
+              </CardTitle>
+              {!editingTelegram ? (
+                <Button variant="ghost" size="sm" onClick={() => setEditingTelegram(true)} className="gap-1">
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => { setTgUsername(telegramUsername ?? ""); setEditingTelegram(false); }} className="gap-1">
+                    <X className="h-3.5 w-3.5" />
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleSaveTelegram} disabled={savingTelegram} className="gap-1">
+                    {savingTelegram ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                    Save
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {renderToast("telegram")}
+            {editingTelegram ? (
+              <Input
+                value={tgUsername}
+                onChange={(e) => setTgUsername(e.target.value)}
+                placeholder="@username"
+                className="max-w-xs"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {telegramUsername ? (
+                  <>@{telegramUsername} — You&apos;ll receive booking notifications via Telegram.</>
+                ) : (
+                  <>Not set — Add your Telegram username to receive notifications and access the Mini App.</>
+                )}
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {!isExpert ? (
           <Card>
