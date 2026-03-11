@@ -5,7 +5,6 @@ const nextConfig = {
       "@ton/crypto",
       "@ton/ton",
       "@telegram-apps/init-data-node",
-      "stripe",
     ],
   },
 };
