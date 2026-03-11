@@ -141,6 +141,17 @@ export async function POST(request: NextRequest) {
     const chatId = message.chat.id;
     const text = message.text.trim();
 
+    // Store the Telegram chat ID so we can send notifications later
+    const fromUsername = message.from?.username;
+    if (fromUsername) {
+      prisma.user
+        .updateMany({
+          where: { telegramUsername: fromUsername, telegramId: null },
+          data: { telegramId: String(chatId) },
+        })
+        .catch(() => {});
+    }
+
     // /start command
     if (text === "/start" || text.startsWith("/start@")) {
       const welcomeText = [
