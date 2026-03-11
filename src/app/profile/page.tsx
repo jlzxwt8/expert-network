@@ -19,9 +19,6 @@ import {
   Check,
   Volume2,
   Mic,
-  Wallet,
-  Copy,
-  CheckCircle,
   DollarSign,
   Send,
 } from "lucide-react";
@@ -106,7 +103,6 @@ export default function ProfilePage() {
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [cloningVoice, setCloningVoice] = useState(false);
   const [editingGender, setEditingGender] = useState(false);
-  const [walletCopied, setWalletCopied] = useState(false);
   const [editingTelegram, setEditingTelegram] = useState(false);
   const [tgUsername, setTgUsername] = useState("");
   const [savingTelegram, setSavingTelegram] = useState(false);
@@ -441,10 +437,15 @@ export default function ProfilePage() {
   const handleSavePricing = async () => {
     setSavingPricing(true);
     try {
-      const data: Record<string, number> = {};
-      if (pOnline) data.priceOnlineCents = Math.round(parseFloat(pOnline) * 100);
-      if (pOffline) data.priceOfflineCents = Math.round(parseFloat(pOffline) * 100);
+      const onlineCents = pOnline ? Math.round(parseFloat(pOnline) * 100) : null;
+      const offlineCents = pOffline ? Math.round(parseFloat(pOffline) * 100) : null;
+      const data: Record<string, number | null> = {};
+      data.priceOnlineCents = onlineCents;
+      data.priceOfflineCents = offlineCents;
       await saveSection(data);
+      setProfile((prev) =>
+        prev ? { ...prev, priceOnlineCents: onlineCents, priceOfflineCents: offlineCents } : prev
+      );
       setEditingPricing(false);
       showMessage("Pricing saved!", "pricing");
     } catch (err) {
@@ -461,25 +462,35 @@ export default function ProfilePage() {
   };
 
   const handleSaveTelegram = async () => {
+    const cleaned = tgUsername.replace(/^@/, "").trim();
+    if (cleaned && !/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(cleaned)) {
+      showMessage(
+        "Invalid username. Must be 5–32 characters, start with a letter, and contain only letters, numbers, or underscores.",
+        "telegram",
+        true,
+        5000
+      );
+      return;
+    }
     setSavingTelegram(true);
     try {
       const res = await fetch("/api/user", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegramUsername: tgUsername }),
+        body: JSON.stringify({ telegramUsername: cleaned || null }),
       });
       if (!res.ok) throw new Error("Failed to save");
+      setTgUsername(cleaned);
+      setProfile((prev) =>
+        prev ? { ...prev, user: { ...prev.user, telegramUsername: cleaned || null } } : prev
+      );
       setEditingTelegram(false);
       showMessage("Telegram username saved!", "telegram");
-      // Send greeting if username was set
-      if (tgUsername.trim()) {
+      if (cleaned) {
         fetch("/api/telegram/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "greeting",
-            telegramUsername: tgUsername.replace(/^@/, "").trim(),
-          }),
+          body: JSON.stringify({ type: "greeting", telegramUsername: cleaned }),
         }).catch(() => {});
       }
     } catch (err) {
@@ -487,13 +498,6 @@ export default function ProfilePage() {
     } finally {
       setSavingTelegram(false);
     }
-  };
-
-  const copyWalletAddress = () => {
-    if (!profile?.tonWalletAddress) return;
-    navigator.clipboard.writeText(profile.tonWalletAddress).catch(() => {});
-    setWalletCopied(true);
-    setTimeout(() => setWalletCopied(false), 2000);
   };
 
   if (sessionStatus === "loading" || loading) {
@@ -946,51 +950,6 @@ export default function ProfilePage() {
                 <p className="text-xs text-muted-foreground">
                   Mentees pay a 50% deposit when booking. The remainder is charged 24h after the session.
                 </p>
-              </CardContent>
-            </Card>
-
-            {/* TON Wallet */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Wallet className="h-4 w-4" />
-                  TON Wallet
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {renderToast("wallet")}
-                {profile.tonWalletAddress ? (
-                  <div className="flex items-center gap-2 rounded-lg border p-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {profile.tonWalletType === "tonconnect"
-                            ? "Your Wallet"
-                            : "Managed Wallet"}
-                        </span>
-                      </div>
-                      <p className="font-mono text-sm truncate mt-0.5">
-                        {profile.tonWalletAddress}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={copyWalletAddress}
-                    >
-                      {walletCopied ? (
-                        <CheckCircle className="h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No wallet connected. You can set one up from the onboarding flow.
-                  </p>
-                )}
               </CardContent>
             </Card>
 
