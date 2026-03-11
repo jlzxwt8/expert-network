@@ -69,6 +69,12 @@ export async function PATCH(request: NextRequest) {
     if (Array.isArray(body.servicesOffered)) {
       updateData.servicesOffered = body.servicesOffered;
     }
+    if (typeof body.priceOnlineCents === "number" && body.priceOnlineCents >= 0) {
+      updateData.priceOnlineCents = Math.round(body.priceOnlineCents);
+    }
+    if (typeof body.priceOfflineCents === "number" && body.priceOfflineCents >= 0) {
+      updateData.priceOfflineCents = Math.round(body.priceOfflineCents);
+    }
 
     if (Object.keys(updateData).length === 0 && newDomains === undefined) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

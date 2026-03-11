@@ -119,6 +119,12 @@ model Expert {
   tonWalletType     String?
   tonMnemonicEnc    String?  @db.LongText
 
+  // Pricing (SGD cents per hour)
+  priceOnlineCents  Int?
+  priceOfflineCents Int?
+  currency          String         @default("SGD")
+  stripeAccountId   String?
+
   // Professional info
   domains         ExpertDomain[]
   sessionType     SessionType    @default(BOTH)
@@ -189,6 +195,21 @@ model Booking {
   timezone    String        @default("Asia/Singapore")
   meetingLink String?
   status      BookingStatus @default(PENDING)
+
+  // Payment
+  totalAmountCents        Int?
+  depositAmountCents      Int?
+  currency                String   @default("SGD")
+  paymentMethod           String?
+  paymentStatus           String   @default("pending")
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+  stripeCustomerId        String?
+  stripePaymentMethodId   String?
+  stripeRemainderPIId     String?
+  tonDepositTxHash        String?
+  tonRemainderTxHash      String?
+  remainderChargedAt      DateTime?
 
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

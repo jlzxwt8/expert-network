@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Star,
@@ -47,6 +48,9 @@ interface Expert {
   isVerified: boolean;
   avgRating: number;
   reviewCount: number;
+  priceOnlineCents: number | null;
+  priceOfflineCents: number | null;
+  currency: string;
   user: ExpertUser;
 }
 
@@ -144,6 +148,11 @@ function ExpertCard({ expert }: { expert: Expert }) {
               <span>
                 {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
               </span>
+              {(expert.priceOnlineCents || expert.priceOfflineCents) && (
+                <span className="ml-auto font-medium text-emerald-700 dark:text-emerald-400">
+                  From SGD {((Math.min(expert.priceOnlineCents || Infinity, expert.priceOfflineCents || Infinity)) / 100).toFixed(0)}/hr
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -205,6 +214,7 @@ export default function DiscoverPage() {
 }
 
 function DiscoverContent() {
+  const { status: sessionStatus } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [experts, setExperts] = useState<Expert[]>([]);
@@ -219,6 +229,12 @@ function DiscoverContent() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const expertsRef = useRef<Expert[]>([]);
   expertsRef.current = experts;
+
+  useEffect(() => {
+    if (sessionStatus === "unauthenticated") {
+      router.push("/auth/signin?callbackUrl=/discover");
+    }
+  }, [sessionStatus, router]);
 
   const domainsParam = searchParams.get("domains") ?? "";
   const domains = useMemo(

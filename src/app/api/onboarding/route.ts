@@ -76,12 +76,23 @@ export async function POST(request: NextRequest) {
         ? body.gender
         : undefined;
 
+    const priceOnlineCents =
+      typeof body.priceOnlineCents === "number" && body.priceOnlineCents >= 0
+        ? Math.round(body.priceOnlineCents)
+        : undefined;
+    const priceOfflineCents =
+      typeof body.priceOfflineCents === "number" && body.priceOfflineCents >= 0
+        ? Math.round(body.priceOfflineCents)
+        : undefined;
+
     const updateData: Record<string, unknown> = {};
     if (Object.keys(socialLinks).length > 0) Object.assign(updateData, socialLinks);
     if (sessionType !== null) updateData.sessionType = sessionType;
     if (onboardingStep !== null) updateData.onboardingStep = onboardingStep;
     if (bio !== undefined) updateData.bio = bio;
     if (gender !== undefined) updateData.gender = gender;
+    if (priceOnlineCents !== undefined) updateData.priceOnlineCents = priceOnlineCents;
+    if (priceOfflineCents !== undefined) updateData.priceOfflineCents = priceOfflineCents;
 
     if (Object.keys(updateData).length === 0 && newDomains === undefined) {
       return NextResponse.json(

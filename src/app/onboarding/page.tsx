@@ -16,6 +16,7 @@ import {
   Wallet,
   Copy,
   CheckCircle,
+  DollarSign,
 } from "lucide-react";
 
 import {
@@ -48,6 +49,7 @@ type Step =
   | "DOMAINS"
   | "DOCUMENT_UPLOAD"
   | "SESSION_PREFS"
+  | "PRICING"
   | "AI_GENERATION"
   | "VOICE_SAMPLE"
   | "PREVIEW";
@@ -96,6 +98,8 @@ function getProgressValue(step: Step): number {
     case "DOCUMENT_UPLOAD":
     case "SESSION_PREFS":
       return 25;
+    case "PRICING":
+      return 35;
     case "AI_GENERATION":
       return 50;
     case "VOICE_SAMPLE":
@@ -134,6 +138,8 @@ export default function OnboardingPage() {
 
   const [userNickName, setUserNickName] = useState("");
   const [selectedGender, setSelectedGender] = useState<string>("");
+  const [priceOnline, setPriceOnline] = useState("");
+  const [priceOffline, setPriceOffline] = useState("");
   const [cloningVoice, setCloningVoice] = useState(false);
   const [voiceCloned, setVoiceCloned] = useState(false);
   const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
@@ -379,6 +385,50 @@ export default function OnboardingPage() {
     });
   }, [currentStep, addStepMessage]);
 
+  // Pricing step
+  useEffect(() => {
+    if (currentStep !== "PRICING") return;
+    const showOnline = sessionType !== "OFFLINE";
+    const showOffline = sessionType !== "ONLINE";
+    const parts: string[] = [];
+    if (showOnline) parts.push("online");
+    if (showOffline) parts.push("offline");
+    addStepMessage("pricing", {
+      id: "pricing",
+      role: "ai",
+      content: `Set your hourly rate in SGD for ${parts.join(" and ")} sessions. This helps mentees know what to expect.`,
+      type: "input",
+    });
+  }, [currentStep, addStepMessage, sessionType]);
+
+  const handlePricingSubmit = async () => {
+    const onlineCents = priceOnline ? Math.round(parseFloat(priceOnline) * 100) : undefined;
+    const offlineCents = priceOffline ? Math.round(parseFloat(priceOffline) * 100) : undefined;
+
+    if (sessionType !== "OFFLINE" && (!onlineCents || onlineCents <= 0)) return;
+    if (sessionType !== "ONLINE" && (!offlineCents || offlineCents <= 0)) return;
+
+    const parts: string[] = [];
+    if (onlineCents) parts.push(`Online: SGD ${priceOnline}/hr`);
+    if (offlineCents) parts.push(`Offline: SGD ${priceOffline}/hr`);
+
+    setMessages((prev) => [
+      ...prev,
+      { id: "user-pricing", role: "user", content: parts.join(", ") },
+    ]);
+
+    try {
+      const data: Record<string, number> = {};
+      if (onlineCents) data.priceOnlineCents = onlineCents;
+      if (offlineCents) data.priceOfflineCents = offlineCents;
+      await saveOnboarding(data);
+    } catch {
+      // Silently fail
+    }
+
+    startAIGeneration();
+  };
+
   // Voice sample question
   useEffect(() => {
     if (currentStep !== "VOICE_SAMPLE") return;
@@ -563,7 +613,7 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
-    startAIGeneration();
+    setCurrentStep("PRICING");
   };
 
   const startAIGeneration = async () => {
@@ -1235,6 +1285,59 @@ export default function OnboardingPage() {
                 </span>
               </button>
             ))}
+          </div>
+        )}
+
+        {currentStep === "PRICING" && (
+          <div className="space-y-3">
+            {sessionType !== "OFFLINE" && (
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Online rate (SGD/hour)
+                </label>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={priceOnline}
+                    onChange={(e) => setPriceOnline(e.target.value)}
+                    placeholder="e.g. 50"
+                    className="min-h-[44px]"
+                  />
+                </div>
+              </div>
+            )}
+            {sessionType !== "ONLINE" && (
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Offline rate (SGD/hour)
+                </label>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={priceOffline}
+                    onChange={(e) => setPriceOffline(e.target.value)}
+                    placeholder="e.g. 80"
+                    className="min-h-[44px]"
+                  />
+                </div>
+              </div>
+            )}
+            <Button
+              onClick={handlePricingSubmit}
+              disabled={
+                (sessionType !== "OFFLINE" && !priceOnline) ||
+                (sessionType !== "ONLINE" && !priceOffline)
+              }
+              className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+            >
+              Continue
+            </Button>
           </div>
         )}
 

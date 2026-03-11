@@ -1,15 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Monitor,
   MapPin,
   Loader2,
   ArrowLeft,
+  CreditCard,
+  Wallet,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
+import { useTelegram } from "@/components/telegram-provider";
 import { format, isSameDay, parseISO, setHours, setMinutes, addHours, startOfDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -49,7 +52,7 @@ function generateDefaultSlots(date: Date): DefaultSlot[] {
 export default function BookSessionPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const { isTelegram } = useTelegram();
   const expertId = params.id as string;
 
   const [sessionType, setSessionType] = useState<SessionType>("ONLINE");
@@ -60,11 +63,52 @@ export default function BookSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineAddress, setOfflineAddress] = useState("");
+  const [expertPricing, setExpertPricing] = useState<{
+    priceOnlineCents: number | null;
+    priceOfflineCents: number | null;
+    currency: string;
+    expertName: string;
+  } | null>(null);
 
   const timezone =
     typeof Intl !== "undefined"
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
       : "UTC";
+
+  useEffect(() => {
+    if (!expertId) return;
+    fetch(`/api/experts/${expertId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setExpertPricing({
+          priceOnlineCents: data.priceOnlineCents ?? null,
+          priceOfflineCents: data.priceOfflineCents ?? null,
+          currency: data.currency ?? "SGD",
+          expertName: data.user?.nickName || data.user?.name || "Expert",
+        });
+      })
+      .catch(() => {});
+  }, [expertId]);
+
+  const pricePerHour =
+    sessionType === "OFFLINE"
+      ? expertPricing?.priceOfflineCents
+      : expertPricing?.priceOnlineCents;
+
+  const slotDurationHours = selectedSlot
+    ? Math.max(
+        1,
+        Math.ceil(
+          (new Date(selectedSlot.endTime).getTime() -
+            new Date(selectedSlot.startTime).getTime()) /
+            (60 * 60 * 1000)
+        )
+      )
+    : 1;
+
+  const totalCents = pricePerHour ? pricePerHour * slotDurationHours : 0;
+  const depositCents = Math.ceil(totalCents / 2);
+  const remainderCents = totalCents - depositCents;
 
   const typeFromUrl = searchParams.get("type");
   useEffect(() => {
@@ -134,36 +178,90 @@ export default function BookSessionPage() {
     };
   }, [expertId, selectedDate]);
 
-  const handleConfirm = async () => {
+  const bookingPayload = () => ({
+    expertId,
+    sessionType,
+    startTime: selectedSlot!.startTime,
+    endTime: selectedSlot!.endTime,
+    timezone,
+    ...(sessionType === "OFFLINE" && { meetingLink: offlineAddress.trim() }),
+  });
+
+  const handleStripeCheckout = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/bookings/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingPayload()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create checkout");
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setSubmitting(false);
+    }
+  };
+
+  const handleTelegramCardPayment = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/bookings/telegram-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingPayload()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create invoice");
+      if (data.invoiceUrl) {
+        window.location.href = data.invoiceUrl;
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setSubmitting(false);
+    }
+  };
+
+  const handleTONPayment = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/bookings/ton-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingPayload()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to create TON payment");
+      if (data.tonLink) {
+        window.location.href = data.tonLink;
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirm = () => {
     if (!selectedSlot || !expertId) return;
     if (sessionType === "OFFLINE" && !offlineAddress.trim()) {
       setError("Please enter a meeting address for offline sessions.");
       return;
     }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/bookings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          expertId,
-          sessionType,
-          startTime: selectedSlot.startTime,
-          endTime: selectedSlot.endTime,
-          timezone,
-          ...(sessionType === "OFFLINE" && { meetingLink: offlineAddress.trim() }),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error ?? "Failed to book");
-      }
-      router.push(`/bookings/${data.id}/success`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setSubmitting(false);
+    if (!pricePerHour || pricePerHour <= 0) {
+      setError("Expert has not set pricing for this session type.");
+      return;
+    }
+    // On web: use Stripe; in Telegram: handled by separate buttons
+    if (!isTelegram) {
+      handleStripeCheckout();
     }
   };
 
@@ -297,27 +395,88 @@ export default function BookSessionPage() {
           )}
         </section>
 
+        {selectedSlot && totalCents > 0 && (
+          <section className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
+            <h3 className="font-semibold text-sm">Payment Summary</h3>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">
+                {expertPricing?.currency || "SGD"} {((pricePerHour || 0) / 100).toFixed(2)}/hr
+                &times; {slotDurationHours}h
+              </span>
+              <span className="font-medium">
+                {expertPricing?.currency || "SGD"} {(totalCents / 100).toFixed(2)}
+              </span>
+            </div>
+            <hr className="border-indigo-200" />
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Deposit (50%) — due now</span>
+              <span className="font-bold text-indigo-700">
+                {expertPricing?.currency || "SGD"} {(depositCents / 100).toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Remainder — charged 24h after session</span>
+              <span className="text-muted-foreground">
+                {expertPricing?.currency || "SGD"} {(remainderCents / 100).toFixed(2)}
+              </span>
+            </div>
+          </section>
+        )}
+
         {error && (
           <p className="rounded-lg bg-destructive/10 px-4 py-2 text-sm text-destructive">
             {error}
           </p>
         )}
 
-        <Button
-          size="lg"
-          className="w-full min-h-[52px] text-base font-semibold"
-          disabled={!canConfirm}
-          onClick={handleConfirm}
-        >
-          {submitting ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Booking...
-            </>
-          ) : (
-            "Confirm Booking"
-          )}
-        </Button>
+        {isTelegram && totalCents > 0 ? (
+          <div className="space-y-2">
+            <Button
+              size="lg"
+              className="w-full min-h-[52px] text-base font-semibold gap-2"
+              disabled={!canConfirm}
+              onClick={handleTelegramCardPayment}
+            >
+              {submitting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <CreditCard className="h-5 w-5" />
+                  Pay with Card — {expertPricing?.currency || "SGD"}{" "}
+                  {(depositCents / 100).toFixed(2)}
+                </>
+              )}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full min-h-[52px] text-base font-semibold gap-2"
+              disabled={!canConfirm}
+              onClick={handleTONPayment}
+            >
+              <Wallet className="h-5 w-5" />
+              Pay with TON
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="lg"
+            className="w-full min-h-[52px] text-base font-semibold"
+            disabled={!canConfirm}
+            onClick={handleConfirm}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Redirecting to payment...
+              </>
+            ) : totalCents > 0 ? (
+              `Pay Deposit — ${expertPricing?.currency || "SGD"} ${(depositCents / 100).toFixed(2)}`
+            ) : (
+              "Confirm Booking"
+            )}
+          </Button>
+        )}
       </main>
     </div>
   );

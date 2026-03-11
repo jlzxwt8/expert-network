@@ -22,6 +22,7 @@ import {
   Wallet,
   Copy,
   CheckCircle,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/audio-player";
@@ -49,6 +50,10 @@ interface ExpertProfile {
   gender: string | null;
   tonWalletAddress: string | null;
   tonWalletType: string | null;
+  priceOnlineCents: number | null;
+  priceOfflineCents: number | null;
+  currency: string;
+  sessionType: string;
   documentName: string | null;
   isPublished: boolean;
   user: {
@@ -100,6 +105,10 @@ export default function ProfilePage() {
   const [cloningVoice, setCloningVoice] = useState(false);
   const [editingGender, setEditingGender] = useState(false);
   const [walletCopied, setWalletCopied] = useState(false);
+  const [editingPricing, setEditingPricing] = useState(false);
+  const [savingPricing, setSavingPricing] = useState(false);
+  const [pOnline, setPOnline] = useState("");
+  const [pOffline, setPOffline] = useState("");
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -118,6 +127,8 @@ export default function ProfilePage() {
         (data.servicesOffered as ServiceItem[] | null) ?? []
       );
       setUploadedFileName(data.documentName ?? null);
+      setPOnline(data.priceOnlineCents ? String(data.priceOnlineCents / 100) : "");
+      setPOffline(data.priceOfflineCents ? String(data.priceOfflineCents / 100) : "");
     } catch {
       setProfile(null);
     } finally {
@@ -419,6 +430,28 @@ export default function ProfilePage() {
     } catch {
       showMessage("Failed to save gender", "voice", true, 5000);
     }
+  };
+
+  const handleSavePricing = async () => {
+    setSavingPricing(true);
+    try {
+      const data: Record<string, number> = {};
+      if (pOnline) data.priceOnlineCents = Math.round(parseFloat(pOnline) * 100);
+      if (pOffline) data.priceOfflineCents = Math.round(parseFloat(pOffline) * 100);
+      await saveSection(data);
+      setEditingPricing(false);
+      showMessage("Pricing saved!", "pricing");
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Save failed", "pricing", true, 5000);
+    } finally {
+      setSavingPricing(false);
+    }
+  };
+
+  const handleCancelPricing = () => {
+    setPOnline(profile?.priceOnlineCents ? String(profile.priceOnlineCents / 100) : "");
+    setPOffline(profile?.priceOfflineCents ? String(profile.priceOfflineCents / 100) : "");
+    setEditingPricing(false);
   };
 
   const copyWalletAddress = () => {
@@ -731,6 +764,98 @@ export default function ProfilePage() {
                   {profile?.hasVoiceClone
                     ? "Edit the introduction script below, then click Regenerate to update the audio."
                     : "Record your voice to personalize the AI narration, or use the default voice."}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Session Pricing */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Session Pricing
+                  </CardTitle>
+                  {!editingPricing ? (
+                    <Button variant="ghost" size="sm" onClick={() => setEditingPricing(true)} className="gap-1">
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={handleCancelPricing} className="gap-1">
+                        <X className="h-3.5 w-3.5" />
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleSavePricing} disabled={savingPricing} className="gap-1">
+                        {savingPricing ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="h-3.5 w-3.5" />
+                        )}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {renderToast("pricing")}
+                {editingPricing ? (
+                  <div className="space-y-3">
+                    {profile.sessionType !== "OFFLINE" && (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">Online rate (SGD/hour)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pOnline}
+                          onChange={(e) => setPOnline(e.target.value)}
+                          placeholder="e.g. 50"
+                        />
+                      </div>
+                    )}
+                    {profile.sessionType !== "ONLINE" && (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">Offline rate (SGD/hour)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={pOffline}
+                          onChange={(e) => setPOffline(e.target.value)}
+                          placeholder="e.g. 80"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {profile.sessionType !== "OFFLINE" && (
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <span className="text-sm text-muted-foreground">Online</span>
+                        <span className="font-medium">
+                          {profile.priceOnlineCents
+                            ? `SGD ${(profile.priceOnlineCents / 100).toFixed(2)}/hr`
+                            : "Not set"}
+                        </span>
+                      </div>
+                    )}
+                    {profile.sessionType !== "ONLINE" && (
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <span className="text-sm text-muted-foreground">Offline</span>
+                        <span className="font-medium">
+                          {profile.priceOfflineCents
+                            ? `SGD ${(profile.priceOfflineCents / 100).toFixed(2)}/hr`
+                            : "Not set"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Mentees pay a 50% deposit when booking. The remainder is charged 24h after the session.
                 </p>
               </CardContent>
             </Card>

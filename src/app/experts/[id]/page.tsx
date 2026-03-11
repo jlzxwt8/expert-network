@@ -57,6 +57,9 @@ interface Expert {
   hasAudio: boolean;
   avatarScript: string | null;
   documentName: string | null;
+  priceOnlineCents: number | null;
+  priceOfflineCents: number | null;
+  currency: string;
   user: ExpertUser;
 }
 
@@ -429,6 +432,46 @@ export default function ExpertProfilePage() {
             <span className="truncate flex-1">{expert.documentName}</span>
             <span className="text-xs text-muted-foreground shrink-0">Download</span>
           </a>
+        </section>
+      )}
+
+      {/* Session Pricing */}
+      {(expert.priceOnlineCents || expert.priceOfflineCents) && (
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold text-foreground mb-3">Session Rates</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {expert.priceOnlineCents && expert.sessionType !== "OFFLINE" && (
+              <Card>
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Monitor className="h-4 w-4" />
+                    Online
+                  </div>
+                  <span className="text-lg font-bold">
+                    {expert.currency} {(expert.priceOnlineCents / 100).toFixed(0)}
+                    <span className="text-sm font-normal text-muted-foreground">/hr</span>
+                  </span>
+                </CardContent>
+              </Card>
+            )}
+            {expert.priceOfflineCents && expert.sessionType !== "ONLINE" && (
+              <Card>
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" />
+                    Offline
+                  </div>
+                  <span className="text-lg font-bold">
+                    {expert.currency} {(expert.priceOfflineCents / 100).toFixed(0)}
+                    <span className="text-sm font-normal text-muted-foreground">/hr</span>
+                  </span>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            50% deposit due at booking. Remainder charged 24h after the session.
+          </p>
         </section>
       )}
 

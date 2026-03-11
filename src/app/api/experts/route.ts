@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import type { SessionType } from "@/generated/prisma/client";
@@ -24,6 +26,11 @@ function parseSessionType(value: unknown): SessionType | null {
 
 export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const domainParam = searchParams.get("domain");
     const sessionTypeParam = parseSessionType(searchParams.get("sessionType"));
