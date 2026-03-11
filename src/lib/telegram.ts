@@ -6,7 +6,9 @@
 
 /**
  * Returns true when the app is running inside a Telegram Mini App WebView.
- * Checks for the SDK object and either initData or the platform field.
+ * Only trusts `initData` — it's the sole field guaranteed to be non-empty
+ * exclusively inside a real Mini App. The SDK's `platform` is set even in
+ * regular browsers and must NOT be used as a signal.
  * Safe to call during SSR (returns false).
  */
 export function isTelegramMiniApp(): boolean {
@@ -14,7 +16,5 @@ export function isTelegramMiniApp(): boolean {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const webApp = (window as any).Telegram?.WebApp;
   if (!webApp) return false;
-  // initData is the primary signal; platform is a fallback for when
-  // the SDK is loaded but initData hasn't been populated yet.
-  return !!(webApp.initData || webApp.platform);
+  return typeof webApp.initData === "string" && webApp.initData.length > 0;
 }
