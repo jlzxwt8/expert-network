@@ -1,18 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { CalendarDays, LogOut, User } from "lucide-react";
-import { useTelegram } from "@/components/telegram-provider";
+import { useAuth } from "@/hooks/use-auth";
 
 interface UserMenuProps {
   variant?: "light" | "dark";
 }
 
 export function UserMenu({ variant = "dark" }: UserMenuProps) {
-  const { data: session, status } = useSession();
-  const { isTelegram, ready } = useTelegram();
+  const { user, status, isTelegram } = useAuth();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -26,9 +25,9 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (!ready || status === "loading") return null;
+  if (status === "loading") return null;
 
-  if (!session) {
+  if (status === "unauthenticated") {
     if (isTelegram) return null;
     return (
       <Link
@@ -44,14 +43,8 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
     );
   }
 
-  const initial = (
-    session.user?.name ??
-    (session.user as { nickName?: string })?.nickName ??
-    session.user?.email ??
-    "U"
-  )
-    .charAt(0)
-    .toUpperCase();
+  const displayName = user?.name ?? user?.email ?? "U";
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <div ref={menuRef} className="relative">
@@ -88,13 +81,15 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
             <CalendarDays className="h-4 w-4" />
             My Bookings
           </Link>
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </button>
+          {!isTelegram && (
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-accent transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </button>
+          )}
         </div>
       )}
     </div>
