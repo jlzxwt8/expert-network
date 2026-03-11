@@ -5,8 +5,8 @@ import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { notifyExpertBooking } from "@/lib/telegram-bot";
 import type { SessionType } from "@/generated/prisma/client";
 
-const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || "";
-const MINI_APP_URL = `https://t.me/${BOT_USERNAME}/opc`;
+const APP_URL =
+  process.env.NEXTAUTH_URL || "https://expert-network.vercel.app";
 
 async function sendMessage(
   botToken: string,
@@ -38,9 +38,13 @@ async function sendChatAction(
   });
 }
 
+function webAppButton(label: string, path = "/discover") {
+  return { text: label, web_app: { url: `${APP_URL}${path}` } };
+}
+
 function buildExpertButtons(
   experts: { expertId: string; name: string; profileUrl: string; bookUrl: string }[]
-) {
+): Record<string, unknown>[][] {
   return experts.slice(0, 5).map((e) => [
     { text: `View ${e.name}`, url: e.profileUrl },
     { text: `Book ${e.name}`, url: e.bookUrl },
@@ -138,7 +142,7 @@ export async function POST(request: NextRequest) {
     const text = message.text.trim();
 
     // /start command
-    if (text === "/start" || text === `/start@${BOT_USERNAME}`) {
+    if (text === "/start" || text.startsWith("/start@")) {
       const welcomeText = [
         `👋 *Welcome to Help&Grow Expert Network!*`,
         ``,
@@ -153,21 +157,18 @@ export async function POST(request: NextRequest) {
         `/help — Show this help message`,
       ].join("\n");
 
-      const buttons: Record<string, unknown> = {};
-      if (BOT_USERNAME) {
-        buttons.reply_markup = {
+      await sendMessage(botToken, chatId, welcomeText, {
+        reply_markup: {
           inline_keyboard: [
-            [{ text: "🚀 Open Full App", url: MINI_APP_URL }],
+            [webAppButton("🚀 Open Full App")],
           ],
-        };
-      }
-
-      await sendMessage(botToken, chatId, welcomeText, buttons);
+        },
+      });
       return NextResponse.json({ ok: true });
     }
 
     // /help command
-    if (text === "/help" || text === `/help@${BOT_USERNAME}`) {
+    if (text === "/help" || text.startsWith("/help@")) {
       const helpText = [
         `*Help&Grow Expert Network Bot*`,
         ``,
@@ -186,21 +187,18 @@ export async function POST(request: NextRequest) {
     }
 
     // /browse command
-    if (text === "/browse" || text === `/browse@${BOT_USERNAME}`) {
-      const buttons = BOT_USERNAME
-        ? {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "🔍 Browse Experts", url: MINI_APP_URL }],
-              ],
-            },
-          }
-        : {};
+    if (text === "/browse" || text.startsWith("/browse@")) {
       await sendMessage(
         botToken,
         chatId,
         `Open the full app to browse all experts:`,
-        buttons
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [webAppButton("🔍 Browse Experts")],
+            ],
+          },
+        }
       );
       return NextResponse.json({ ok: true });
     }
@@ -225,7 +223,6 @@ export async function POST(request: NextRequest) {
     const result = await chat(query);
 
     if (result.experts.length > 0) {
-      // Build a text reply with inline buttons
       const lines = result.experts.map(
         (e, i) =>
           `*${i + 1}. ${e.name}*${e.priceLabel ? ` — ${e.priceLabel}` : ""}\n${e.reason}`
@@ -233,30 +230,19 @@ export async function POST(request: NextRequest) {
       const replyText = `🎯 *Expert Recommendations*\n\n${lines.join("\n\n")}`;
 
       const buttons = buildExpertButtons(result.experts);
-      if (BOT_USERNAME) {
-        buttons.push([{ text: "🔍 Browse All Experts", url: MINI_APP_URL }]);
-      }
+      buttons.push([webAppButton("🔍 Browse All Experts")]);
 
       await sendMessage(botToken, chatId, replyText, {
         reply_markup: { inline_keyboard: buttons },
       });
     } else {
-      const fallbackButtons = BOT_USERNAME
-        ? {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "🔍 Browse All Experts", url: MINI_APP_URL }],
-              ],
-            },
-          }
-        : {};
-
-      await sendMessage(
-        botToken,
-        chatId,
-        result.reply,
-        fallbackButtons
-      );
+      await sendMessage(botToken, chatId, result.reply, {
+        reply_markup: {
+          inline_keyboard: [
+            [webAppButton("🔍 Browse All Experts")],
+          ],
+        },
+      });
     }
 
     return NextResponse.json({ ok: true });

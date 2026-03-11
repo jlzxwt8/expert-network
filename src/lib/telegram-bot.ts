@@ -1,5 +1,5 @@
-const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || "";
-const MINI_APP_URL = `https://t.me/${BOT_USERNAME}/opc`;
+const APP_URL =
+  process.env.NEXTAUTH_URL || "https://expert-network.vercel.app";
 
 async function callBotApi(method: string, body: Record<string, unknown>) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -32,7 +32,7 @@ async function resolveChatId(telegramUsername: string): Promise<number | null> {
 export async function sendTelegramMessage(
   chatId: number,
   text: string,
-  inlineKeyboard?: { text: string; url: string }[][]
+  inlineKeyboard?: Record<string, unknown>[][]
 ) {
   const extra: Record<string, unknown> = { parse_mode: "Markdown" };
   if (inlineKeyboard?.length) {
@@ -60,7 +60,7 @@ export async function sendGreeting(telegramUsername: string): Promise<boolean> {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "🚀 Open Expert Network", url: MINI_APP_URL }],
+    [{ text: "🚀 Open Expert Network", web_app: { url: `${APP_URL}/discover` } }],
   ]);
 
   return true;
@@ -100,7 +100,7 @@ export async function notifyExpertBooking(params: {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View Bookings", url: MINI_APP_URL }],
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
   ]);
 
   return true;
@@ -140,7 +140,7 @@ export async function notifyFounderBooking(params: {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View My Bookings", url: MINI_APP_URL }],
+    [{ text: "📋 View My Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
   ]);
 
   return true;
