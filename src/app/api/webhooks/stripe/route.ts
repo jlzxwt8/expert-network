@@ -36,6 +36,14 @@ export async function POST(request: NextRequest) {
         const sessionMeta = session.metadata as Record<string, string> | undefined;
         if (sessionMeta?.type !== "booking_deposit") break;
 
+        const alreadyExists = await prisma.booking.findFirst({
+          where: { stripeCheckoutSessionId: session.id as string },
+        });
+        if (alreadyExists) {
+          console.log(`[webhooks/stripe] Booking already exists for session ${session.id}`);
+          break;
+        }
+
         const pi =
           typeof session.payment_intent === "string"
             ? session.payment_intent

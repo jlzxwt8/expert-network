@@ -1,0 +1,158 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { retrieveCheckoutSession, retrievePaymentIntent } from "@/lib/stripe";
+import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
+import type { SessionType } from "@/generated/prisma/client";
+
+/**
+ * POST /api/bookings/verify
+ * Called from the checkout success page to verify the Stripe session
+ * and create the booking if the webhook hasn't done so yet.
+ * This is Stripe's recommended pattern for reliable booking creation.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { sessionId } = await request.json();
+    if (!sessionId || typeof sessionId !== "string") {
+      return NextResponse.json(
+        { error: "Missing session_id" },
+        { status: 400 }
+      );
+    }
+
+    const existing = await prisma.booking.findFirst({
+      where: { stripeCheckoutSessionId: sessionId },
+    });
+    if (existing) {
+      return NextResponse.json({
+        status: "already_created",
+        bookingId: existing.id,
+      });
+    }
+
+    const checkoutSession = await retrieveCheckoutSession(sessionId);
+
+    if (
+      checkoutSession.metadata?.type !== "booking_deposit" ||
+      checkoutSession.metadata?.founderId !== session.user.id
+    ) {
+      return NextResponse.json(
+        { error: "Session not found or unauthorized" },
+        { status: 403 }
+      );
+    }
+
+    const pi =
+      typeof checkoutSession.payment_intent === "string"
+        ? checkoutSession.payment_intent
+        : undefined;
+
+    let paymentMethodId: string | undefined;
+    let customerId: string | undefined;
+    let piMeta: Record<string, string> = {};
+
+    if (pi) {
+      const paymentIntent = await retrievePaymentIntent(pi);
+      paymentMethodId =
+        typeof paymentIntent.payment_method === "string"
+          ? paymentIntent.payment_method
+          : undefined;
+      customerId =
+        typeof paymentIntent.customer === "string"
+          ? paymentIntent.customer
+          : undefined;
+      piMeta = (paymentIntent.metadata as Record<string, string>) ?? {};
+    }
+
+    const meta = { ...(checkoutSession.metadata ?? {}), ...piMeta };
+
+    const doubleCheck = await prisma.booking.findFirst({
+      where: { stripeCheckoutSessionId: sessionId },
+    });
+    if (doubleCheck) {
+      return NextResponse.json({
+        status: "already_created",
+        bookingId: doubleCheck.id,
+      });
+    }
+
+    const booking = await prisma.booking.create({
+      data: {
+        expertId: meta.expertId!,
+        founderId: meta.founderId!,
+        sessionType: (meta.sessionType || "ONLINE") as SessionType,
+        startTime: new Date(meta.startTime!),
+        endTime: new Date(meta.endTime!),
+        timezone: meta.timezone || "Asia/Singapore",
+        meetingLink: meta.meetingLink || null,
+        status: "CONFIRMED",
+        totalAmountCents: parseInt(meta.totalCents || "0", 10),
+        depositAmountCents: parseInt(meta.depositCents || "0", 10),
+        currency: meta.currency || "SGD",
+        paymentMethod: "stripe",
+        paymentStatus: "deposit_paid",
+        stripeCheckoutSessionId: sessionId,
+        stripePaymentIntentId: pi || null,
+        stripeCustomerId: customerId || null,
+        stripePaymentMethodId: paymentMethodId || null,
+      },
+      include: {
+        expert: { include: { user: true } },
+        founder: true,
+      },
+    });
+
+    storeBookingEvent({
+      expertId: booking.expertId,
+      founderName:
+        booking.founder.nickName ?? booking.founder.name ?? "Client",
+      sessionType: booking.sessionType,
+      startTime: booking.startTime,
+      status: booking.status,
+    }).catch(() => {});
+
+    const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
+
+    notifyExpertBooking({
+      expertTelegramUsername: booking.expert.user.telegramUsername,
+      founderName:
+        booking.founder.nickName ?? booking.founder.name ?? "Client",
+      sessionType: booking.sessionType,
+      startTime: booking.startTime,
+      depositAmount: depositLabel,
+    }).catch(() => {});
+
+    notifyFounderBooking({
+      founderTelegramUsername: booking.founder.telegramUsername,
+      expertName:
+        booking.expert.user.nickName ?? booking.expert.user.name ?? "Expert",
+      sessionType: booking.sessionType,
+      startTime: booking.startTime,
+      depositAmount: depositLabel,
+    }).catch(() => {});
+
+    console.log(
+      `[bookings/verify] Booking ${booking.id} created from checkout success page`
+    );
+
+    return NextResponse.json({
+      status: "created",
+      bookingId: booking.id,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[bookings/verify]", message, error);
+    return NextResponse.json(
+      { error: "Verification failed", detail: message },
+      { status: 500 }
+    );
+  }
+}

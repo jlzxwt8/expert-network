@@ -78,6 +78,10 @@ interface CheckoutSession {
   metadata?: Record<string, string>;
 }
 
+export async function retrieveCheckoutSession(id: string): Promise<CheckoutSession> {
+  return stripeRequest<CheckoutSession>("GET", `/checkout/sessions/${id}`);
+}
+
 export async function createCheckoutSession(params: {
   mode: string;
   payment_method_types: string[];
