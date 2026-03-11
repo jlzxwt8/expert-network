@@ -1,7 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const q = request.nextUrl.searchParams.get("q");
+
+  if (q === "users") {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        nickName: true,
+        email: true,
+        telegramUsername: true,
+        telegramId: true,
+      },
+    });
+    return NextResponse.json({ total: users.length, users });
+  }
+
   const bookings = await prisma.booking.findMany({
     select: {
       id: true,
@@ -14,6 +30,14 @@ export async function GET() {
       currency: true,
       stripeCheckoutSessionId: true,
       createdAt: true,
+      founder: {
+        select: { name: true, telegramUsername: true, telegramId: true },
+      },
+      expert: {
+        select: {
+          user: { select: { name: true, telegramUsername: true, telegramId: true } },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
