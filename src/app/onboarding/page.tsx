@@ -15,7 +15,6 @@ import {
   FileText,
   Volume2,
   Wallet,
-  Copy,
   CheckCircle,
   DollarSign,
 } from "lucide-react";
@@ -25,6 +24,7 @@ import {
   SOCIAL_PLATFORMS,
   ONBOARDING_STEPS,
 } from "@/lib/constants";
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { VoiceInputButton } from "@/components/voice-input-button";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { AudioPlayer } from "@/components/audio-player";
@@ -117,6 +117,8 @@ export default function OnboardingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { isTelegram, authDone } = useTelegram();
+  const [tonConnectUI] = useTonConnectUI();
+  const tonWallet = useTonWallet();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatAreaRef = useRef<HTMLDivElement>(null);
 
@@ -149,9 +151,7 @@ export default function OnboardingPage() {
   const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
   const [generatingDefaultAudio, setGeneratingDefaultAudio] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [walletType, setWalletType] = useState<string | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
-  const [walletCopied, setWalletCopied] = useState(false);
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -248,90 +248,54 @@ export default function OnboardingPage() {
     });
   }, [currentStep, addStepMessage, userNickName]);
 
-  // Wallet step
+  // Wallet step — TON Connect
   useEffect(() => {
     if (currentStep !== "WALLET") return;
     addStepMessage("wallet", {
       id: "wallet",
       role: "ai",
       content:
-        "Would you like to connect a TON wallet? You can connect your own via TON Connect, or we can create one for you. You can also skip this step.",
+        "Let's set up your TON wallet for payments. Connect your wallet (Telegram Wallet, Tonkeeper, etc.) so you can receive and make payments easily. You can also skip this.",
       type: "text",
     });
   }, [currentStep, addStepMessage]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleWalletConnect = async (address: string) => {
+  const handleWalletTonConnect = async () => {
     setWalletLoading(true);
     try {
-      const res = await fetch("/api/expert/wallet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "connect", address }),
-      });
-      if (!res.ok) throw new Error("Failed to save wallet");
-      const data = await res.json();
-      setWalletAddress(data.address);
-      setWalletType("tonconnect");
-      setMessages((prev) => [
-        ...prev,
-        { id: "user-wallet", role: "user", content: `Connected: ${data.address.slice(0, 8)}...${data.address.slice(-6)}` },
-      ]);
+      await tonConnectUI.openModal();
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: `wallet-err-${Date.now()}`, role: "ai", content: "Failed to connect wallet. You can try again or skip.", type: "text" },
-      ]);
+      // Modal closed without connecting — that's OK
     } finally {
       setWalletLoading(false);
     }
   };
 
-  const handleWalletAutoCreate = async () => {
-    setWalletLoading(true);
-    setMessages((prev) => [
-      ...prev,
-      { id: "user-wallet-skip", role: "user", content: "Create a wallet for me" },
-    ]);
-    try {
-      const res = await fetch("/api/expert/wallet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "auto-create" }),
-      });
-      if (!res.ok) throw new Error("Failed to create wallet");
-      const data = await res.json();
-      setWalletAddress(data.address);
-      setWalletType("custodial");
-      setMessages((prev) => [
+  // When TON Connect wallet becomes connected, save it to the backend
+  useEffect(() => {
+    if (currentStep !== "WALLET" || !tonWallet) return;
+    const address = tonWallet.account.address;
+    const friendlyAddr = address.slice(0, 8) + "..." + address.slice(-6);
+
+    setWalletAddress(address);
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === "user-wallet-connected")) return prev;
+      return [
         ...prev,
-        {
-          id: "wallet-created",
-          role: "ai",
-          content: `Your TON wallet has been created: ${data.address.slice(0, 8)}...${data.address.slice(-6)}`,
-          type: "text",
-        },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: `wallet-err-${Date.now()}`, role: "ai", content: "Failed to create wallet. You can continue without one.", type: "text" },
-      ]);
-    } finally {
-      setWalletLoading(false);
-    }
-  };
+        { id: "user-wallet-connected", role: "user", content: `Connected: ${friendlyAddr}` },
+      ];
+    });
+
+    fetch("/api/expert/wallet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "connect", address }),
+    }).catch(() => {});
+  }, [currentStep, tonWallet]);
 
   const handleWalletContinue = () => {
     setCurrentStep("SOCIAL_LINKS");
     setCurrentSocialIndex(0);
-  };
-
-  const copyWalletAddress = () => {
-    if (!walletAddress) return;
-    navigator.clipboard.writeText(walletAddress).catch(() => {});
-    setWalletCopied(true);
-    setTimeout(() => setWalletCopied(false), 2000);
   };
 
   // Social link questions
@@ -536,10 +500,14 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
-    setCurrentStep("TELEGRAM_ID");
+    if (isTelegram) {
+      setCurrentStep("GENDER");
+    } else {
+      setCurrentStep("TELEGRAM_ID");
+    }
   };
 
-  // Telegram username step
+  // Telegram username step (skipped when inside Telegram Mini App)
   useEffect(() => {
     if (currentStep !== "TELEGRAM_ID") return;
     addStepMessage("telegram-id", {
@@ -1231,28 +1199,16 @@ export default function OnboardingPage() {
 
         {currentStep === "WALLET" && (
           <div className="space-y-3">
-            {walletAddress ? (
+            {walletAddress || tonWallet ? (
               <div className="space-y-3">
-                <div className="flex items-center gap-2 rounded-xl border-2 border-indigo-200 bg-indigo-50 p-4">
-                  <Wallet className="h-5 w-5 text-indigo-600 shrink-0" />
+                <div className="flex items-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4">
+                  <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">
-                      {walletType === "tonconnect" ? "Your Wallet" : "Managed Wallet"}
+                    <p className="text-xs text-muted-foreground">Wallet Connected</p>
+                    <p className="font-mono text-sm truncate">
+                      {(tonWallet?.account.address ?? walletAddress ?? "").slice(0, 10)}...{(tonWallet?.account.address ?? walletAddress ?? "").slice(-6)}
                     </p>
-                    <p className="font-mono text-sm truncate">{walletAddress}</p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={copyWalletAddress}
-                  >
-                    {walletCopied ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
                 </div>
                 <Button
                   onClick={handleWalletContinue}
@@ -1264,19 +1220,19 @@ export default function OnboardingPage() {
             ) : (
               <>
                 <Button
-                  onClick={handleWalletAutoCreate}
+                  onClick={handleWalletTonConnect}
                   disabled={walletLoading}
                   className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
                 >
                   {walletLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating wallet...
+                      Connecting...
                     </>
                   ) : (
                     <>
                       <Wallet className="mr-2 h-4 w-4" />
-                      Create a TON Wallet for Me
+                      Connect TON Wallet
                     </>
                   )}
                 </Button>
@@ -1287,7 +1243,7 @@ export default function OnboardingPage() {
                   className="min-h-[44px] w-full text-muted-foreground"
                 >
                   <SkipForward className="mr-2 h-4 w-4" />
-                  Skip Wallet Setup
+                  Skip for Now
                 </Button>
               </>
             )}
