@@ -19,7 +19,7 @@ import {
   MapPinned,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
-import { format, parseISO, startOfDay, setHours, setMinutes } from "date-fns";
+import { format, parseISO, isSameDay, startOfDay, setHours, setMinutes } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -294,7 +294,10 @@ function BookingCard({
   const [cancelReason, setCancelReason] = useState("");
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>();
-  const [rescheduleHour, setRescheduleHour] = useState("10");
+  const [rescheduleSlots, setRescheduleSlots] = useState<{ id: string; startTime: string; endTime: string }[]>([]);
+  const [selectedRescheduleSlot, setSelectedRescheduleSlot] = useState<{ startTime: string; endTime: string } | null>(null);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [expertSchedule, setExpertSchedule] = useState<Record<string, { start: string; end: string }[]> | null>(null);
   const [savingLocation, setSavingLocation] = useState(false);
   const [locationValue, setLocationValue] = useState(booking.offlineAddress || booking.meetingLink || "");
 
@@ -319,18 +322,86 @@ function BookingCard({
     } finally { setCancelling(false); }
   };
 
+  useEffect(() => {
+    if (!showReschedule || !booking.expert?.id) return;
+    fetch(`/api/experts/${booking.expert.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.weeklySchedule) setExpertSchedule(data.weeklySchedule);
+      })
+      .catch(() => {});
+  }, [showReschedule, booking.expert?.id]);
+
+  useEffect(() => {
+    if (!rescheduleDate || !booking.expert?.id) {
+      setRescheduleSlots([]);
+      setSelectedRescheduleSlot(null);
+      return;
+    }
+    setSlotsLoading(true);
+    setSelectedRescheduleSlot(null);
+
+    fetch(`/api/experts/${booking.expert.id}/slots`)
+      .then((r) => r.json())
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data?.slots ?? [];
+        const forDate = list.filter(
+          (s: { startTime: string; isBooked: boolean }) =>
+            isSameDay(parseISO(s.startTime), rescheduleDate) && !s.isBooked
+        );
+        if (forDate.length > 0) {
+          setRescheduleSlots(forDate);
+        } else if (expertSchedule) {
+          const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+          const dayKey = DAY_KEYS[rescheduleDate.getDay()];
+          const ranges = expertSchedule[dayKey];
+          if (ranges && ranges.length > 0) {
+            const day = startOfDay(rescheduleDate);
+            const now = new Date();
+            const generated: typeof rescheduleSlots = [];
+            let idx = 0;
+            for (const range of ranges) {
+              const [sh, sm] = range.start.split(":").map(Number);
+              const [eh, em] = range.end.split(":").map(Number);
+              let h = sh, m = sm || 0;
+              while (h < eh || (h === eh && m < em)) {
+                const s = setMinutes(setHours(day, h), m);
+                const nextM = m + 60;
+                const eH = h + Math.floor(nextM / 60);
+                const eM = nextM % 60;
+                const e = eH < eh || (eH === eh && eM <= em)
+                  ? setMinutes(setHours(day, eH), eM)
+                  : setMinutes(setHours(day, eh), em);
+                if (e > s && s > now) {
+                  generated.push({ id: `rs-${idx++}`, startTime: s.toISOString(), endTime: e.toISOString() });
+                }
+                h = eH; m = eM;
+              }
+            }
+            setRescheduleSlots(generated);
+          } else {
+            setRescheduleSlots([]);
+          }
+        } else {
+          setRescheduleSlots([]);
+        }
+      })
+      .catch(() => setRescheduleSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [rescheduleDate, booking.expert?.id, expertSchedule]);
+
   const handleReschedule = async () => {
-    if (!rescheduleDate) return;
+    if (!selectedRescheduleSlot) return;
     setRescheduling(true);
     try {
-      const hour = parseInt(rescheduleHour, 10);
-      const newStart = setMinutes(setHours(startOfDay(rescheduleDate), hour), 0);
-      const duration = new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime();
-      const newEnd = new Date(newStart.getTime() + duration);
       const res = await fetch(`/api/bookings/${booking.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...getHeaders() },
-        body: JSON.stringify({ action: "reschedule", startTime: newStart.toISOString(), endTime: newEnd.toISOString() }),
+        body: JSON.stringify({
+          action: "reschedule",
+          startTime: selectedRescheduleSlot.startTime,
+          endTime: selectedRescheduleSlot.endTime,
+        }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Reschedule failed"); return; }
       setShowReschedule(false);
@@ -418,14 +489,35 @@ function BookingCard({
           <div className="mt-3 space-y-3 rounded-lg border p-3">
             <p className="text-sm font-medium">Pick a new date & time</p>
             <CalendarPicker mode="single" selected={rescheduleDate} onSelect={setRescheduleDate} disabled={(date) => date < new Date()} className="rounded-md border" />
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-muted-foreground">Hour:</label>
-              <select className="rounded-md border px-2 py-1 text-sm bg-background" value={rescheduleHour} onChange={(e) => setRescheduleHour(e.target.value)}>
-                {Array.from({ length: 12 }, (_, i) => i + 8).map((h) => (<option key={h} value={h}>{`${h}:00`}</option>))}
-              </select>
-            </div>
+            {rescheduleDate && (
+              slotsLoading ? (
+                <div className="flex items-center gap-2 py-3 justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Loading slots...</span>
+                </div>
+              ) : rescheduleSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No available slots for this date.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {rescheduleSlots.map((slot) => (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => setSelectedRescheduleSlot(slot)}
+                      className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+                        selectedRescheduleSlot?.startTime === slot.startTime
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input bg-muted/50 hover:bg-muted"
+                      }`}
+                    >
+                      {format(parseISO(slot.startTime), "h:mm a")}
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleReschedule} disabled={!rescheduleDate || rescheduling}>
+              <Button size="sm" onClick={handleReschedule} disabled={!selectedRescheduleSlot || rescheduling}>
                 {rescheduling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Reschedule"}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setShowReschedule(false)}>Back</Button>
