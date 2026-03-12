@@ -104,6 +104,9 @@ export default function ProfilePage() {
   const [audioCacheBuster, setAudioCacheBuster] = useState("");
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [cloningVoice, setCloningVoice] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const [editingGender, setEditingGender] = useState(false);
   const [editingTelegram, setEditingTelegram] = useState(false);
   const [tgUsername, setTgUsername] = useState("");
@@ -483,6 +486,38 @@ export default function ProfilePage() {
     setEditingPricing(false);
   };
 
+  const handleSaveName = async () => {
+    const trimmed = editNameValue.trim();
+    if (!trimmed) {
+      showMessage("Name cannot be empty.", "name", true, 3000);
+      return;
+    }
+    setSavingName(true);
+    try {
+      const res = await fetch("/api/user", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+        },
+        body: JSON.stringify({ nickName: trimmed }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save");
+      }
+      setProfile((prev) =>
+        prev ? { ...prev, user: { ...prev.user, nickName: trimmed } } : prev
+      );
+      setEditingName(false);
+      showMessage("Name updated!", "name");
+    } catch (err) {
+      showMessage(err instanceof Error ? err.message : "Save failed", "name", true, 5000);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const handleSaveTelegram = async () => {
     const cleaned = tgUsername.replace(/^@/, "").trim();
     if (cleaned && !/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(cleaned)) {
@@ -570,7 +605,35 @@ export default function ProfilePage() {
               <ArrowLeft className="h-3.5 w-3.5" />
               Dashboard
             </button>
-            <h1 className="text-xl font-bold truncate">{nickName}</h1>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  className="h-8 text-lg font-bold"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") setEditingName(false);
+                  }}
+                />
+                <Button size="sm" variant="ghost" onClick={() => setEditingName(false)} className="shrink-0 h-8 w-8 p-0">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" onClick={handleSaveName} disabled={savingName} className="shrink-0 h-8 w-8 p-0">
+                  {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            ) : (
+              <h1
+                className="text-xl font-bold truncate cursor-pointer group flex items-center gap-1.5 hover:text-indigo-600 transition-colors"
+                onClick={() => { setEditNameValue(nickName); setEditingName(true); }}
+              >
+                {nickName}
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </h1>
+            )}
+            {renderToast("name")}
             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
               <span className="truncate">{email}</span>
               {telegramUsername && (
