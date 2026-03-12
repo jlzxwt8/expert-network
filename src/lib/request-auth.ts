@@ -7,11 +7,11 @@ import { authOptions } from "@/lib/auth";
  * Telegram fallback uses an httpOnly cookie set by /api/auth/telegram.
  */
 export async function resolveUserId(request?: NextRequest): Promise<string | null> {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.id) return session.user.id;
-
   const tgUserId = request?.cookies.get("tg_user_id")?.value;
   if (tgUserId) return tgUserId;
+
+  const session = await getServerSession(authOptions);
+  if (session?.user?.id) return session.user.id;
 
   return null;
 }
