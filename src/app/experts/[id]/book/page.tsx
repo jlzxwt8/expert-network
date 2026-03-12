@@ -8,7 +8,6 @@ import {
   MapPin,
   Loader2,
   ArrowLeft,
-  CreditCard,
   Wallet,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
@@ -202,26 +201,6 @@ export default function BookSessionPage() {
         window.location.href = data.checkoutUrl;
       } else {
         throw new Error("No checkout URL returned");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-      setSubmitting(false);
-    }
-  };
-
-  const handleTelegramCardPayment = async () => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/bookings/telegram-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bookingPayload()),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create invoice");
-      if (data.invoiceUrl) {
-        window.location.href = data.invoiceUrl;
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -435,27 +414,17 @@ export default function BookSessionPage() {
               size="lg"
               className="w-full min-h-[52px] text-base font-semibold gap-2"
               disabled={!canConfirm}
-              onClick={handleTelegramCardPayment}
+              onClick={handleTONPayment}
             >
               {submitting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <>
-                  <CreditCard className="h-5 w-5" />
-                  Pay with Card — {expertPricing?.currency || "SGD"}{" "}
+                  <Wallet className="h-5 w-5" />
+                  Pay with TON — {expertPricing?.currency || "SGD"}{" "}
                   {(depositCents / 100).toFixed(2)}
                 </>
               )}
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full min-h-[52px] text-base font-semibold gap-2"
-              disabled={!canConfirm}
-              onClick={handleTONPayment}
-            >
-              <Wallet className="h-5 w-5" />
-              Pay with TON
             </Button>
           </div>
         ) : (

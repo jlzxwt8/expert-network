@@ -113,7 +113,20 @@ export default function ProfilePage() {
 
   const fetchProfile = useCallback(async () => {
     try {
-      const res = await fetch("/api/expert/profile");
+      const fetchProfileApi = () => fetch("/api/expert/profile");
+      let res = await fetchProfileApi();
+      if (res.status === 401 && isTelegram) {
+        const webApp = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
+        const initData = webApp?.initData;
+        if (initData) {
+          await fetch("/api/auth/telegram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData }),
+          }).catch(() => {});
+          res = await fetchProfileApi();
+        }
+      }
       if (res.status === 404) {
         setProfile(null);
         return;
@@ -136,12 +149,17 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isTelegram]);
 
   useEffect(() => {
+    if (sessionStatus === "loading") return;
+    if (isTelegram) {
+      fetchProfile();
+      return;
+    }
     if (sessionStatus === "authenticated") {
       fetchProfile();
-    } else if (sessionStatus === "unauthenticated" && !isTelegram) {
+    } else if (sessionStatus === "unauthenticated") {
       router.push("/auth/signin");
     }
   }, [sessionStatus, isTelegram, fetchProfile, router]);

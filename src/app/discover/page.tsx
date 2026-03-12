@@ -161,10 +161,10 @@ function ExpertCard({ expert }: { expert: Expert }) {
         </div>
         <div className="mt-3 flex gap-2">
           <Button asChild size="sm" className="flex-1">
-            <a href={`/experts/${expert.id}/book?from=browse`} target="_blank" rel="noopener noreferrer">Book Session</a>
+            <Link href={`/experts/${expert.id}/book?from=browse`}>Book Session</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="flex-1">
-            <a href={`/experts/${expert.id}`} target="_blank" rel="noopener noreferrer">View Profile</a>
+            <Link href={`/experts/${expert.id}`}>View Profile</Link>
           </Button>
         </div>
       </CardContent>
@@ -195,10 +195,10 @@ function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
             <p className="mt-1 text-sm text-muted-foreground">{rec.reason}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm">
-                <a href={`/experts/${rec.expertId}/book?from=match`} target="_blank" rel="noopener noreferrer">Book Session</a>
+                <Link href={`/experts/${rec.expertId}/book?from=match`}>Book Session</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <a href={`/experts/${rec.expertId}`} target="_blank" rel="noopener noreferrer">View Profile</a>
+                <Link href={`/experts/${rec.expertId}`}>View Profile</Link>
               </Button>
             </div>
           </div>

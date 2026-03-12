@@ -46,37 +46,77 @@ interface Booking {
 }
 
 export default function DashboardPage() {
-  const { status: sessionStatus } = useAuth();
+  const { status: sessionStatus, isTelegram } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (sessionStatus !== "authenticated") return;
+    if (sessionStatus === "loading") return;
+    if (!isTelegram && sessionStatus !== "authenticated") {
+      setLoading(false);
+      return;
+    }
 
-    fetch("/api/user")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((user) => {
-        setUserData(user);
-        const role = user?.expert ? "expert" : "founder";
-        return fetch(`/api/bookings?role=${role}`).then((r) =>
-          r.ok ? r.json() : { bookings: [] }
-        );
-      })
-      .then((bookingsRes) => {
-        setBookings(bookingsRes?.bookings ?? []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [sessionStatus]);
+    const loadDashboard = async () => {
+      const fetchUser = () => fetch("/api/user");
+      let userRes = await fetchUser();
+
+      // Telegram mini app can occasionally race before cookie is applied.
+      // Retry once after re-auth to avoid blank dashboard.
+      if (userRes.status === 401 && isTelegram) {
+        const webApp = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
+        const initData = webApp?.initData;
+        if (initData) {
+          await fetch("/api/auth/telegram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData }),
+          }).catch(() => {});
+          userRes = await fetchUser();
+        }
+      }
+
+      const user = userRes.ok ? await userRes.json() : null;
+      setUserData(user);
+
+      if (!user) {
+        setBookings([]);
+        setLoading(false);
+        return;
+      }
+
+      const role = user?.expert ? "expert" : "founder";
+      const bookingsRes = await fetch(`/api/bookings?role=${role}`).catch(() => null);
+      const bookingsData = bookingsRes?.ok ? await bookingsRes.json() : { bookings: [] };
+      setBookings(bookingsData?.bookings ?? []);
+      setLoading(false);
+    };
+
+    loadDashboard().catch(() => {
+      setUserData(null);
+      setBookings([]);
+      setLoading(false);
+    });
+  }, [sessionStatus, isTelegram]);
 
   const isExpert = !!userData?.expert;
   const expertId = userData?.expert?.id;
 
-  if (sessionStatus === "loading" || sessionStatus === "unauthenticated") {
+  if (sessionStatus === "loading") {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center p-6">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isTelegram && sessionStatus === "unauthenticated") {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center p-6">
+        <Link href="/auth/signin" className="text-sm text-muted-foreground underline">
+          Please sign in to view your dashboard
+        </Link>
       </div>
     );
   }
