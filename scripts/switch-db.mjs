@@ -8,8 +8,8 @@
  *   node scripts/switch-db.mjs tidb     # explicit override
  *
  * What it does:
- *   1. Patches prisma/schema.prisma  → provider = "postgresql" | "mysql"
- *   2. Patches prisma.config.ts      → adds/removes directUrl (Supabase needs it)
+ *   Patches prisma/schema.prisma provider between "postgresql" and "mysql".
+ *   The runtime adapter in src/lib/prisma.ts auto-detects based on DATABASE_URL.
  */
 import { readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
@@ -18,7 +18,6 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 
-// Determine provider
 let provider = process.argv[2];
 if (!provider) {
   try {
@@ -38,7 +37,6 @@ if (!["supabase", "tidb"].includes(provider)) {
 const isPg = provider === "supabase";
 console.log(`[switch-db] Switching to: ${provider} (${isPg ? "PostgreSQL" : "MySQL"})`);
 
-// --- Patch schema.prisma (provider only; @db.Text works for both) ---
 const schemaPath = resolve(root, "prisma/schema.prisma");
 let schema = readFileSync(schemaPath, "utf-8");
 schema = schema.replace(
@@ -46,25 +44,5 @@ schema = schema.replace(
   `provider = "${isPg ? "postgresql" : "mysql"}"`
 );
 writeFileSync(schemaPath, schema);
-console.log(`[switch-db] schema.prisma → provider = "${isPg ? "postgresql" : "mysql"}"`);
-
-// --- Patch prisma.config.ts (directUrl for Supabase pgbouncer) ---
-const configPath = resolve(root, "prisma.config.ts");
-let config = readFileSync(configPath, "utf-8");
-
-if (isPg && !config.includes("directUrl")) {
-  config = config.replace(
-    /url:\s*process\.env\["DATABASE_URL"\],?/,
-    'url: process.env["DATABASE_URL"],\n    directUrl: process.env["DIRECT_URL"],'
-  );
-  writeFileSync(configPath, config);
-  console.log(`[switch-db] prisma.config.ts → added directUrl`);
-} else if (!isPg && config.includes("directUrl")) {
-  config = config.replace(/\s*directUrl:\s*process\.env\["DIRECT_URL"\],?\n?/, "\n");
-  writeFileSync(configPath, config);
-  console.log(`[switch-db] prisma.config.ts → removed directUrl`);
-} else {
-  console.log(`[switch-db] prisma.config.ts → no changes needed`);
-}
-
+console.log(`[switch-db] schema.prisma -> provider = "${isPg ? "postgresql" : "mysql"}"`);
 console.log(`[switch-db] Done!`);
