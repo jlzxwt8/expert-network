@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, startTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, startTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -133,6 +133,16 @@ export default function BookSessionPage() {
     typeof Intl !== "undefined"
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
       : "UTC";
+
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const isDateDisabled = useCallback(
+    (date: Date) => date < todayStart,
+    [todayStart]
+  );
 
   useEffect(() => {
     if (!expertId) return;
@@ -468,7 +478,7 @@ export default function BookSessionPage() {
               mode="single"
               selected={selectedDate}
               onSelect={(d) => startTransition(() => setSelectedDate(d))}
-              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+              disabled={isDateDisabled}
             />
           </div>
         </section>

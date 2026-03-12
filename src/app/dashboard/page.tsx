@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getTelegramInitData } from "@/lib/telegram";
@@ -17,6 +17,7 @@ import {
   X,
   RotateCcw,
   MapPinned,
+  Trash2,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { format, parseISO, isSameDay, startOfDay, setHours, setMinutes } from "date-fns";
@@ -310,6 +311,29 @@ const BookingCard = memo(function BookingCard({
   const canModify = booking.status === "PENDING" || booking.status === "CONFIRMED";
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const todayRef = useRef(new Date());
+  const disablePastDates = useCallback((date: Date) => date < todayRef.current, []);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setActionError(null);
+    try {
+      const tgHeaders = getHeaders();
+      const res = await fetch(`/api/bookings/${booking.id}`, {
+        method: "DELETE",
+        headers: { ...(tgHeaders || {}) },
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setActionError(d.error || "Delete failed");
+        return;
+      }
+      await onUpdate();
+    } catch {
+      setActionError("Network error — please try again");
+    } finally { setDeleting(false); }
+  };
 
   const handleCancel = async () => {
     setCancelling(true);
@@ -518,6 +542,22 @@ const BookingCard = memo(function BookingCard({
           </>
         )}
 
+        {booking.status === "CANCELLED" && (
+          <>
+            <Separator className="my-3" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-red-600"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1 h-3.5 w-3.5" />}
+              Delete
+            </Button>
+          </>
+        )}
+
         {showCancel && (
           <div className="mt-3 space-y-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 p-3">
             <p className="text-sm font-medium text-red-700 dark:text-red-400">Cancel this booking?</p>
@@ -534,7 +574,7 @@ const BookingCard = memo(function BookingCard({
         {showReschedule && (
           <div className="mt-3 space-y-3 rounded-lg border p-3">
             <p className="text-sm font-medium">Pick a new date & time</p>
-            <CalendarPicker mode="single" selected={rescheduleDate} onSelect={setRescheduleDate} disabled={(date) => date < new Date()} className="rounded-md border" />
+            <CalendarPicker mode="single" selected={rescheduleDate} onSelect={setRescheduleDate} disabled={disablePastDates} className="rounded-md border" />
             {rescheduleDate && (
               slotsLoading ? (
                 <div className="flex items-center gap-2 py-3 justify-center">

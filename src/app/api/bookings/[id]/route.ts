@@ -232,3 +232,44 @@ export async function PATCH(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: { expert: true },
+    });
+
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    const isFounder = booking.founderId === userId;
+    const isExpert = booking.expert.userId === userId;
+    if (!isFounder && !isExpert) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (booking.status !== "CANCELLED") {
+      return NextResponse.json(
+        { error: "Only cancelled bookings can be deleted" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.booking.delete({ where: { id } });
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    console.error("[bookings/[id] DELETE]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
