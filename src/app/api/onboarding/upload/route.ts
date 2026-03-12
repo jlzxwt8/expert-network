@@ -4,15 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { extractTextFromPdf } from "@/lib/ai";
 
-async function extractTextFromDocx(buffer: Buffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const mammoth = require("mammoth") as {
-    extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }>;
-  };
-  const result = await mammoth.extractRawText({ buffer });
-  return result.value;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -35,46 +26,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = file.name.toLowerCase();
-    let text = "";
-
-    if (fileName.endsWith(".pdf")) {
-      try {
-        text = await extractTextFromPdf(buffer);
-      } catch (e) {
-        console.warn("[upload] PDF text extraction failed, saving file without text:", e instanceof Error ? e.message : e);
-      }
-    } else if (fileName.endsWith(".docx")) {
-      try {
-        text = await extractTextFromDocx(buffer);
-      } catch (e) {
-        console.warn("[upload] DOCX text extraction failed, saving file without text:", e instanceof Error ? e.message : e);
-      }
-    } else if (fileName.endsWith(".txt") || fileName.endsWith(".md")) {
-      text = buffer.toString("utf-8");
-    } else {
+    if (!fileName.endsWith(".pdf")) {
       return NextResponse.json(
-        {
-          error:
-            "Unsupported file type. Please upload PDF, DOCX, TXT, or MD.",
-        },
+        { error: "Only PDF files are supported." },
         { status: 400 }
       );
     }
 
-    const trimmedText = text.trim().slice(0, 5000);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    let text = "";
 
-    const mimeMap: Record<string, string> = {
-      ".pdf": "application/pdf",
-      ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ".txt": "text/plain",
-      ".md": "text/markdown",
-    };
-    const ext = Object.keys(mimeMap).find((e) => fileName.endsWith(e)) ?? ".txt";
-    const mime = mimeMap[ext];
+    try {
+      text = await extractTextFromPdf(buffer);
+    } catch (e) {
+      console.warn("[upload] PDF text extraction failed, saving file without text:", e instanceof Error ? e.message : e);
+    }
+
+    const trimmedText = text.trim().slice(0, 5000);
     const base64File = buffer.toString("base64");
-    const dataUrl = `data:${mime};base64,${base64File}`;
+    const dataUrl = `data:application/pdf;base64,${base64File}`;
 
     let expert = await prisma.expert.findUnique({
       where: { userId: session.user.id },

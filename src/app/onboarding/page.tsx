@@ -377,7 +377,7 @@ export default function OnboardingPage() {
       id: "upload-question",
       role: "ai",
       content:
-        "Would you like to upload a document (PDF, DOCX) to help me better understand your services? This could be a resume, portfolio, or service description. You can also skip this step.",
+        "Would you like to upload a PDF to help me better understand your services? This could be a resume, portfolio, or service description. You can also skip this step.",
       type: "text",
     });
   }, [currentStep, addStepMessage]);
@@ -1324,7 +1324,7 @@ export default function OnboardingPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,.txt,.md"
+              accept=".pdf"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -1350,7 +1350,7 @@ export default function OnboardingPage() {
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Upload Document (PDF, DOCX)
+                  Upload PDF
                 </>
               )}
             </Button>

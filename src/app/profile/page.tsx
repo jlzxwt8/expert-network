@@ -1228,7 +1228,7 @@ export default function ProfilePage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.docx,.txt,.md"
+                  accept=".pdf"
                   onChange={handleFileUpload}
                   className="hidden"
                 />
@@ -1246,7 +1246,7 @@ export default function ProfilePage() {
                   ) : (
                     <>
                       <Upload className="h-4 w-4" />
-                      {uploadedFileName ? "Replace Document" : "Upload Document"}
+                      {uploadedFileName ? "Replace PDF" : "Upload PDF"}
                     </>
                   )}
                 </Button>
