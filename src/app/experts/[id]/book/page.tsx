@@ -9,8 +9,6 @@ import {
   Loader2,
   ArrowLeft,
   Wallet,
-  CheckCircle2,
-  ExternalLink,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { useTelegram } from "@/components/telegram-provider";
@@ -120,13 +118,6 @@ export default function BookSessionPage() {
     expertName: string;
   } | null>(null);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
-  const [tonPaymentState, setTonPaymentState] = useState<{
-    bookingId: string;
-    tonLink: string;
-    depositTON: string;
-    depositSGD: string;
-  } | null>(null);
-  const [tonConfirming, setTonConfirming] = useState(false);
 
   const timezone =
     typeof Intl !== "undefined"
@@ -289,57 +280,19 @@ export default function BookSessionPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create TON payment");
 
-      setTonPaymentState({
-        bookingId: data.bookingId,
-        tonLink: data.tonLink,
-        depositTON: data.depositTON,
-        depositSGD: data.depositSGD,
-      });
-      setSubmitting(false);
-
-      // Open wallet immediately
-      if (isTelegramMiniApp()) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window as any).Telegram?.WebApp?.openLink?.(data.tonLink);
-      } else {
-        window.open(data.tonLink, "_blank", "noopener,noreferrer");
+      if (data.tonLink) {
+        if (isTelegramMiniApp()) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (window as any).Telegram?.WebApp?.openLink?.(data.tonLink);
+        } else {
+          window.open(data.tonLink, "_blank", "noopener,noreferrer");
+        }
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-      setSubmitting(false);
-    }
-  };
 
-  const handleTonConfirm = async () => {
-    if (!tonPaymentState) return;
-    setTonConfirming(true);
-    setError(null);
-    try {
-      const telegramInitData = getTelegramInitData();
-      const res = await fetch("/api/bookings/ton-confirm", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
-        },
-        body: JSON.stringify({ bookingId: tonPaymentState.bookingId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Confirmation failed");
       router.push("/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
-      setTonConfirming(false);
-    }
-  };
-
-  const handleOpenTonWallet = () => {
-    if (!tonPaymentState) return;
-    if (isTelegramMiniApp()) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).Telegram?.WebApp?.openLink?.(tonPaymentState.tonLink);
-    } else {
-      window.open(tonPaymentState.tonLink, "_blank", "noopener,noreferrer");
+      setSubmitting(false);
     }
   };
 
@@ -523,44 +476,7 @@ export default function BookSessionPage() {
           </p>
         )}
 
-        {tonPaymentState ? (
-          <div className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-            <div className="text-center space-y-1">
-              <Wallet className="h-8 w-8 mx-auto text-indigo-600" />
-              <h3 className="font-semibold text-base">Complete TON Payment</h3>
-              <p className="text-sm text-muted-foreground">
-                Send <span className="font-mono font-bold">{tonPaymentState.depositTON} TON</span>{" "}
-                (≈ SGD {tonPaymentState.depositSGD})
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={handleOpenTonWallet}
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open TON Wallet
-            </Button>
-            <Button
-              size="lg"
-              className="w-full min-h-[52px] text-base font-semibold gap-2 bg-green-600 hover:bg-green-700"
-              onClick={handleTonConfirm}
-              disabled={tonConfirming}
-            >
-              {tonConfirming ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5" />
-                  I&apos;ve Paid
-                </>
-              )}
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              Click &quot;I&apos;ve Paid&quot; after completing the transfer in your wallet
-            </p>
-          </div>
-        ) : isTelegram && totalCents > 0 ? (
+        {isTelegram && totalCents > 0 ? (
           <div className="space-y-2">
             <Button
               size="lg"

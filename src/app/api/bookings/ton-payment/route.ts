@@ -4,6 +4,8 @@ import { calculateBookingAmount } from "@/lib/stripe";
 import type { SessionType } from "@/generated/prisma/client";
 import { resolveUserId } from "@/lib/request-auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
+import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 
 const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
 
@@ -88,7 +90,6 @@ export async function POST(request: NextRequest) {
     const depositTON = depositSGD / tonRate;
     const depositNanoTON = Math.ceil(depositTON * 1e9);
 
-    // Create a pending booking to track the TON payment
     const booking = await prisma.booking.create({
       data: {
         expertId,
@@ -98,18 +99,47 @@ export async function POST(request: NextRequest) {
         endTime: end,
         timezone: timezone || "Asia/Singapore",
         meetingLink: meetingLink || null,
-        status: "PENDING",
+        status: "CONFIRMED",
         totalAmountCents: totalCents,
         depositAmountCents: depositCents,
         currency: expert.currency,
         paymentMethod: "ton",
-        paymentStatus: "pending",
+        paymentStatus: "deposit_paid",
+      },
+      include: {
+        expert: { include: { user: true } },
+        founder: true,
       },
     });
 
-    // Build TON transfer deep link
     const comment = `booking:${booking.id}`;
     const tonLink = `ton://transfer/${platformWallet}?amount=${depositNanoTON}&text=${encodeURIComponent(comment)}`;
+
+    const depositLabel = `${booking.currency} ${(depositCents / 100).toFixed(2)}`;
+
+    storeBookingEvent({
+      expertId: booking.expertId,
+      founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
+      sessionType: booking.sessionType,
+      startTime: booking.startTime,
+      status: booking.status,
+    }).catch(() => {});
+
+    notifyExpertBooking({
+      expertTelegramUsername: booking.expert.user.telegramUsername,
+      founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
+      sessionType: booking.sessionType,
+      startTime: booking.startTime,
+      depositAmount: depositLabel,
+    }).catch(() => {});
+
+    notifyFounderBooking({
+      founderTelegramUsername: booking.founder.telegramUsername,
+      expertName: booking.expert.user.nickName ?? booking.expert.user.name ?? "Expert",
+      sessionType: booking.sessionType,
+      startTime: booking.startTime,
+      depositAmount: depositLabel,
+    }).catch(() => {});
 
     return NextResponse.json({
       bookingId: booking.id,
@@ -117,8 +147,6 @@ export async function POST(request: NextRequest) {
       depositTON: depositTON.toFixed(4),
       depositSGD: depositSGD.toFixed(2),
       tonRate: tonRate.toFixed(2),
-      platformWallet,
-      comment,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
