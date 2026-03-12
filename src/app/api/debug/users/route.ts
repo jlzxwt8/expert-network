@@ -4,32 +4,26 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        nickName: true,
-        email: true,
-        role: true,
-        telegramUsername: true,
-        expert: {
-          select: {
-            id: true,
-            isPublished: true,
-            onboardingStep: true,
-            bio: true,
-            sessionType: true,
-            priceOnlineCents: true,
-            priceOfflineCents: true,
-            domains: { select: { domain: true } },
-          },
-        },
-      },
-    });
+  const results: Record<string, unknown> = {};
 
-    return NextResponse.json({ count: users.length, users });
+  try {
+    // Check actual columns in key tables
+    for (const table of ["User", "Expert", "Booking", "AvailableSlot"]) {
+      const cols = await prisma.$queryRawUnsafe<{ column_name: string; data_type: string }[]>(
+        `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${table}' ORDER BY ordinal_position`
+      );
+      results[table] = cols.map((c) => `${c.column_name} (${c.data_type})`);
+    }
+
+    // Try a simple raw query on users
+    const users = await prisma.$queryRawUnsafe(
+      `SELECT id, name, email, role FROM "User" LIMIT 5`
+    );
+    results.sampleUsers = users;
+
   } catch (e: unknown) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    results.error = (e as Error).message;
   }
+
+  return NextResponse.json(results);
 }
