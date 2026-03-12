@@ -80,12 +80,6 @@ const SESSION_OPTIONS = [
   { value: "BOTH", label: "Both Online & Offline", desc: "Flexible availability" },
 ] as const;
 
-const AI_PROCESSING_MESSAGES = [
-  "Searching your social profiles with AI...",
-  "Analysing your professional footprint...",
-  "Generating your expert profile...",
-];
-
 function getProgressValue(step: Step): number {
   switch (step) {
     case "GREETING":
@@ -148,6 +142,7 @@ export default function OnboardingPage() {
   const [cloningVoice, setCloningVoice] = useState(false);
   const [voiceCloned, setVoiceCloned] = useState(false);
   const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
+  const [generatingDefaultAudio, setGeneratingDefaultAudio] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletType, setWalletType] = useState<string | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
@@ -679,22 +674,15 @@ export default function OnboardingPage() {
 
   const startAIGeneration = async () => {
     setCurrentStep("AI_GENERATION");
-    setIsTyping(true);
-
-    for (let i = 0; i < AI_PROCESSING_MESSAGES.length; i++) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `ai-processing-${i}`,
-          role: "ai",
-          content: AI_PROCESSING_MESSAGES[i],
-          type: "text",
-        },
-      ]);
-      await new Promise((r) => setTimeout(r, 1200));
-    }
-
-    setIsTyping(false);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "ai-processing",
+        role: "ai",
+        content: "Generating your expert profile — searching social profiles, writing bio, and creating your avatar image...",
+        type: "text",
+      },
+    ]);
 
     try {
       const res = await fetch("/api/onboarding/generate", { method: "POST" });
@@ -789,6 +777,28 @@ export default function OnboardingPage() {
       ]);
     } finally {
       setCloningVoice(false);
+    }
+  };
+
+  const handleContinueToPreview = async () => {
+    if (audioIntroUrl) {
+      setCurrentStep("PREVIEW");
+      return;
+    }
+    setGeneratingDefaultAudio(true);
+    try {
+      const audioRes = await fetch("/api/expert/generate-audio", {
+        method: "POST",
+      });
+      if (audioRes.ok) {
+        const audioData = await audioRes.json();
+        setAudioIntroUrl(audioData.audioIntroUrl ?? null);
+      }
+    } catch {
+      // Continue to preview even if audio generation fails
+    } finally {
+      setGeneratingDefaultAudio(false);
+      setCurrentStep("PREVIEW");
     }
   };
 
@@ -1470,13 +1480,13 @@ export default function OnboardingPage() {
                 "w-full min-h-[44px]",
                 voiceCloned && "bg-indigo-600 hover:bg-indigo-700"
               )}
-              onClick={() => setCurrentStep("PREVIEW")}
-              disabled={cloningVoice}
+              onClick={handleContinueToPreview}
+              disabled={cloningVoice || generatingDefaultAudio}
             >
-              {cloningVoice ? (
+              {cloningVoice || generatingDefaultAudio ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing voice...
+                  {generatingDefaultAudio ? "Generating voice intro..." : "Processing voice..."}
                 </>
               ) : voiceCloned ? (
                 <>
@@ -1485,8 +1495,8 @@ export default function OnboardingPage() {
                 </>
               ) : (
                 <>
-                  <SkipForward className="mr-2 h-4 w-4" />
-                  Skip Voice Recording
+                  <Volume2 className="mr-2 h-4 w-4" />
+                  Generate Voice & Continue
                 </>
               )}
             </Button>

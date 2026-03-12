@@ -211,7 +211,7 @@ Return ONLY the JSON object, no markdown code fences.`;
             ],
           },
           parameters: {
-            size: "1024*1024",
+            size: "512*512",
             n: 1,
             prompt_extend: true,
             watermark: false,

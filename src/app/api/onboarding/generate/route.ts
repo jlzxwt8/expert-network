@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { domainStrings } from "@/lib/domains";
 import { generateExpertProfile, generateProfileImage } from "@/lib/ai";
 
+export const maxDuration = 60;
+
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
@@ -28,7 +30,7 @@ export async function POST() {
       expert.user.nickName ?? expert.user.name ?? "Expert";
     const domains = domainStrings(expert.domains);
 
-    const generated = await generateExpertProfile({
+    const profileInput = {
       linkedIn: expert.linkedIn ?? undefined,
       website: expert.website ?? undefined,
       twitter: expert.twitter ?? undefined,
@@ -38,13 +40,13 @@ export async function POST() {
       domains,
       nickName,
       resumeText: expert.avatarScript ?? undefined,
-    });
+    };
 
-    const profileImage = await generateProfileImage({
-      nickName,
-      domains,
-      bio: generated.bio,
-    });
+    // Run text generation and image generation in parallel
+    const [generated, profileImage] = await Promise.all([
+      generateExpertProfile(profileInput),
+      generateProfileImage({ nickName, domains, bio: domains.join(", ") }),
+    ]);
 
     await prisma.expert.update({
       where: { id: expert.id },
