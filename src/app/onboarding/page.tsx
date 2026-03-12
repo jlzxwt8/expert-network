@@ -474,7 +474,12 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
-    setCurrentStep("WALLET");
+    if (isTelegram) {
+      setCurrentStep("WALLET");
+    } else {
+      setCurrentStep("SOCIAL_LINKS");
+      setCurrentSocialIndex(0);
+    }
   };
 
   const handleNicknameSubmit = async (value: string) => {
