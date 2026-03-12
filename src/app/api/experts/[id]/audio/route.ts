@@ -30,7 +30,7 @@ export async function GET(
       headers: {
         "Content-Type": mime,
         "Content-Length": String(buffer.length),
-        "Cache-Control": "public, max-age=300, s-maxage=300",
+        "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600",
       },
     });
   } catch (error) {
