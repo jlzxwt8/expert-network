@@ -36,10 +36,22 @@ export async function resolveUserId(request?: NextRequest): Promise<string | nul
   }
 
   const tgUserId = request?.cookies.get("tg_user_id")?.value;
-  if (tgUserId) return tgUserId;
+  if (tgUserId) {
+    const exists = await prisma.user.findUnique({
+      where: { id: tgUserId },
+      select: { id: true },
+    });
+    if (exists) return tgUserId;
+  }
 
   const session = await getServerSession(authOptions);
-  if (session?.user?.id) return session.user.id;
+  if (session?.user?.id) {
+    const exists = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true },
+    });
+    if (exists) return session.user.id;
+  }
 
   return null;
 }

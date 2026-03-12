@@ -213,7 +213,7 @@ export default function BookSessionPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const telegramInitData = isTelegram ? getTelegramInitData() : null;
+      const telegramInitData = getTelegramInitData();
       const res = await fetch("/api/bookings/ton-payment", {
         method: "POST",
         headers: {

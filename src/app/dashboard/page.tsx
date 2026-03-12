@@ -60,7 +60,7 @@ export default function DashboardPage() {
     }
 
     const loadDashboard = async () => {
-      const telegramInitData = isTelegram ? getTelegramInitData() : null;
+      const telegramInitData = getTelegramInitData();
       const tgHeaders = telegramInitData
         ? { "x-telegram-init-data": telegramInitData }
         : undefined;

@@ -68,7 +68,7 @@ interface ExpertProfile {
 export default function ProfilePage() {
   const { status: sessionStatus, isTelegram, user: authUser } = useAuth();
   const router = useRouter();
-  const telegramInitData = isTelegram ? getTelegramInitData() : null;
+  const telegramInitData = getTelegramInitData();
 
   const [profile, setProfile] = useState<ExpertProfile | null>(null);
   const [loading, setLoading] = useState(true);
