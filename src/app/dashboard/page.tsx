@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
+import { getTelegramInitData } from "@/lib/telegram";
 import {
   User,
   Calendar,
@@ -59,7 +60,11 @@ export default function DashboardPage() {
     }
 
     const loadDashboard = async () => {
-      const fetchUser = () => fetch("/api/user");
+      const telegramInitData = isTelegram ? getTelegramInitData() : null;
+      const tgHeaders = telegramInitData
+        ? { "x-telegram-init-data": telegramInitData }
+        : undefined;
+      const fetchUser = () => fetch("/api/user", { headers: tgHeaders });
       let userRes = await fetchUser();
 
       // Telegram mini app can occasionally race before cookie is applied.
@@ -87,7 +92,7 @@ export default function DashboardPage() {
       }
 
       const role = user?.expert ? "expert" : "founder";
-      const bookingsRes = await fetch(`/api/bookings?role=${role}`).catch(() => null);
+      const bookingsRes = await fetch(`/api/bookings?role=${role}`, { headers: tgHeaders }).catch(() => null);
       const bookingsData = bookingsRes?.ok ? await bookingsRes.json() : { bookings: [] };
       setBookings(bookingsData?.bookings ?? []);
       setLoading(false);

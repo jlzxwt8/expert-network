@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { useTelegram } from "@/components/telegram-provider";
+import { getTelegramInitData } from "@/lib/telegram";
 import { format, isSameDay, parseISO, setHours, setMinutes, addHours, startOfDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -212,9 +213,13 @@ export default function BookSessionPage() {
     setSubmitting(true);
     setError(null);
     try {
+      const telegramInitData = isTelegram ? getTelegramInitData() : null;
       const res = await fetch("/api/bookings/ton-payment", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+        },
         body: JSON.stringify(bookingPayload()),
       });
       const data = await res.json();

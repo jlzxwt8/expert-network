@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DOMAINS } from "@/lib/constants";
 import { UserMenu } from "@/components/user-menu";
+import { getTelegramInitData } from "@/lib/telegram";
 
 interface ServiceItem {
   title: string;
@@ -67,6 +68,7 @@ interface ExpertProfile {
 export default function ProfilePage() {
   const { status: sessionStatus, isTelegram, user: authUser } = useAuth();
   const router = useRouter();
+  const telegramInitData = isTelegram ? getTelegramInitData() : null;
 
   const [profile, setProfile] = useState<ExpertProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,10 @@ export default function ProfilePage() {
 
   const fetchProfile = useCallback(async () => {
     try {
-      const fetchProfileApi = () => fetch("/api/expert/profile");
+      const headers = telegramInitData
+        ? { "x-telegram-init-data": telegramInitData }
+        : undefined;
+      const fetchProfileApi = () => fetch("/api/expert/profile", { headers });
       let res = await fetchProfileApi();
       if (res.status === 401 && isTelegram) {
         const webApp = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
@@ -149,7 +154,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [isTelegram]);
+  }, [isTelegram, telegramInitData]);
 
   useEffect(() => {
     if (sessionStatus === "loading") return;
@@ -175,7 +180,10 @@ export default function ProfilePage() {
   const saveSection = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/expert/profile", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+      },
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -494,7 +502,10 @@ export default function ProfilePage() {
     try {
       const res = await fetch("/api/user", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+              },
         body: JSON.stringify({ telegramUsername: cleaned || null }),
       });
       if (!res.ok) throw new Error("Failed to save");

@@ -18,3 +18,16 @@ export function isTelegramMiniApp(): boolean {
   if (!webApp) return false;
   return typeof webApp.initData === "string" && webApp.initData.length > 0;
 }
+
+/**
+ * Returns raw Telegram initData when inside Mini App; otherwise null.
+ */
+export function getTelegramInitData(): string | null {
+  if (typeof window === "undefined") return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const webApp = (window as any).Telegram?.WebApp;
+  if (!webApp || typeof webApp.initData !== "string" || webApp.initData.length === 0) {
+    return null;
+  }
+  return webApp.initData;
+}
