@@ -109,7 +109,6 @@ export async function POST() {
     for (const u of users) log.push(`  ${u.name || "(no name)"} <${u.email}> tg:${u.telegramUsername || "-"}`);
 
     const experts = await prisma.expert.findMany({
-      select: { id: true, isPublished: true, bio: true },
       include: { user: { select: { name: true } }, domains: true },
     });
     log.push(`Experts: ${experts.length} found`);
