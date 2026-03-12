@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createHash } from "crypto";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
     const expert = await prisma.expert.findUnique({
       where: { id },
-      select: { avatarVideoUrl: true },
+      select: { avatarVideoUrl: true, updatedAt: true },
     });
 
     if (!expert?.avatarVideoUrl) {
@@ -32,11 +33,17 @@ export async function GET(
     const [, contentType, base64Data] = match;
     const buffer = Buffer.from(base64Data, "base64");
 
+    const etag = `"${createHash("md5").update(base64Data.slice(0, 200)).digest("hex")}"`;
+    if (request.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, { status: 304 });
+    }
+
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600",
+        "Cache-Control": "public, no-cache, must-revalidate",
         "Content-Length": String(buffer.length),
+        "ETag": etag,
       },
     });
   } catch (error) {

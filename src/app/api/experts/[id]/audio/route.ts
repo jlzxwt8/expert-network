@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createHash } from "crypto";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -26,11 +27,17 @@ export async function GET(
     const [, mime, b64] = match;
     const buffer = Buffer.from(b64, "base64");
 
+    const etag = `"${createHash("md5").update(b64.slice(0, 200)).digest("hex")}"`;
+    if (request.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, { status: 304 });
+    }
+
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": mime,
         "Content-Length": String(buffer.length),
-        "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600",
+        "Cache-Control": "public, no-cache, must-revalidate",
+        "ETag": etag,
       },
     });
   } catch (error) {
