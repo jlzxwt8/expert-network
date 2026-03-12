@@ -4,6 +4,7 @@ import { calculateBookingAmount } from "@/lib/stripe";
 import type { SessionType } from "@/generated/prisma/client";
 import { resolveUserId } from "@/lib/request-auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
+import { Address } from "@ton/core";
 
 const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
 
@@ -109,10 +110,15 @@ export async function POST(request: NextRequest) {
     });
 
     const comment = `booking:${booking.id}`;
+    // Normalize address to non-bounceable user-friendly format (standard base64)
+    const normalizedAddress = Address.parse(platformWallet).toString({
+      bounceable: false,
+      urlSafe: false,
+    });
 
     return NextResponse.json({
       bookingId: booking.id,
-      walletAddress: platformWallet,
+      walletAddress: normalizedAddress,
       amountNanoTON: depositNanoTON.toString(),
       comment,
       depositTON: depositTON.toFixed(4),
