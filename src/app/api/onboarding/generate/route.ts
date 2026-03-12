@@ -45,7 +45,7 @@ export async function POST() {
     // Run text generation and image generation in parallel
     const [generated, profileImage] = await Promise.all([
       generateExpertProfile(profileInput),
-      generateProfileImage({ nickName, domains, bio: domains.join(", ") }),
+      generateProfileImage({ nickName, domains, bio: domains.join(", "), gender: expert.gender ?? undefined }),
     ]);
 
     await prisma.expert.update({

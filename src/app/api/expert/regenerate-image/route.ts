@@ -27,6 +27,7 @@ export async function POST() {
       nickName,
       domains: domainStrings(expert.domains),
       bio: expert.bio ?? "",
+      gender: expert.gender ?? undefined,
     });
 
     if (!profileImage) {

@@ -26,6 +26,7 @@ export interface ImageInput {
   nickName: string;
   domains: string[];
   bio: string;
+  gender?: string;
 }
 
 export interface MatchResult {
@@ -88,7 +89,11 @@ export function buildImagePrompt(data: ImageInput): string {
     .map((d) => DOMAIN_VISUALS[d] || d.toLowerCase())
     .join("; ");
 
-  return `A stylized digital avatar illustration of a professional expert. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette. Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks in the image.`;
+  const genderDesc = data.gender === "female" ? "female" : data.gender === "male" ? "male" : "";
+  const personDesc = [genderDesc, "professional expert"].filter(Boolean).join(" ");
+  const nameHint = data.nickName ? ` The character's name is "${data.nickName}" — reflect a culturally appropriate appearance for this name.` : "";
+
+  return `A stylized digital avatar illustration of a ${personDesc}. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette.${nameHint} Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks in the image.`;
 }
 
 export function formatSocialLinks(data: ProfileInput): string {

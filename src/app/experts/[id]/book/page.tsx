@@ -13,7 +13,7 @@ import {
 import { UserMenu } from "@/components/user-menu";
 import { useTelegram } from "@/components/telegram-provider";
 import { getTelegramInitData } from "@/lib/telegram";
-import { format, isSameDay, parseISO, setHours, setMinutes, addHours, startOfDay } from "date-fns";
+import { format, isSameDay, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,12 +40,11 @@ type WeeklySchedule = Record<string, TimeRange[]>;
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 function generateSlotsFromSchedule(date: Date, schedule: WeeklySchedule | null): DefaultSlot[] {
+  if (!schedule) return [];
+
   const dayKey = DAY_KEYS[date.getDay()];
   const ranges = schedule?.[dayKey];
-
-  if (!ranges || ranges.length === 0) {
-    return generateDefaultSlots(date);
-  }
+  if (!ranges || ranges.length === 0) return [];
 
   const day = startOfDay(date);
   const slots: DefaultSlot[] = [];
@@ -79,21 +78,6 @@ function generateSlotsFromSchedule(date: Date, schedule: WeeklySchedule | null):
     }
   }
 
-  return slots;
-}
-
-function generateDefaultSlots(date: Date): DefaultSlot[] {
-  const day = startOfDay(date);
-  const slots: DefaultSlot[] = [];
-  for (let hour = 10; hour < 18; hour++) {
-    const start = setMinutes(setHours(day, hour), 0);
-    const end = addHours(start, 1);
-    slots.push({
-      id: `default-${hour}`,
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-    });
-  }
   return slots;
 }
 
@@ -199,14 +183,17 @@ export default function BookSessionPage() {
       .then((data) => {
         if (cancelled) return;
         const list = Array.isArray(data) ? data : data?.slots ?? [];
-        const forDate = list.filter((s: AvailableSlot) =>
-          isSameDay(parseISO(s.startTime), selectedDate)
+        const now = new Date();
+
+        // Explicit AvailableSlot records for this date
+        const explicitSlots = list.filter(
+          (s: AvailableSlot) => isSameDay(parseISO(s.startTime), selectedDate) && !s.isBooked
         );
 
-        if (forDate.length > 0) {
-          setSlots(forDate);
+        if (explicitSlots.length > 0) {
+          setSlots(explicitSlots);
         } else {
-          const now = new Date();
+          // Fall back to weekly schedule (no default 10-6 fallback)
           const schedSlots = generateSlotsFromSchedule(selectedDate, weeklySchedule).filter(
             (s) => new Date(s.startTime) > now
           );
@@ -216,10 +203,10 @@ export default function BookSessionPage() {
       .catch(() => {
         if (!cancelled) {
           const now = new Date();
-          const defaultSlots = generateSlotsFromSchedule(selectedDate, weeklySchedule).filter(
+          const schedSlots = generateSlotsFromSchedule(selectedDate, weeklySchedule).filter(
             (s) => new Date(s.startTime) > now
           );
-          setSlots(defaultSlots);
+          setSlots(schedSlots);
         }
       })
       .finally(() => {
@@ -408,7 +395,7 @@ export default function BookSessionPage() {
             </div>
           ) : slots.length === 0 ? (
             <p className="rounded-lg border border-dashed border-muted-foreground/30 py-8 text-center text-sm text-muted-foreground">
-              No available slots for this date
+              No available slots for this date. Try another date.
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
