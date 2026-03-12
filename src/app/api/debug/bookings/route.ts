@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
         email: true,
         telegramUsername: true,
         telegramId: true,
+        expert: { select: { id: true, isPublished: true } },
       },
     });
     return NextResponse.json({ total: users.length, users });
