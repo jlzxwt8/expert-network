@@ -19,26 +19,34 @@ export async function POST(request: Request) {
     }
 
     const tgUser = await validateAndParseTelegramInitData(initData, botToken);
+    const tgId = String(tgUser.id);
+    const tgUsername = tgUser.username?.trim() || null;
 
     // Try to find existing user by telegramId
     let user = await prisma.user.findUnique({
-      where: { telegramId: String(tgUser.id) },
+      where: { telegramId: tgId },
       include: { expert: true },
     });
 
-    if (!user) {
-      // Try to merge with an existing user by matching Telegram username to email prefix
-      // (best-effort; the main merge path is if both accounts share an email)
-      user = await prisma.user.findFirst({
-        where: { telegramId: null, email: { not: null } },
+    // If telegramId is not linked yet, try to map by telegramUsername
+    if (!user && tgUsername) {
+      const byUsername = await prisma.user.findFirst({
+        where: { telegramUsername: tgUsername },
         include: { expert: true },
-        orderBy: { createdAt: "desc" },
-        take: 1,
       });
 
-      // Only auto-merge if we found a plausible match — skip for now,
-      // just create a new user or link later via profile page
-      user = null;
+      // Only link if the matched account is unlinked or already linked to this same Telegram ID
+      if (byUsername && (!byUsername.telegramId || byUsername.telegramId === tgId)) {
+        user = await prisma.user.update({
+          where: { id: byUsername.id },
+          data: {
+            telegramId: tgId,
+            telegramUsername: tgUsername,
+            image: byUsername.image ?? tgUser.photoUrl,
+          },
+          include: { expert: true },
+        });
+      }
     }
 
     if (!user) {
@@ -48,18 +56,18 @@ export async function POST(request: Request) {
       user = await prisma.user.create({
         data: {
           name,
-          telegramId: String(tgUser.id),
-          telegramUsername: tgUser.username,
+          telegramId: tgId,
+          telegramUsername: tgUsername,
           image: tgUser.photoUrl,
         },
         include: { expert: true },
       });
-    } else if (!user.telegramId) {
+    } else if (!user.telegramId || user.telegramUsername !== tgUsername) {
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          telegramId: String(tgUser.id),
-          telegramUsername: tgUser.username,
+          telegramId: tgId,
+          telegramUsername: tgUsername,
         },
         include: { expert: true },
       });

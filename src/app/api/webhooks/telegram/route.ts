@@ -146,7 +146,10 @@ export async function POST(request: NextRequest) {
     if (fromUsername) {
       prisma.user
         .updateMany({
-          where: { telegramUsername: fromUsername, telegramId: null },
+          where: {
+            telegramUsername: fromUsername,
+            OR: [{ telegramId: null }, { telegramId: String(chatId) }],
+          },
           data: { telegramId: String(chatId) },
         })
         .catch(() => {});
