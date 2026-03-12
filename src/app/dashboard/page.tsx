@@ -72,7 +72,8 @@ export default function DashboardPage() {
 
   const loadDashboard = useCallback(async () => {
     const tgHeaders = getHeaders();
-    const fetchUser = () => fetch("/api/user", { headers: tgHeaders });
+    const noCache = { cache: "no-store" as RequestCache };
+    const fetchUser = () => fetch("/api/user", { headers: tgHeaders, ...noCache });
     let userRes = await fetchUser();
 
     if (userRes.status === 401 && getTelegramInitData()) {
@@ -94,12 +95,12 @@ export default function DashboardPage() {
     }
 
     const role = user?.expert ? "expert" : "founder";
-    const bookingsRes = await fetch(`/api/bookings?role=${role}`, { headers: tgHeaders }).catch(() => null);
+    const bookingsRes = await fetch(`/api/bookings?role=${role}`, { headers: tgHeaders, ...noCache }).catch(() => null);
     const bookingsData = bookingsRes?.ok ? await bookingsRes.json() : { bookings: [] };
     setBookings(bookingsData?.bookings ?? []);
 
     if (user?.expert?.id) {
-      const profileRes = await fetch("/api/expert/profile", { headers: tgHeaders }).catch(() => null);
+      const profileRes = await fetch("/api/expert/profile", { headers: tgHeaders, ...noCache }).catch(() => null);
       const profileData = profileRes?.ok ? await profileRes.json() : null;
       if (profileData?.weeklySchedule) {
         setWeeklySchedule(profileData.weeklySchedule as WeeklySchedule);
@@ -308,17 +309,27 @@ function BookingCard({
   const start = parseISO(booking.startTime);
   const canModify = booking.status === "PENDING" || booking.status === "CONFIRMED";
 
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const handleCancel = async () => {
     setCancelling(true);
+    setActionError(null);
     try {
+      const tgHeaders = getHeaders();
       const res = await fetch(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getHeaders() },
+        headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
         body: JSON.stringify({ action: "cancel", reason: cancelReason }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Cancel failed"); return; }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setActionError(d.error || "Cancel failed");
+        return;
+      }
       setShowCancel(false);
       await onUpdate();
+    } catch {
+      setActionError("Network error — please try again");
     } finally { setCancelling(false); }
   };
 
@@ -406,42 +417,64 @@ function BookingCard({
   const handleReschedule = async () => {
     if (!selectedRescheduleSlot) return;
     setRescheduling(true);
+    setActionError(null);
     try {
+      const tgHeaders = getHeaders();
       const res = await fetch(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getHeaders() },
+        headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
         body: JSON.stringify({
           action: "reschedule",
           startTime: selectedRescheduleSlot.startTime,
           endTime: selectedRescheduleSlot.endTime,
         }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Reschedule failed"); return; }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setActionError(d.error || "Reschedule failed");
+        return;
+      }
       setShowReschedule(false);
       await onUpdate();
+    } catch {
+      setActionError("Network error — please try again");
     } finally { setRescheduling(false); }
   };
 
   const handleSaveLocation = async () => {
     setSavingLocation(true);
+    setActionError(null);
     try {
+      const tgHeaders = getHeaders();
       const res = await fetch(`/api/bookings/${booking.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getHeaders() },
+        headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
         body: JSON.stringify({
           action: "update_location",
           ...(isOnline ? { meetingLink: locationValue } : { offlineAddress: locationValue }),
         }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Save failed"); return; }
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setActionError(d.error || "Save failed");
+        return;
+      }
       setShowLocation(false);
       await onUpdate();
+    } catch {
+      setActionError("Network error — please try again");
     } finally { setSavingLocation(false); }
   };
 
   return (
     <Card>
       <CardContent className="p-4">
+        {actionError && (
+          <div className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center justify-between">
+            <span>{actionError}</span>
+            <button onClick={() => setActionError(null)} className="ml-2 text-xs underline">dismiss</button>
+          </div>
+        )}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="font-medium">{name}</p>

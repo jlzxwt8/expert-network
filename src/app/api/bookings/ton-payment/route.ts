@@ -4,8 +4,6 @@ import { calculateBookingAmount } from "@/lib/stripe";
 import type { SessionType } from "@/generated/prisma/client";
 import { resolveUserId } from "@/lib/request-auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
-import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
-import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 
 const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
 
@@ -90,6 +88,8 @@ export async function POST(request: NextRequest) {
     const depositTON = depositSGD / tonRate;
     const depositNanoTON = Math.ceil(depositTON * 1e9);
 
+    // PENDING holds the slot; user confirms after paying in wallet.
+    // Unconfirmed PENDING bookings expire after 30 minutes (cleaned lazily).
     const booking = await prisma.booking.create({
       data: {
         expertId,
@@ -99,47 +99,17 @@ export async function POST(request: NextRequest) {
         endTime: end,
         timezone: timezone || "Asia/Singapore",
         meetingLink: meetingLink || null,
-        status: "CONFIRMED",
+        status: "PENDING",
         totalAmountCents: totalCents,
         depositAmountCents: depositCents,
         currency: expert.currency,
         paymentMethod: "ton",
-        paymentStatus: "deposit_paid",
-      },
-      include: {
-        expert: { include: { user: true } },
-        founder: true,
+        paymentStatus: "pending",
       },
     });
 
     const comment = `booking:${booking.id}`;
     const tonLink = `https://app.tonkeeper.com/transfer/${platformWallet}?amount=${depositNanoTON}&text=${encodeURIComponent(comment)}`;
-
-    const depositLabel = `${booking.currency} ${(depositCents / 100).toFixed(2)}`;
-
-    storeBookingEvent({
-      expertId: booking.expertId,
-      founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
-      sessionType: booking.sessionType,
-      startTime: booking.startTime,
-      status: booking.status,
-    }).catch(() => {});
-
-    notifyExpertBooking({
-      expertTelegramUsername: booking.expert.user.telegramUsername,
-      founderName: booking.founder.nickName ?? booking.founder.name ?? "Client",
-      sessionType: booking.sessionType,
-      startTime: booking.startTime,
-      depositAmount: depositLabel,
-    }).catch(() => {});
-
-    notifyFounderBooking({
-      founderTelegramUsername: booking.founder.telegramUsername,
-      expertName: booking.expert.user.nickName ?? booking.expert.user.name ?? "Expert",
-      sessionType: booking.sessionType,
-      startTime: booking.startTime,
-      depositAmount: depositLabel,
-    }).catch(() => {});
 
     return NextResponse.json({
       bookingId: booking.id,
