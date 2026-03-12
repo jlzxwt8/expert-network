@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateBookingAmount } from "@/lib/stripe";
 import type { SessionType } from "@/generated/prisma/client";
+import { resolveUserId } from "@/lib/request-auth";
 
 const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
 
@@ -21,8 +20,8 @@ async function getSGDToTONRate(): Promise<number> {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
     const booking = await prisma.booking.create({
       data: {
         expertId,
-        founderId: session.user.id,
+        founderId: userId,
         sessionType: sessionType as SessionType,
         startTime: start,
         endTime: end,

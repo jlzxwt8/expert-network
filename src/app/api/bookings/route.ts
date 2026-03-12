@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { SessionType } from "@/generated/prisma/client";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { resolveUserId } from "@/lib/request-auth";
 
 const SESSION_TYPES: SessionType[] = ["ONLINE", "OFFLINE", "BOTH"];
 
@@ -15,8 +14,8 @@ function parseSessionType(value: unknown): SessionType | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
     const booking = await prisma.booking.create({
       data: {
         expertId,
-        founderId: session.user.id,
+        founderId: userId,
         sessionType,
         startTime: start,
         endTime: end,
@@ -120,8 +119,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -129,22 +128,22 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get("role"); // "founder" | "expert" | omit for both
 
     const isExpert = await prisma.expert.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
     });
 
     const where =
       role === "expert" && isExpert
         ? { expertId: isExpert.id }
         : role === "founder"
-          ? { founderId: session.user.id }
+          ? { founderId: userId }
           : isExpert
             ? {
                 OR: [
-                  { founderId: session.user.id },
+                  { founderId: userId },
                   { expertId: isExpert.id },
                 ],
               }
-            : { founderId: session.user.id };
+            : { founderId: userId };
 
     const bookings = await prisma.booking.findMany({
       where,

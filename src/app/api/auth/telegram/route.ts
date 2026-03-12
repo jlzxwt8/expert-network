@@ -119,6 +119,13 @@ export async function POST(request: Request) {
       path: "/",
       maxAge: 30 * 24 * 60 * 60,
     });
+    response.cookies.set("tg_user_id", user.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "none",
+      path: "/",
+      maxAge: 30 * 24 * 60 * 60,
+    });
 
     return response;
   } catch (error) {

@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { domainStrings, setExpertDomains } from "@/lib/domains";
+import { resolveUserId } from "@/lib/request-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const expert = await prisma.expert.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
       include: {
         domains: true,
         user: { select: { id: true, name: true, nickName: true, email: true, image: true, telegramUsername: true } },
@@ -40,13 +39,13 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const expert = await prisma.expert.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
     });
 
     if (!expert) {
