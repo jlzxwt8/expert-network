@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, Suspense, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useTelegram } from "@/components/telegram-provider";
@@ -94,7 +94,7 @@ function ExpertCardSkeleton() {
   );
 }
 
-function ExpertCard({ expert }: { expert: Expert }) {
+const ExpertCard = memo(function ExpertCard({ expert }: { expert: Expert }) {
   const name = expert.user.nickName ?? expert.user.name ?? "Expert";
   const initials = name
     .split(" ")
@@ -170,9 +170,9 @@ function ExpertCard({ expert }: { expert: Expert }) {
       </CardContent>
     </Card>
   );
-}
+});
 
-function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
+const MatchRecommendationCard = memo(function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
   const initials = rec.name
     .split(" ")
     .map((n) => n[0])
@@ -206,7 +206,7 @@ function MatchRecommendationCard({ rec }: { rec: MatchRecommendation }) {
       </CardContent>
     </Card>
   );
-}
+});
 
 export default function DiscoverPage() {
   return (
@@ -259,7 +259,9 @@ function DiscoverContent() {
         else next.set(k, v);
       }
       next.delete("skip");
-      router.push(`/discover?${next.toString()}`, { scroll: false });
+      startTransition(() => {
+        router.push(`/discover?${next.toString()}`, { scroll: false });
+      });
     },
     [router, searchParams]
   );

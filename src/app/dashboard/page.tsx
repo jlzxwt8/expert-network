@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getTelegramInitData } from "@/lib/telegram";
@@ -279,7 +279,7 @@ export default function DashboardPage() {
 
 /* ============= Booking Card ============= */
 
-function BookingCard({
+const BookingCard = memo(function BookingCard({
   booking, showFounder, showLeaveReview, statusVariant, onUpdate,
 }: {
   booking: Booking;
@@ -590,5 +590,5 @@ function BookingCard({
       </CardContent>
     </Card>
   );
-}
+});
 

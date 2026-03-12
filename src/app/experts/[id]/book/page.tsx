@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, startTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -467,7 +467,7 @@ export default function BookSessionPage() {
             <Calendar
               mode="single"
               selected={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={(d) => startTransition(() => setSelectedDate(d))}
               disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
             />
           </div>
@@ -501,7 +501,7 @@ export default function BookSessionPage() {
                 <button
                   key={slot.id}
                   type="button"
-                  onClick={() => setSelectedSlot(slot)}
+                  onClick={() => startTransition(() => setSelectedSlot(slot))}
                   className={cn(
                     "min-h-[48px] rounded-lg border text-sm font-medium transition-colors",
                     selectedSlot?.id === slot.id
