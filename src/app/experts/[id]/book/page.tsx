@@ -281,14 +281,19 @@ export default function BookSessionPage() {
       if (!res.ok) throw new Error(data.error ?? "Failed to create TON payment");
 
       if (data.tonLink) {
-        if (isTelegramMiniApp()) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).Telegram?.WebApp?.openLink?.(data.tonLink);
-        } else {
-          window.open(data.tonLink, "_blank", "noopener,noreferrer");
+        try {
+          if (isTelegramMiniApp()) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).Telegram?.WebApp?.openLink?.(data.tonLink);
+          } else {
+            window.open(data.tonLink, "_blank", "noopener,noreferrer");
+          }
+        } catch {
+          // Wallet link may fail to open — booking is already confirmed, proceed
         }
       }
 
+      setSubmitting(false);
       router.push("/dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");

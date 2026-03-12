@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     });
 
     const comment = `booking:${booking.id}`;
-    const tonLink = `ton://transfer/${platformWallet}?amount=${depositNanoTON}&text=${encodeURIComponent(comment)}`;
+    const tonLink = `https://app.tonkeeper.com/transfer/${platformWallet}?amount=${depositNanoTON}&text=${encodeURIComponent(comment)}`;
 
     const depositLabel = `${booking.currency} ${(depositCents / 100).toFixed(2)}`;
 
