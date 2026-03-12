@@ -69,17 +69,13 @@ export default function DashboardPage() {
 
       // Telegram mini app can occasionally race before cookie is applied.
       // Retry once after re-auth to avoid blank dashboard.
-      if (userRes.status === 401 && isTelegram) {
-        const webApp = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
-        const initData = webApp?.initData;
-        if (initData) {
-          await fetch("/api/auth/telegram", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ initData }),
-          }).catch(() => {});
-          userRes = await fetchUser();
-        }
+      if (userRes.status === 401 && telegramInitData) {
+        await fetch("/api/auth/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData: telegramInitData }),
+        }).catch(() => {});
+        userRes = await fetchUser();
       }
 
       const user = userRes.ok ? await userRes.json() : null;

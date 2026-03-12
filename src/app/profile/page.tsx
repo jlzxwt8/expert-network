@@ -120,17 +120,13 @@ export default function ProfilePage() {
         : undefined;
       const fetchProfileApi = () => fetch("/api/expert/profile", { headers });
       let res = await fetchProfileApi();
-      if (res.status === 401 && isTelegram) {
-        const webApp = (window as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
-        const initData = webApp?.initData;
-        if (initData) {
-          await fetch("/api/auth/telegram", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ initData }),
-          }).catch(() => {});
-          res = await fetchProfileApi();
-        }
+      if (res.status === 401 && telegramInitData) {
+        await fetch("/api/auth/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData: telegramInitData }),
+        }).catch(() => {});
+        res = await fetchProfileApi();
       }
       if (res.status === 404) {
         setProfile(null);
@@ -154,7 +150,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [isTelegram, telegramInitData]);
+  }, [telegramInitData]);
 
   useEffect(() => {
     if (sessionStatus === "loading") return;
@@ -508,7 +504,10 @@ export default function ProfilePage() {
               },
         body: JSON.stringify({ telegramUsername: cleaned || null }),
       });
-      if (!res.ok) throw new Error("Failed to save");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || data.detail || "Failed to save");
+      }
       setTgUsername(cleaned);
       setProfile((prev) =>
         prev ? { ...prev, user: { ...prev.user, telegramUsername: cleaned || null } } : prev
