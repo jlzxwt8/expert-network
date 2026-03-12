@@ -28,6 +28,7 @@ import {
 import { VoiceInputButton } from "@/components/voice-input-button";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { AudioPlayer } from "@/components/audio-player";
+import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ type Step =
   | "DOCUMENT_UPLOAD"
   | "SESSION_PREFS"
   | "PRICING"
+  | "AVAILABILITY"
   | "AI_GENERATION"
   | "VOICE_SAMPLE"
   | "PREVIEW";
@@ -98,6 +100,8 @@ function getProgressValue(step: Step): number {
       return 25;
     case "PRICING":
       return 35;
+    case "AVAILABILITY":
+      return 42;
     case "AI_GENERATION":
       return 50;
     case "VOICE_SAMPLE":
@@ -139,6 +143,7 @@ export default function OnboardingPage() {
   const [selectedGender, setSelectedGender] = useState<string>("");
   const [priceOnline, setPriceOnline] = useState("");
   const [priceOffline, setPriceOffline] = useState("");
+  const [onboardSchedule, setOnboardSchedule] = useState<WeeklySchedule>({});
   const [cloningVoice, setCloningVoice] = useState(false);
   const [voiceCloned, setVoiceCloned] = useState(false);
   const [audioIntroUrl, setAudioIntroUrl] = useState<string | null>(null);
@@ -429,6 +434,39 @@ export default function OnboardingPage() {
       // Silently fail
     }
 
+    setCurrentStep("AVAILABILITY");
+  };
+
+  // Availability step
+  useEffect(() => {
+    if (currentStep !== "AVAILABILITY") return;
+    addStepMessage("availability", {
+      id: "availability",
+      role: "ai",
+      content:
+        "Set your weekly availability so founders know when to book. Tap the + button next to each day to add time slots. You can skip this and set it later.",
+      type: "text",
+    });
+  }, [currentStep, addStepMessage]);
+
+  const handleAvailabilityContinue = async () => {
+    const hasSlotsSet = Object.keys(onboardSchedule).length > 0;
+    if (hasSlotsSet) {
+      setMessages((prev) => [
+        ...prev,
+        { id: "user-avail", role: "user", content: "Availability set" },
+      ]);
+      try {
+        await saveOnboarding({ weeklySchedule: onboardSchedule });
+      } catch {
+        // Silently fail
+      }
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { id: "user-avail-skip", role: "user", content: "Skipped availability" },
+      ]);
+    }
     startAIGeneration();
   };
 
@@ -1446,6 +1484,24 @@ export default function OnboardingPage() {
               className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
             >
               Continue
+            </Button>
+          </div>
+        )}
+
+        {currentStep === "AVAILABILITY" && (
+          <div className="space-y-3">
+            <WeeklyScheduleEditor
+              schedule={onboardSchedule}
+              onSave={async (s) => setOnboardSchedule(s)}
+              compact
+              showHeader={false}
+              showHint={false}
+            />
+            <Button
+              onClick={handleAvailabilityContinue}
+              className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+            >
+              {Object.keys(onboardSchedule).length > 0 ? "Continue" : "Skip & Continue"}
             </Button>
           </div>
         )}

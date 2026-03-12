@@ -21,6 +21,7 @@ import {
   Mic,
   DollarSign,
   Send,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/audio-player";
@@ -30,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DOMAINS } from "@/lib/constants";
 import { UserMenu } from "@/components/user-menu";
+import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 import { getTelegramInitData } from "@/lib/telegram";
 
 interface ServiceItem {
@@ -54,6 +56,7 @@ interface ExpertProfile {
   currency: string;
   sessionType: string;
   documentName: string | null;
+  weeklySchedule: WeeklySchedule | null;
   isPublished: boolean;
   user: {
     id: string;
@@ -1040,6 +1043,37 @@ export default function ProfilePage() {
                 <p className="text-xs text-muted-foreground">
                   Mentees pay a 50% deposit when booking. The remainder is charged 24h after the session.
                 </p>
+              </CardContent>
+            </Card>
+
+            {/* Weekly Availability */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Weekly Availability
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <WeeklyScheduleEditor
+                  schedule={(profile?.weeklySchedule as WeeklySchedule) ?? {}}
+                  onSave={async (s) => {
+                    const res = await fetch("/api/expert/profile", {
+                      method: "PATCH",
+                      headers: {
+                        "Content-Type": "application/json",
+                        ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+                      },
+                      body: JSON.stringify({ weeklySchedule: s }),
+                    });
+                    if (!res.ok) throw new Error("Failed to save");
+                    setProfile((prev) => prev ? { ...prev, weeklySchedule: s } : prev);
+                    showMessage("Availability saved!", "availability");
+                  }}
+                  compact
+                  showHint
+                />
+                {renderToast("availability")}
               </CardContent>
             </Card>
 
