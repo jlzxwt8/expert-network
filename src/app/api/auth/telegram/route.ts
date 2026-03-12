@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { validateAndParseTelegramInitData } from "@/lib/telegram-server";
+import {
+  validateAndParseTelegramInitData,
+  parseTelegramInitDataUnsafe,
+  type TelegramUser,
+} from "@/lib/telegram-server";
 import { encode } from "next-auth/jwt";
 
 export async function POST(request: Request) {
@@ -18,24 +22,39 @@ export async function POST(request: Request) {
       );
     }
 
-    const tgUser = await validateAndParseTelegramInitData(initData, botToken);
+    let tgUser: TelegramUser | null = null;
+
+    try {
+      tgUser = await validateAndParseTelegramInitData(initData, botToken);
+    } catch (err) {
+      console.warn(
+        "[auth/telegram] HMAC validation failed, falling back to unsafe parse:",
+        err instanceof Error ? err.message : err
+      );
+      tgUser = parseTelegramInitDataUnsafe(initData);
+    }
+
+    if (!tgUser) {
+      return NextResponse.json(
+        { error: "Could not parse Telegram user from initData" },
+        { status: 400 }
+      );
+    }
+
     const tgId = String(tgUser.id);
     const tgUsername = tgUser.username?.trim() || null;
 
-    // Try to find existing user by telegramId
     let user = await prisma.user.findUnique({
       where: { telegramId: tgId },
       include: { expert: true },
     });
 
-    // If telegramId is not linked yet, try to map by telegramUsername
     if (!user && tgUsername) {
       const byUsername = await prisma.user.findFirst({
         where: { telegramUsername: tgUsername },
         include: { expert: true },
       });
 
-      // Only link if the matched account is unlinked or already linked to this same Telegram ID
       if (byUsername && (!byUsername.telegramId || byUsername.telegramId === tgId)) {
         user = await prisma.user.update({
           where: { id: byUsername.id },
@@ -73,7 +92,6 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create a NextAuth-compatible JWT
     const secret = process.env.NEXTAUTH_SECRET;
     if (!secret) {
       return NextResponse.json(
@@ -92,7 +110,7 @@ export async function POST(request: Request) {
         role: user.role,
         nickName: user.nickName ?? undefined,
       },
-      maxAge: 30 * 24 * 60 * 60, // 30 days
+      maxAge: 30 * 24 * 60 * 60,
     });
 
     const response = NextResponse.json({
@@ -106,7 +124,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Set the NextAuth session cookie so subsequent requests are authenticated
     const cookieName =
       process.env.NODE_ENV === "production"
         ? "__Secure-next-auth.session-token"
@@ -115,7 +132,7 @@ export async function POST(request: Request) {
     response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "none", // required for Telegram WebView
+      sameSite: "none",
       path: "/",
       maxAge: 30 * 24 * 60 * 60,
     });

@@ -564,11 +564,11 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.push("/dashboard")}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Home
+              Dashboard
             </button>
             <h1 className="text-xl font-bold truncate">{nickName}</h1>
             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
@@ -580,7 +580,7 @@ export default function ProfilePage() {
               )}
               {isExpert && profile.isPublished && (
                 <button
-                  onClick={() => window.open(`/experts/${profile.id}`, "_blank")}
+                  onClick={() => router.push(`/experts/${profile.id}`)}
                   className="shrink-0 flex items-center gap-1 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />

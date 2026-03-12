@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession, calculateBookingAmount } from "@/lib/stripe";
+import { findOverlappingBooking } from "@/lib/booking-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +41,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Expert not found" },
         { status: 404 }
+      );
+    }
+
+    const overlap = await findOverlappingBooking(expertId, start, end);
+    if (overlap) {
+      return NextResponse.json(
+        { error: "This time slot is already booked. Please choose a different time." },
+        { status: 409 }
       );
     }
 

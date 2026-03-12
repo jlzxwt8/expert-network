@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getTelegramInitData } from "@/lib/telegram";
@@ -14,13 +14,21 @@ import {
   Loader2,
   ArrowLeft,
   Pencil,
+  X,
+  Trash2,
+  RotateCcw,
+  MapPinned,
+  Plus,
+  ArrowRight,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfDay, setHours, setMinutes } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 
 interface UserData {
   id: string;
@@ -35,6 +43,9 @@ interface Booking {
   endTime: string;
   status: string;
   meetingLink?: string | null;
+  offlineAddress?: string | null;
+  cancelledBy?: string | null;
+  cancelReason?: string | null;
   expert?: {
     id: string;
     user: { name: string | null; nickName: string | null };
@@ -46,11 +57,90 @@ interface Booking {
   };
 }
 
+type TimeRange = { start: string; end: string };
+type WeeklySchedule = Record<string, TimeRange[]>;
+
+const DAYS = [
+  { key: "sun", label: "Su" },
+  { key: "mon", label: "Mo" },
+  { key: "tue", label: "Tu" },
+  { key: "wed", label: "We" },
+  { key: "thu", label: "Th" },
+  { key: "fri", label: "Fr" },
+  { key: "sat", label: "Sa" },
+];
+
+const TIME_OPTIONS: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (const m of [0, 30]) {
+    const hh = h.toString().padStart(2, "0");
+    const mm = m.toString().padStart(2, "0");
+    TIME_OPTIONS.push(`${hh}:${mm}`);
+  }
+}
+
+function formatTime12(t: string): string {
+  const [hStr, mStr] = t.split(":");
+  const h = parseInt(hStr, 10);
+  const m = mStr || "00";
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}${m === "00" ? "" : `:${m}`} ${ampm}`;
+}
+
+function getHeaders() {
+  const initData = getTelegramInitData();
+  return initData ? { "x-telegram-init-data": initData } : undefined;
+}
+
 export default function DashboardPage() {
   const { status: sessionStatus, isTelegram } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>({});
   const [loading, setLoading] = useState(true);
+
+  const isExpert = !!userData?.expert;
+  const expertId = userData?.expert?.id;
+
+  const loadDashboard = useCallback(async () => {
+    const tgHeaders = getHeaders();
+    const fetchUser = () => fetch("/api/user", { headers: tgHeaders });
+    let userRes = await fetchUser();
+
+    if (userRes.status === 401 && getTelegramInitData()) {
+      await fetch("/api/auth/telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData: getTelegramInitData() }),
+      }).catch(() => {});
+      userRes = await fetchUser();
+    }
+
+    const user = userRes.ok ? await userRes.json() : null;
+    setUserData(user);
+
+    if (!user) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    const role = user?.expert ? "expert" : "founder";
+    const bookingsRes = await fetch(`/api/bookings?role=${role}`, { headers: tgHeaders }).catch(() => null);
+    const bookingsData = bookingsRes?.ok ? await bookingsRes.json() : { bookings: [] };
+    setBookings(bookingsData?.bookings ?? []);
+
+    if (user?.expert?.id) {
+      const profileRes = await fetch("/api/expert/profile", { headers: tgHeaders }).catch(() => null);
+      const profileData = profileRes?.ok ? await profileRes.json() : null;
+      if (profileData?.weeklySchedule) {
+        setWeeklySchedule(profileData.weeklySchedule as WeeklySchedule);
+      }
+    }
+
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     if (sessionStatus === "loading") return;
@@ -58,56 +148,18 @@ export default function DashboardPage() {
       setLoading(false);
       return;
     }
-
-    const loadDashboard = async () => {
-      const telegramInitData = getTelegramInitData();
-      const tgHeaders = telegramInitData
-        ? { "x-telegram-init-data": telegramInitData }
-        : undefined;
-      const fetchUser = () => fetch("/api/user", { headers: tgHeaders });
-      let userRes = await fetchUser();
-
-      // Telegram mini app can occasionally race before cookie is applied.
-      // Retry once after re-auth to avoid blank dashboard.
-      if (userRes.status === 401 && telegramInitData) {
-        await fetch("/api/auth/telegram", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ initData: telegramInitData }),
-        }).catch(() => {});
-        userRes = await fetchUser();
-      }
-
-      const user = userRes.ok ? await userRes.json() : null;
-      setUserData(user);
-
-      if (!user) {
-        setBookings([]);
-        setLoading(false);
-        return;
-      }
-
-      const role = user?.expert ? "expert" : "founder";
-      const bookingsRes = await fetch(`/api/bookings?role=${role}`, { headers: tgHeaders }).catch(() => null);
-      const bookingsData = bookingsRes?.ok ? await bookingsRes.json() : { bookings: [] };
-      setBookings(bookingsData?.bookings ?? []);
-      setLoading(false);
-    };
-
     loadDashboard().catch(() => {
       setUserData(null);
       setBookings([]);
       setLoading(false);
     });
-  }, [sessionStatus, isTelegram]);
+  }, [sessionStatus, isTelegram, loadDashboard]);
 
-  const isExpert = !!userData?.expert;
-  const expertId = userData?.expert?.id;
-
-  if (sessionStatus === "loading") {
+  if (sessionStatus === "loading" || loading) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center p-6">
+      <div className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 p-6">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading dashboard…</p>
       </div>
     );
   }
@@ -122,27 +174,22 @@ export default function DashboardPage() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 p-6">
-        <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading dashboard…</p>
-      </div>
-    );
-  }
-
   const statusVariant = (status: string) => {
     switch (status) {
-      case "CONFIRMED":
-        return "default";
-      case "COMPLETED":
-        return "secondary";
-      case "CANCELLED":
-        return "destructive";
-      default:
-        return "outline";
+      case "CONFIRMED": return "default" as const;
+      case "COMPLETED": return "secondary" as const;
+      case "CANCELLED": return "destructive" as const;
+      default: return "outline" as const;
     }
   };
+
+  const now = new Date();
+  const activeBookings = bookings.filter(
+    (b) => b.status !== "CANCELLED" && b.status !== "COMPLETED" && new Date(b.startTime) >= now
+  );
+  const pastBookings = bookings.filter(
+    (b) => b.status === "CANCELLED" || b.status === "COMPLETED" || new Date(b.startTime) < now
+  );
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
@@ -165,9 +212,7 @@ export default function DashboardPage() {
       <main className="space-y-6 p-4 pb-12">
         {isExpert && (
           <section>
-            <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-              Your Profile
-            </h2>
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Your Profile</h2>
             <Card>
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
@@ -177,24 +222,18 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium">Expert Profile</p>
                     <p className="text-xs text-muted-foreground">
-                      {userData?.expert?.isPublished
-                        ? "Published"
-                        : "Not yet published"}
+                      {userData?.expert?.isPublished ? "Published" : "Not yet published"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href="/profile">
-                      <Pencil className="mr-1 h-3.5 w-3.5" />
-                      Edit
-                    </Link>
+                    <Link href="/profile"><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Link>
                   </Button>
                   {expertId && userData?.expert?.isPublished && (
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/experts/${expertId}`} target="_blank" rel="noopener noreferrer">
-                        Public
-                        <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                      <Link href={`/experts/${expertId}`}>
+                        Public<ExternalLink className="ml-1 h-3.5 w-3.5" />
                       </Link>
                     </Button>
                   )}
@@ -204,100 +243,150 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {isExpert ? (
-          <>
-            <section>
-              <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-                Upcoming Bookings
-              </h2>
-              {bookings.length === 0 ? (
-                <Card>
-                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    No upcoming bookings
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {bookings.map((b) => (
-                    <BookingCard
-                      key={b.id}
-                      booking={b}
-                      showFounder
-                      statusVariant={statusVariant}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-            <section>
-              <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-                Manage Availability
-              </h2>
-              <Card>
-                <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                  Coming soon
-                </CardContent>
-              </Card>
-            </section>
-          </>
-        ) : (
-          <>
-            <section>
-              <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-                Your Bookings
-              </h2>
-              {bookings.length === 0 ? (
-                <Card>
-                  <CardContent className="py-8 text-center">
-                    <p className="mb-4 text-sm text-muted-foreground">
-                      No bookings yet
-                    </p>
-                    <Button asChild>
-                      <Link href="/discover">Find More Experts</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {bookings.map((b) => (
-                    <BookingCard
-                      key={b.id}
-                      booking={b}
-                      statusVariant={statusVariant}
-                      showLeaveReview={b.status === "COMPLETED"}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-            <section>
-              <Button asChild variant="outline" className="w-full" size="lg">
-                <Link href="/discover">Find More Experts</Link>
-              </Button>
-            </section>
-          </>
+        {/* Upcoming Bookings */}
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+            {isExpert ? "Upcoming Bookings" : "Your Bookings"}
+          </h2>
+          {activeBookings.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                {isExpert ? "No upcoming bookings" : (
+                  <div><p className="mb-4">No active bookings</p>
+                    <Button asChild><Link href="/discover">Find an Expert</Link></Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {activeBookings.map((b) => (
+                <BookingCard key={b.id} booking={b} showFounder={isExpert} statusVariant={statusVariant} onUpdate={loadDashboard} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Past Bookings */}
+        {pastBookings.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Past Bookings</h2>
+            <div className="space-y-3">
+              {pastBookings.map((b) => (
+                <BookingCard
+                  key={b.id} booking={b} showFounder={isExpert} statusVariant={statusVariant}
+                  showLeaveReview={!isExpert && b.status === "COMPLETED"} onUpdate={loadDashboard}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Weekly Schedule (Expert only) */}
+        {isExpert && (
+          <WeeklyScheduleEditor
+            schedule={weeklySchedule}
+            onSave={async (s) => {
+              setWeeklySchedule(s);
+              await fetch("/api/expert/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", ...getHeaders() },
+                body: JSON.stringify({ weeklySchedule: s }),
+              });
+            }}
+          />
+        )}
+
+        {!isExpert && (
+          <section>
+            <Button asChild variant="outline" className="w-full" size="lg">
+              <Link href="/discover">Find More Experts</Link>
+            </Button>
+          </section>
         )}
       </main>
     </div>
   );
 }
 
+/* ============= Booking Card ============= */
+
 function BookingCard({
-  booking,
-  showFounder,
-  showLeaveReview,
-  statusVariant,
+  booking, showFounder, showLeaveReview, statusVariant, onUpdate,
 }: {
   booking: Booking;
   showFounder?: boolean;
   showLeaveReview?: boolean;
   statusVariant: (s: string) => "default" | "secondary" | "destructive" | "outline";
+  onUpdate: () => Promise<void>;
 }) {
+  const [showCancel, setShowCancel] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>();
+  const [rescheduleHour, setRescheduleHour] = useState("10");
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationValue, setLocationValue] = useState(booking.offlineAddress || booking.meetingLink || "");
+
   const name = showFounder
     ? booking.founder?.nickName || booking.founder?.name || "Founder"
     : booking.expert?.user?.nickName || booking.expert?.user?.name || "Expert";
   const isOnline = booking.sessionType === "ONLINE";
   const start = parseISO(booking.startTime);
+  const canModify = booking.status === "PENDING" || booking.status === "CONFIRMED";
+
+  const handleCancel = async () => {
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getHeaders() },
+        body: JSON.stringify({ action: "cancel", reason: cancelReason }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Cancel failed"); return; }
+      setShowCancel(false);
+      await onUpdate();
+    } finally { setCancelling(false); }
+  };
+
+  const handleReschedule = async () => {
+    if (!rescheduleDate) return;
+    setRescheduling(true);
+    try {
+      const hour = parseInt(rescheduleHour, 10);
+      const newStart = setMinutes(setHours(startOfDay(rescheduleDate), hour), 0);
+      const duration = new Date(booking.endTime).getTime() - new Date(booking.startTime).getTime();
+      const newEnd = new Date(newStart.getTime() + duration);
+      const res = await fetch(`/api/bookings/${booking.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getHeaders() },
+        body: JSON.stringify({ action: "reschedule", startTime: newStart.toISOString(), endTime: newEnd.toISOString() }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Reschedule failed"); return; }
+      setShowReschedule(false);
+      await onUpdate();
+    } finally { setRescheduling(false); }
+  };
+
+  const handleSaveLocation = async () => {
+    setSavingLocation(true);
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getHeaders() },
+        body: JSON.stringify({
+          action: "update_location",
+          ...(isOnline ? { meetingLink: locationValue } : { offlineAddress: locationValue }),
+        }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Save failed"); return; }
+      setShowLocation(false);
+      await onUpdate();
+    } finally { setSavingLocation(false); }
+  };
 
   return (
     <Card>
@@ -306,41 +395,239 @@ function BookingCard({
           <div className="min-w-0 flex-1">
             <p className="font-medium">{name}</p>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{format(start, "MMM d, yyyy")}</span>
+              <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{format(start, "h:mm a")}</span>
               <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {format(start, "MMM d, yyyy")}
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {format(start, "h:mm a")}
-              </span>
-              <span className="flex items-center gap-1">
-                {isOnline ? (
-                  <Monitor className="h-3.5 w-3.5" />
-                ) : (
-                  <MapPin className="h-3.5 w-3.5" />
-                )}
+                {isOnline ? <Monitor className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
                 {isOnline ? "Online" : "Offline"}
               </span>
             </div>
-            {!isOnline && booking.meetingLink && (
+            {!isOnline && (booking.offlineAddress || booking.meetingLink) && (
               <p className="mt-1.5 text-xs text-muted-foreground flex items-start gap-1">
-                <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
-                <span>{booking.meetingLink}</span>
+                <MapPin className="h-3 w-3 mt-0.5 shrink-0" /><span>{booking.offlineAddress || booking.meetingLink}</span>
               </p>
             )}
+            {isOnline && booking.meetingLink && (
+              <p className="mt-1.5 text-xs text-muted-foreground flex items-start gap-1">
+                <Monitor className="h-3 w-3 mt-0.5 shrink-0" /><span className="truncate">{booking.meetingLink}</span>
+              </p>
+            )}
+            {booking.cancelReason && <p className="mt-1.5 text-xs text-red-500">Reason: {booking.cancelReason}</p>}
           </div>
           <Badge variant={statusVariant(booking.status)}>{booking.status}</Badge>
         </div>
-        {showLeaveReview && (
+
+        {canModify && (
           <>
             <Separator className="my-3" />
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/reviews/${booking.id}`}>Leave Review</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setShowReschedule(!showReschedule); setShowCancel(false); setShowLocation(false); }}>
+                <RotateCcw className="mr-1 h-3.5 w-3.5" />Reschedule
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => { setShowLocation(!showLocation); setShowCancel(false); setShowReschedule(false); }}>
+                <MapPinned className="mr-1 h-3.5 w-3.5" />{isOnline ? "Meeting Link" : "Location"}
+              </Button>
+              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}>
+                <X className="mr-1 h-3.5 w-3.5" />Cancel
+              </Button>
+            </div>
           </>
+        )}
+
+        {showCancel && (
+          <div className="mt-3 space-y-2 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 p-3">
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">Cancel this booking?</p>
+            <Input placeholder="Reason (optional)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
+            <div className="flex gap-2">
+              <Button size="sm" variant="destructive" onClick={handleCancel} disabled={cancelling}>
+                {cancelling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Cancel"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowCancel(false)}>Back</Button>
+            </div>
+          </div>
+        )}
+
+        {showReschedule && (
+          <div className="mt-3 space-y-3 rounded-lg border p-3">
+            <p className="text-sm font-medium">Pick a new date & time</p>
+            <CalendarPicker mode="single" selected={rescheduleDate} onSelect={setRescheduleDate} disabled={(date) => date < new Date()} className="rounded-md border" />
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground">Hour:</label>
+              <select className="rounded-md border px-2 py-1 text-sm bg-background" value={rescheduleHour} onChange={(e) => setRescheduleHour(e.target.value)}>
+                {Array.from({ length: 12 }, (_, i) => i + 8).map((h) => (<option key={h} value={h}>{`${h}:00`}</option>))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleReschedule} disabled={!rescheduleDate || rescheduling}>
+                {rescheduling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Reschedule"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowReschedule(false)}>Back</Button>
+            </div>
+          </div>
+        )}
+
+        {showLocation && (
+          <div className="mt-3 space-y-2 rounded-lg border p-3">
+            <p className="text-sm font-medium">{isOnline ? "Meeting Link" : "Address"}</p>
+            <Input placeholder={isOnline ? "https://zoom.us/j/..." : "123 Main St, Singapore"} value={locationValue} onChange={(e) => setLocationValue(e.target.value)} />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleSaveLocation} disabled={savingLocation}>
+                {savingLocation ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowLocation(false)}>Back</Button>
+            </div>
+          </div>
+        )}
+
+        {showLeaveReview && (
+          <><Separator className="my-3" /><Button variant="outline" size="sm" asChild><Link href={`/reviews/${booking.id}`}>Leave Review</Link></Button></>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/* ============= Notion-style Weekly Schedule ============= */
+
+function WeeklyScheduleEditor({
+  schedule,
+  onSave,
+}: {
+  schedule: WeeklySchedule;
+  onSave: (s: WeeklySchedule) => Promise<void>;
+}) {
+  const [local, setLocal] = useState<WeeklySchedule>(schedule);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setLocal(schedule);
+  }, [schedule]);
+
+  const update = (day: string, ranges: TimeRange[]) => {
+    const next = { ...local, [day]: ranges };
+    if (ranges.length === 0) delete next[day];
+    setLocal(next);
+    setDirty(true);
+  };
+
+  const addRange = (day: string) => {
+    const existing = local[day] || [];
+    const lastEnd = existing.length > 0 ? existing[existing.length - 1].end : "09:00";
+    const [h] = lastEnd.split(":");
+    const startH = Math.min(parseInt(h, 10) + 1, 23);
+    const newStart = `${startH.toString().padStart(2, "0")}:00`;
+    const endH = Math.min(startH + 1, 23);
+    const newEnd = `${endH.toString().padStart(2, "0")}:00`;
+    update(day, [...existing, { start: newStart, end: newEnd }]);
+  };
+
+  const removeRange = (day: string, idx: number) => {
+    const ranges = [...(local[day] || [])];
+    ranges.splice(idx, 1);
+    update(day, ranges);
+  };
+
+  const updateRange = (day: string, idx: number, field: "start" | "end", value: string) => {
+    const ranges = [...(local[day] || [])];
+    ranges[idx] = { ...ranges[idx], [field]: value };
+    update(day, ranges);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(local);
+      setDirty(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-muted-foreground">Weekly Availability</h2>
+        {dirty && (
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+            Save
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <CardContent className="p-0 divide-y">
+          {DAYS.map(({ key, label }) => {
+            const ranges = local[key] || [];
+            return (
+              <div key={key} className="flex items-start gap-3 px-4 py-3">
+                {/* Day label */}
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                    ranges.length > 0
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </div>
+
+                {/* Time ranges */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  {ranges.length === 0 ? (
+                    <div className="flex h-9 items-center">
+                      <span className="text-sm text-muted-foreground/60">Unavailable</span>
+                    </div>
+                  ) : (
+                    ranges.map((r, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <select
+                          className="h-9 rounded-md border bg-background px-2 text-sm min-w-[80px]"
+                          value={r.start}
+                          onChange={(e) => updateRange(key, i, "start", e.target.value)}
+                        >
+                          {TIME_OPTIONS.map((t) => (
+                            <option key={t} value={t}>{formatTime12(t)}</option>
+                          ))}
+                        </select>
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <select
+                          className="h-9 rounded-md border bg-background px-2 text-sm min-w-[80px]"
+                          value={r.end}
+                          onChange={(e) => updateRange(key, i, "end", e.target.value)}
+                        >
+                          {TIME_OPTIONS.map((t) => (
+                            <option key={t} value={t}>{formatTime12(t)}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => removeRange(key, i)}
+                          className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Add button */}
+                <button
+                  onClick={() => addRange(key)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <p className="mt-2 text-xs text-muted-foreground">
+        Set your recurring weekly availability. Founders will see these times when booking.
+      </p>
+    </section>
   );
 }

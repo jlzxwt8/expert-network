@@ -114,16 +114,23 @@ function ExpertCard({ expert }: { expert: Expert }) {
             {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-semibold text-foreground truncate">{name}</h3>
-              {expert.isVerified && (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 gap-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                >
-                  <Shield className="h-3 w-3" />
-                  Verified
-                </Badge>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <h3 className="font-semibold text-foreground truncate">{name}</h3>
+                {expert.isVerified && (
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 gap-1 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                  >
+                    <Shield className="h-3 w-3" />
+                    Verified
+                  </Badge>
+                )}
+              </div>
+              {(expert.priceOnlineCents || expert.priceOfflineCents) && (
+                <span className="shrink-0 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  SGD {((Math.min(expert.priceOnlineCents || Infinity, expert.priceOfflineCents || Infinity)) / 100).toFixed(0)}/hr
+                </span>
               )}
             </div>
             <div className="mt-1 flex flex-wrap gap-1">
@@ -133,29 +140,22 @@ function ExpertCard({ expert }: { expert: Expert }) {
                 </Badge>
               ))}
             </div>
-            <div className="mt-2 flex items-center justify-between text-sm text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <div className="flex">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i <= Math.round(expert.avgRating)
-                          ? "fill-amber-400 text-amber-400"
-                          : "text-muted-foreground/40"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span>
-                  {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
-                </span>
+            <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star
+                    key={i}
+                    className={`h-4 w-4 ${
+                      i <= Math.round(expert.avgRating)
+                        ? "fill-amber-400 text-amber-400"
+                        : "text-muted-foreground/40"
+                    }`}
+                  />
+                ))}
               </div>
-              {(expert.priceOnlineCents || expert.priceOfflineCents) && (
-                <span className="shrink-0 font-medium text-emerald-700 dark:text-emerald-400">
-                  From SGD {((Math.min(expert.priceOnlineCents || Infinity, expert.priceOfflineCents || Infinity)) / 100).toFixed(0)}/hr
-                </span>
-              )}
+              <span>
+                {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
+              </span>
             </div>
           </div>
         </div>

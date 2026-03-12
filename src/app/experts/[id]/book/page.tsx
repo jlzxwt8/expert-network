@@ -34,6 +34,54 @@ interface DefaultSlot {
   endTime: string;
 }
 
+type TimeRange = { start: string; end: string };
+type WeeklySchedule = Record<string, TimeRange[]>;
+
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+function generateSlotsFromSchedule(date: Date, schedule: WeeklySchedule | null): DefaultSlot[] {
+  const dayKey = DAY_KEYS[date.getDay()];
+  const ranges = schedule?.[dayKey];
+
+  if (!ranges || ranges.length === 0) {
+    return generateDefaultSlots(date);
+  }
+
+  const day = startOfDay(date);
+  const slots: DefaultSlot[] = [];
+  let slotIdx = 0;
+
+  for (const range of ranges) {
+    const [sh, sm] = range.start.split(":").map(Number);
+    const [eh, em] = range.end.split(":").map(Number);
+    let h = sh;
+    let m = sm || 0;
+
+    while (h < eh || (h === eh && m < em)) {
+      const start = setMinutes(setHours(day, h), m);
+      const nextM = m + 60;
+      const endH = h + Math.floor(nextM / 60);
+      const endM = nextM % 60;
+      const end = endH < eh || (endH === eh && endM <= em)
+        ? setMinutes(setHours(day, endH), endM)
+        : setMinutes(setHours(day, eh), em);
+
+      if (end > start) {
+        slots.push({
+          id: `sched-${slotIdx++}`,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+        });
+      }
+
+      h = endH;
+      m = endM;
+    }
+  }
+
+  return slots;
+}
+
 function generateDefaultSlots(date: Date): DefaultSlot[] {
   const day = startOfDay(date);
   const slots: DefaultSlot[] = [];
@@ -69,6 +117,7 @@ export default function BookSessionPage() {
     currency: string;
     expertName: string;
   } | null>(null);
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
 
   const timezone =
     typeof Intl !== "undefined"
@@ -86,6 +135,9 @@ export default function BookSessionPage() {
           currency: data.currency ?? "SGD",
           expertName: data.user?.nickName || data.user?.name || "Expert",
         });
+        if (data.weeklySchedule) {
+          setWeeklySchedule(data.weeklySchedule as WeeklySchedule);
+        }
       })
       .catch(() => {});
   }, [expertId]);
@@ -155,16 +207,16 @@ export default function BookSessionPage() {
           setSlots(forDate);
         } else {
           const now = new Date();
-          const defaultSlots = generateDefaultSlots(selectedDate).filter(
+          const schedSlots = generateSlotsFromSchedule(selectedDate, weeklySchedule).filter(
             (s) => new Date(s.startTime) > now
           );
-          setSlots(defaultSlots);
+          setSlots(schedSlots);
         }
       })
       .catch(() => {
         if (!cancelled) {
           const now = new Date();
-          const defaultSlots = generateDefaultSlots(selectedDate).filter(
+          const defaultSlots = generateSlotsFromSchedule(selectedDate, weeklySchedule).filter(
             (s) => new Date(s.startTime) > now
           );
           setSlots(defaultSlots);
@@ -176,7 +228,7 @@ export default function BookSessionPage() {
     return () => {
       cancelled = true;
     };
-  }, [expertId, selectedDate]);
+  }, [expertId, selectedDate, weeklySchedule]);
 
   const bookingPayload = () => ({
     expertId,
@@ -261,11 +313,11 @@ export default function BookSessionPage() {
         <div className="flex items-center justify-between">
           <div>
             <Link
-              href="/"
+              href={searchParams.get("from") === "profile" ? `/experts/${expertId}` : "/discover"}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Home
+              {searchParams.get("from") === "profile" ? "Profile" : "Experts"}
             </Link>
             <h1 className="text-lg font-semibold">Book a Session</h1>
           </div>

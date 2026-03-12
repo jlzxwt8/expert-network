@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
 
 export async function GET(
   _request: NextRequest,
@@ -10,30 +9,19 @@ export async function GET(
   try {
     const { id: expertId } = await params;
     if (!expertId) {
-      return NextResponse.json(
-        { error: "Expert ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Expert ID is required" }, { status: 400 });
     }
 
     const now = new Date();
-
     const slots = await prisma.availableSlot.findMany({
-      where: {
-        expertId,
-        isBooked: false,
-        endTime: { gt: now },
-      },
+      where: { expertId, isBooked: false, endTime: { gt: now } },
       orderBy: { startTime: "asc" },
     });
 
     return NextResponse.json({ slots });
   } catch (error) {
     console.error("[experts/[id]/slots GET]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -42,34 +30,22 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id: expertId } = await params;
     if (!expertId) {
-      return NextResponse.json(
-        { error: "Expert ID is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Expert ID is required" }, { status: 400 });
     }
 
-    const expert = await prisma.expert.findUnique({
-      where: { id: expertId },
-    });
-
+    const expert = await prisma.expert.findUnique({ where: { id: expertId } });
     if (!expert) {
-      return NextResponse.json(
-        { error: "Expert not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Expert not found" }, { status: 404 });
     }
-    if (expert.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Forbidden: you can only manage your own slots" },
-        { status: 403 }
-      );
+    if (expert.userId !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json().catch(() => ({}));
@@ -87,54 +63,75 @@ export async function POST(
 
     for (const slot of slotsInput) {
       if (
-        typeof slot !== "object" ||
-        slot === null ||
-        typeof slot.startTime !== "string" ||
-        typeof slot.endTime !== "string"
-      ) {
-        continue;
-      }
+        typeof slot !== "object" || slot === null ||
+        typeof slot.startTime !== "string" || typeof slot.endTime !== "string"
+      ) continue;
+
       const start = new Date(slot.startTime);
       const end = new Date(slot.endTime);
-      if (
-        !isNaN(start.getTime()) &&
-        !isNaN(end.getTime()) &&
-        end > start &&
-        start >= now
-      ) {
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start && start >= now) {
         validSlots.push({ startTime: start, endTime: end });
       }
     }
 
     if (validSlots.length === 0) {
       return NextResponse.json(
-        { error: "No valid slots provided. Each slot needs startTime and endTime (ISO strings), with endTime > startTime and in the future." },
+        { error: "No valid future slots provided" },
         { status: 400 }
       );
     }
 
-    const data = validSlots.map((s) => ({
-      expertId,
-      startTime: s.startTime,
-      endTime: s.endTime,
-    }));
-
-    await prisma.availableSlot.createMany({ data });
+    await prisma.availableSlot.createMany({
+      data: validSlots.map((s) => ({ expertId, ...s })),
+    });
 
     const slots = await prisma.availableSlot.findMany({
-      where: {
-        expertId,
-        startTime: { in: validSlots.map((s) => s.startTime) },
-      },
+      where: { expertId, startTime: { in: validSlots.map((s) => s.startTime) } },
       orderBy: { startTime: "asc" },
     });
 
     return NextResponse.json({ created: slots.length, slots });
   } catch (error) {
     console.error("[experts/[id]/slots POST]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: expertId } = await params;
+    const { searchParams } = new URL(request.url);
+    const slotId = searchParams.get("slotId");
+
+    if (!slotId) {
+      return NextResponse.json({ error: "slotId query param is required" }, { status: 400 });
+    }
+
+    const expert = await prisma.expert.findUnique({ where: { id: expertId } });
+    if (!expert || expert.userId !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const slot = await prisma.availableSlot.findUnique({ where: { id: slotId } });
+    if (!slot || slot.expertId !== expertId) {
+      return NextResponse.json({ error: "Slot not found" }, { status: 404 });
+    }
+    if (slot.isBooked) {
+      return NextResponse.json({ error: "Cannot delete a booked slot" }, { status: 400 });
+    }
+
+    await prisma.availableSlot.delete({ where: { id: slotId } });
+    return NextResponse.json({ deleted: true });
+  } catch (error) {
+    console.error("[experts/[id]/slots DELETE]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

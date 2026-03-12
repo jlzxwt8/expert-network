@@ -147,6 +147,87 @@ export async function notifyFounderBooking(params: {
 }
 
 /**
+ * Notify a user that their booking has been cancelled.
+ */
+export async function notifyCancellation(params: {
+  telegramUsername: string | null;
+  otherPartyName: string;
+  cancelledByName: string;
+  sessionType: string;
+  startTime: Date;
+  reason?: string | null;
+}): Promise<boolean> {
+  if (!params.telegramUsername) return false;
+  const chatId = await resolveChatId(params.telegramUsername);
+  if (!chatId) return false;
+
+  const dateStr = params.startTime.toLocaleDateString("en-SG", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const lines = [
+    `❌ *Booking Cancelled*`,
+    ``,
+    `Your ${params.sessionType.toLowerCase()} session with *${params.otherPartyName}* has been cancelled by *${params.cancelledByName}*.`,
+    ``,
+    `🗓 ${dateStr}`,
+  ];
+
+  if (params.reason) {
+    lines.push(`💬 Reason: ${params.reason}`);
+  }
+
+  await sendTelegramMessage(chatId, lines.join("\n"), [
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+  ]);
+
+  return true;
+}
+
+/**
+ * Notify a user that their booking has been rescheduled.
+ */
+export async function notifyReschedule(params: {
+  telegramUsername: string | null;
+  otherPartyName: string;
+  rescheduledByName: string;
+  sessionType: string;
+  oldStartTime: Date;
+  newStartTime: Date;
+}): Promise<boolean> {
+  if (!params.telegramUsername) return false;
+  const chatId = await resolveChatId(params.telegramUsername);
+  if (!chatId) return false;
+
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-SG", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const text = [
+    `🔄 *Booking Rescheduled*`,
+    ``,
+    `Your ${params.sessionType.toLowerCase()} session with *${params.otherPartyName}* has been rescheduled by *${params.rescheduledByName}*.`,
+    ``,
+    `~~${fmt(params.oldStartTime)}~~ → 🗓 *${fmt(params.newStartTime)}*`,
+  ].join("\n");
+
+  await sendTelegramMessage(chatId, text, [
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+  ]);
+
+  return true;
+}
+
+/**
  * Send a session reminder (e.g. 1 hour before).
  */
 export async function sendSessionReminder(params: {

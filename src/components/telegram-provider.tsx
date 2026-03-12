@@ -4,16 +4,16 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
-  useCallback,
   type ReactNode,
 } from "react";
+import { useSession } from "next-auth/react";
 import { isTelegramMiniApp } from "@/lib/telegram";
 
 interface TelegramContextValue {
   isTelegram: boolean;
   ready: boolean;
-  /** Whether Telegram auth has completed (success or failure) */
   authDone: boolean;
 }
 
@@ -28,30 +28,20 @@ export function useTelegram() {
 }
 
 export function TelegramProvider({ children }: { children: ReactNode }) {
+  const { update: refreshSession } = useSession();
+  const refreshRef = useRef(refreshSession);
+  refreshRef.current = refreshSession;
+
   const [state, setState] = useState<TelegramContextValue>({
     isTelegram: false,
     ready: false,
     authDone: false,
   });
-
-  const authenticateTelegram = useCallback(async () => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const webApp = (window as any).Telegram?.WebApp;
-      const initData = webApp?.initData;
-      if (!initData) return;
-
-      await fetch("/api/auth/telegram", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initData }),
-      });
-    } catch {
-      // Auth failure is non-fatal; user can still browse
-    }
-  }, []);
+  const didAuth = useRef(false);
 
   useEffect(() => {
+    if (didAuth.current) return;
+
     if (!isTelegramMiniApp()) {
       setState({ isTelegram: false, ready: true, authDone: true });
       return;
@@ -59,18 +49,37 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const webApp = (window as any).Telegram?.WebApp;
-    if (webApp) {
-      webApp.ready();
-      webApp.expand();
-      setState({ isTelegram: true, ready: true, authDone: false });
-
-      authenticateTelegram().then(() => {
-        setState({ isTelegram: true, ready: true, authDone: true });
-      });
-    } else {
+    if (!webApp) {
       setState({ isTelegram: false, ready: true, authDone: true });
+      return;
     }
-  }, [authenticateTelegram]);
+
+    didAuth.current = true;
+    webApp.ready();
+    webApp.expand();
+    setState({ isTelegram: true, ready: true, authDone: false });
+
+    (async () => {
+      try {
+        const initData = webApp.initData;
+        if (!initData) return;
+
+        const res = await fetch("/api/auth/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData }),
+        });
+
+        if (res.ok) {
+          await refreshRef.current();
+        }
+      } catch {
+        // Auth failure is non-fatal
+      } finally {
+        setState({ isTelegram: true, ready: true, authDone: true });
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <TelegramContext.Provider value={state}>

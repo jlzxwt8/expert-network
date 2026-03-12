@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "@/components/user-menu";
+import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {
   id: string;
@@ -248,11 +249,11 @@ export default function ExpertProfilePage() {
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 py-3">
         <div className="flex items-center justify-between">
           <Link
-            href="/"
+            href="/discover"
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Home
+            Experts
           </Link>
           <UserMenu />
         </div>
@@ -403,16 +404,14 @@ export default function ExpertProfilePage() {
               if (!url) return null;
               const href = url.startsWith("http") ? url : `https://${url}`;
               return (
-                <a
+                <button
                   key={label}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={() => openExternalUrl(href)}
                   className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors"
                 >
                   <Icon className="h-4 w-4" />
                   {label}
-                </a>
+                </button>
               );
             })}
           </div>
@@ -555,16 +554,16 @@ export default function ExpertProfilePage() {
       <div className="fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t safe-area-inset-bottom">
         <div className="max-w-lg mx-auto px-4 py-4 flex gap-3">
           <Button asChild className="flex-1 h-12 text-base font-semibold" size="lg">
-            <a href={`/experts/${id}/book?type=ONLINE`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+            <Link href={`/experts/${id}/book?type=ONLINE&from=profile`} className="flex items-center justify-center gap-2">
               <Monitor className="h-5 w-5" />
               Book Online
-            </a>
+            </Link>
           </Button>
           <Button asChild variant="outline" className="flex-1 h-12 text-base font-semibold" size="lg">
-            <a href={`/experts/${id}/book?type=OFFLINE`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+            <Link href={`/experts/${id}/book?type=OFFLINE&from=profile`} className="flex items-center justify-center gap-2">
               <MapPin className="h-5 w-5" />
               Book Offline
-            </a>
+            </Link>
           </Button>
         </div>
       </div>

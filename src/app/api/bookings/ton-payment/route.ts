@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { calculateBookingAmount } from "@/lib/stripe";
 import type { SessionType } from "@/generated/prisma/client";
 import { resolveUserId } from "@/lib/request-auth";
+import { findOverlappingBooking } from "@/lib/booking-utils";
 
 const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
 
@@ -54,6 +55,14 @@ export async function POST(request: NextRequest) {
 
     if (!expert) {
       return NextResponse.json({ error: "Expert not found" }, { status: 404 });
+    }
+
+    const overlap = await findOverlappingBooking(expertId, start, end);
+    if (overlap) {
+      return NextResponse.json(
+        { error: "This time slot is already booked. Please choose a different time." },
+        { status: 409 }
+      );
     }
 
     const pricePerHour =

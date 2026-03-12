@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import type { SessionType } from "@/generated/prisma/client";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { resolveUserId } from "@/lib/request-auth";
+import { findOverlappingBooking } from "@/lib/booking-utils";
 
 const SESSION_TYPES: SessionType[] = ["ONLINE", "OFFLINE", "BOTH"];
 
@@ -79,8 +80,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const overlap = await findOverlappingBooking(expertId, start, end);
+    if (overlap) {
+      return NextResponse.json(
+        { error: "This time slot is already booked. Please choose a different time." },
+        { status: 409 }
+      );
+    }
+
     const meetingLink =
       typeof body.meetingLink === "string" ? body.meetingLink.trim() : null;
+    const offlineAddress =
+      typeof body.offlineAddress === "string" ? body.offlineAddress.trim() : null;
 
     const booking = await prisma.booking.create({
       data: {
@@ -91,6 +102,7 @@ export async function POST(request: NextRequest) {
         endTime: end,
         timezone,
         meetingLink: meetingLink || null,
+        offlineAddress: offlineAddress || null,
         status: "CONFIRMED",
       },
       include: {
@@ -147,7 +159,7 @@ export async function GET(request: NextRequest) {
 
     const bookings = await prisma.booking.findMany({
       where,
-      orderBy: { startTime: "desc" },
+      orderBy: { startTime: "asc" },
       include: {
         expert: { include: { user: true } },
         founder: true,

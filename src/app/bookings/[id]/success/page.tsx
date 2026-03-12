@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Loader2,
 } from "lucide-react";
+import { openExternalUrl } from "@/lib/telegram";
 import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -81,7 +82,7 @@ export default function BookingSuccessPage() {
       googleUrl.searchParams.set("ctz", booking.timezone);
     }
 
-    window.open(googleUrl.toString(), "_blank", "noopener,noreferrer");
+    openExternalUrl(googleUrl.toString());
   };
 
   if (loading) {

@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 // ─── NextAuth Models ───
@@ -117,7 +117,7 @@ model Expert {
   // TON wallet
   tonWalletAddress  String?
   tonWalletType     String?
-  tonMnemonicEnc    String?  @db.LongText
+  tonMnemonicEnc    String?  @db.Text
 
   // Pricing (SGD cents per hour)
   priceOnlineCents  Int?
@@ -125,22 +125,25 @@ model Expert {
   currency          String         @default("SGD")
   stripeAccountId   String?
 
+  // Weekly availability schedule (JSON: { "mon": [{"start":"10:00","end":"15:00"}], ... })
+  weeklySchedule  Json?
+
   // Professional info
   domains         ExpertDomain[]
   sessionType     SessionType    @default(BOTH)
-  bio             String?        @db.LongText
-  audioIntroUrl   String?        @db.LongText
+  bio             String?        @db.Text
+  audioIntroUrl   String?        @db.Text
   fishAudioModelId String?
   mem9SpaceId     String?
   servicesOffered Json?
 
   // Uploaded document
   documentName    String?
-  documentData    String?        @db.LongText
+  documentData    String?        @db.Text
 
   // AI-generated content
-  avatarVideoUrl  String?        @db.LongText
-  avatarScript    String?        @db.LongText
+  avatarVideoUrl  String?        @db.Text
+  avatarScript    String?        @db.Text
 
   // Onboarding state
   onboardingStep  OnboardingStep @default(SOCIAL_LINKS)
@@ -189,12 +192,15 @@ model Booking {
   founderId   String
   founder     User          @relation("FounderBookings", fields: [founderId], references: [id], onDelete: Cascade)
 
-  sessionType SessionType
-  startTime   DateTime
-  endTime     DateTime
-  timezone    String        @default("Asia/Singapore")
-  meetingLink String?
-  status      BookingStatus @default(PENDING)
+  sessionType    SessionType
+  startTime      DateTime
+  endTime        DateTime
+  timezone       String        @default("Asia/Singapore")
+  meetingLink    String?
+  offlineAddress String?
+  status         BookingStatus @default(PENDING)
+  cancelledBy    String?
+  cancelReason   String?
 
   // Payment
   totalAmountCents        Int?

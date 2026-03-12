@@ -31,3 +31,17 @@ export function getTelegramInitData(): string | null {
   }
   return webApp.initData;
 }
+
+/**
+ * Open an external URL safely from a Mini App.
+ * In Telegram: uses WebApp.openLink() to open in external browser.
+ * In web: uses window.open().
+ */
+export function openExternalUrl(url: string) {
+  if (isTelegramMiniApp()) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).Telegram?.WebApp?.openLink?.(url);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Shield,
@@ -9,13 +10,39 @@ import {
   Users,
   MessageSquare,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
 import { useTelegram } from "@/components/telegram-provider";
+import { useAuth } from "@/hooks/use-auth";
+import { getTelegramInitData } from "@/lib/telegram";
 
 export function HomeContent() {
   const { isTelegram } = useTelegram();
+  const { status, user } = useAuth();
+  const [hasExpert, setHasExpert] = useState<boolean | null>(null);
+  const [expertLoading, setExpertLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === "loading") return;
+    if (status !== "authenticated" && !isTelegram) return;
+
+    setExpertLoading(true);
+    const headers: Record<string, string> = {};
+    const initData = getTelegramInitData();
+    if (initData) headers["x-telegram-init-data"] = initData;
+
+    fetch("/api/user", { headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setHasExpert(!!data?.expert))
+      .catch(() => setHasExpert(false))
+      .finally(() => setExpertLoading(false));
+  }, [status, isTelegram, user?.id]);
+
+  const isLoggedIn = status === "authenticated" || isTelegram;
+  const isExpert = hasExpert === true;
+  const showExpertLoading = expertLoading || (isLoggedIn && hasExpert === null);
 
   return (
     <div className="min-h-screen w-full max-w-lg mx-auto flex flex-col">
@@ -42,7 +69,7 @@ export function HomeContent() {
             there.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
-            {isTelegram ? (
+            {isTelegram || isLoggedIn ? (
               <>
                 <Button
                   asChild
@@ -54,16 +81,30 @@ export function HomeContent() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
-                >
-                  <Link href="/onboarding">
-                    Become an Expert
-                  </Link>
-                </Button>
+                {showExpertLoading ? (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    disabled
+                    className="border-slate-500/50 bg-slate-800/50 text-white font-semibold"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Loading...
+                  </Button>
+                ) : (
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
+                  >
+                    {isExpert ? (
+                      <Link href="/dashboard">View My Dashboard</Link>
+                    ) : (
+                      <Link href="/onboarding">Become an Expert</Link>
+                    )}
+                  </Button>
+                )}
               </>
             ) : (
               <>
