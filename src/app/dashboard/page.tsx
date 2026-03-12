@@ -369,7 +369,7 @@ const BookingCard = memo(function BookingCard({
         };
 
         const forDate = list.filter(
-          (s: { startTime: string; isBooked: boolean }) =>
+          (s: { startTime: string; endTime: string; isBooked: boolean }) =>
             isSameDay(parseISO(s.startTime), rescheduleDate) && !s.isBooked && !isOverlapping(s)
         );
         if (forDate.length > 0) {
