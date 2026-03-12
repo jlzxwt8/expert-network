@@ -6,8 +6,9 @@ import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 
 /**
  * POST /api/bookings/ton-confirm
- * Called after the user completes a TON payment in their wallet.
- * Transitions the booking from PENDING → CONFIRMED and sends notifications.
+ * Called after TON Connect returns a successful transaction.
+ * Accepts the BOC (transaction proof) from TON Connect, stores it,
+ * and transitions the booking from PENDING → CONFIRMED.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +17,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { bookingId } = await request.json();
+    const { bookingId, boc } = await request.json();
     if (!bookingId) {
       return NextResponse.json({ error: "Missing bookingId" }, { status: 400 });
+    }
+    if (!boc) {
+      return NextResponse.json({ error: "Missing transaction proof (boc)" }, { status: 400 });
     }
 
     const booking = await prisma.booking.findUnique({
@@ -37,7 +41,11 @@ export async function POST(request: NextRequest) {
 
     const updated = await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "CONFIRMED", paymentStatus: "deposit_paid" },
+      data: {
+        status: "CONFIRMED",
+        paymentStatus: "deposit_paid",
+        stripePaymentIntentId: boc.slice(0, 255),
+      },
       include: {
         expert: { include: { user: true } },
         founder: true,

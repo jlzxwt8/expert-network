@@ -109,11 +109,12 @@ export async function POST(request: NextRequest) {
     });
 
     const comment = `booking:${booking.id}`;
-    const tonLink = `https://app.tonkeeper.com/transfer/${platformWallet}?amount=${depositNanoTON}&text=${encodeURIComponent(comment)}`;
 
     return NextResponse.json({
       bookingId: booking.id,
-      tonLink,
+      walletAddress: platformWallet,
+      amountNanoTON: depositNanoTON.toString(),
+      comment,
       depositTON: depositTON.toFixed(4),
       depositSGD: depositSGD.toFixed(2),
       tonRate: tonRate.toFixed(2),

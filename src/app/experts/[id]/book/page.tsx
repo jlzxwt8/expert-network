@@ -9,13 +9,13 @@ import {
   Loader2,
   ArrowLeft,
   Wallet,
-  CheckCircle2,
-  ExternalLink,
   XCircle,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { useTelegram } from "@/components/telegram-provider";
-import { getTelegramInitData, isTelegramMiniApp } from "@/lib/telegram";
+import { getTelegramInitData } from "@/lib/telegram";
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
+import { beginCell } from "@ton/core";
 import { format, isSameDay, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -121,13 +121,13 @@ export default function BookSessionPage() {
     expertName: string;
   } | null>(null);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
-  const [tonPayment, setTonPayment] = useState<{
+  const [tonConnectUI] = useTonConnectUI();
+  const tonWallet = useTonWallet();
+  const [tonPending, setTonPending] = useState<{
     bookingId: string;
-    tonLink: string;
     depositTON: string;
     depositSGD: string;
   } | null>(null);
-  const [tonConfirming, setTonConfirming] = useState(false);
 
   const timezone =
     typeof Intl !== "undefined"
@@ -287,7 +287,15 @@ export default function BookSessionPage() {
   const handleTONPayment = async () => {
     setSubmitting(true);
     setError(null);
+    let createdBookingId: string | null = null;
     try {
+      // Connect wallet if not already connected
+      if (!tonWallet) {
+        await tonConnectUI.openModal();
+        setSubmitting(false);
+        return;
+      }
+
       const telegramInitData = getTelegramInitData();
       const res = await fetch("/api/bookings/ton-payment", {
         method: "POST",
@@ -300,59 +308,76 @@ export default function BookSessionPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create TON payment");
 
-      setTonPayment({
+      createdBookingId = data.bookingId;
+      setTonPending({
         bookingId: data.bookingId,
-        tonLink: data.tonLink,
         depositTON: data.depositTON,
         depositSGD: data.depositSGD,
       });
 
-      // Open wallet immediately
-      try {
-        if (isTelegramMiniApp()) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).Telegram?.WebApp?.openLink?.(data.tonLink);
-        } else {
-          window.open(data.tonLink, "_blank", "noopener,noreferrer");
-        }
-      } catch {
-        // Wallet link may fail to open — user can tap "Open Wallet" again
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+      const commentCell = beginCell()
+        .storeUint(0, 32)
+        .storeStringTail(data.comment)
+        .endCell();
 
-  const handleTonConfirm = async () => {
-    if (!tonPayment) return;
-    setTonConfirming(true);
-    setError(null);
-    try {
-      const telegramInitData = getTelegramInitData();
-      const res = await fetch("/api/bookings/ton-confirm", {
+      const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [
+          {
+            address: data.walletAddress,
+            amount: data.amountNanoTON,
+            payload: commentCell.toBoc().toString("base64"),
+          },
+        ],
+      };
+
+      const result = await tonConnectUI.sendTransaction(transaction);
+
+      // Transaction signed — confirm booking with BOC proof
+      const confirmRes = await fetch("/api/bookings/ton-confirm", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
         },
-        body: JSON.stringify({ bookingId: tonPayment.bookingId }),
+        body: JSON.stringify({
+          bookingId: data.bookingId,
+          boc: result.boc,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Confirmation failed");
+      const confirmData = await confirmRes.json();
+      if (!confirmRes.ok) throw new Error(confirmData.error ?? "Confirmation failed");
+
       router.push("/dashboard");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-      setTonConfirming(false);
+      const msg = e instanceof Error ? e.message : "Something went wrong";
+      if (msg.includes("declined") || msg.includes("cancel")) {
+        if (createdBookingId) {
+          const telegramInitData = getTelegramInitData();
+          fetch(`/api/bookings/${createdBookingId}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+            },
+            body: JSON.stringify({ action: "cancel", reason: "Wallet declined" }),
+          }).catch(() => {});
+        }
+        setError("Payment was cancelled");
+        setTonPending(null);
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleTonCancel = async () => {
-    if (!tonPayment) return;
+    if (!tonPending) return;
     try {
       const telegramInitData = getTelegramInitData();
-      await fetch(`/api/bookings/${tonPayment.bookingId}`, {
+      await fetch(`/api/bookings/${tonPending.bookingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -363,21 +388,7 @@ export default function BookSessionPage() {
     } catch {
       // best-effort cancel
     }
-    setTonPayment(null);
-  };
-
-  const handleOpenTonWallet = () => {
-    if (!tonPayment) return;
-    try {
-      if (isTelegramMiniApp()) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window as any).Telegram?.WebApp?.openLink?.(tonPayment.tonLink);
-      } else {
-        window.open(tonPayment.tonLink, "_blank", "noopener,noreferrer");
-      }
-    } catch {
-      // wallet link may fail
-    }
+    setTonPending(null);
   };
 
   const handleConfirm = () => {
@@ -560,38 +571,19 @@ export default function BookSessionPage() {
           </p>
         )}
 
-        {tonPayment ? (
+        {tonPending && !submitting ? (
           <div className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
             <div className="text-center space-y-1">
-              <Wallet className="h-8 w-8 mx-auto text-indigo-600" />
-              <h3 className="font-semibold text-base">Complete TON Payment</h3>
+              <Loader2 className="h-8 w-8 mx-auto text-indigo-600 animate-spin" />
+              <h3 className="font-semibold text-base">Waiting for payment</h3>
               <p className="text-sm text-muted-foreground">
-                Send <span className="font-mono font-bold">{tonPayment.depositTON} TON</span>{" "}
-                (≈ SGD {tonPayment.depositSGD}) to confirm your booking
+                <span className="font-mono font-bold">{tonPending.depositTON} TON</span>{" "}
+                (≈ SGD {tonPending.depositSGD})
               </p>
               <p className="text-xs text-muted-foreground">
-                Slot is held for 30 minutes
+                Approve the transaction in your wallet
               </p>
             </div>
-            <Button variant="outline" className="w-full gap-2" onClick={handleOpenTonWallet}>
-              <ExternalLink className="h-4 w-4" />
-              Open TON Wallet
-            </Button>
-            <Button
-              size="lg"
-              className="w-full min-h-[52px] text-base font-semibold gap-2 bg-green-600 hover:bg-green-700"
-              onClick={handleTonConfirm}
-              disabled={tonConfirming}
-            >
-              {tonConfirming ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <CheckCircle2 className="h-5 w-5" />
-                  I&apos;ve Paid — Confirm Booking
-                </>
-              )}
-            </Button>
             <Button variant="ghost" size="sm" className="w-full text-muted-foreground gap-1" onClick={handleTonCancel}>
               <XCircle className="h-4 w-4" />
               Cancel
@@ -607,6 +599,11 @@ export default function BookSessionPage() {
             >
               {submitting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
+              ) : !tonWallet ? (
+                <>
+                  <Wallet className="h-5 w-5" />
+                  Connect Wallet to Pay
+                </>
               ) : (
                 <>
                   <Wallet className="h-5 w-5" />
