@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Monitor,
@@ -9,10 +9,12 @@ import {
   Loader2,
   ArrowLeft,
   Wallet,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { useTelegram } from "@/components/telegram-provider";
-import { getTelegramInitData } from "@/lib/telegram";
+import { getTelegramInitData, isTelegramMiniApp } from "@/lib/telegram";
 import { format, isSameDay, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -34,8 +36,23 @@ interface DefaultSlot {
   endTime: string;
 }
 
+interface BookedSlot {
+  startTime: string;
+  endTime: string;
+}
+
 type TimeRange = { start: string; end: string };
 type WeeklySchedule = Record<string, TimeRange[]>;
+
+function isSlotBooked(slot: { startTime: string; endTime: string }, bookedSlots: BookedSlot[]): boolean {
+  const sStart = new Date(slot.startTime).getTime();
+  const sEnd = new Date(slot.endTime).getTime();
+  return bookedSlots.some((b) => {
+    const bStart = new Date(b.startTime).getTime();
+    const bEnd = new Date(b.endTime).getTime();
+    return sStart < bEnd && sEnd > bStart;
+  });
+}
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
@@ -84,6 +101,7 @@ function generateSlotsFromSchedule(date: Date, schedule: WeeklySchedule | null):
 export default function BookSessionPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { isTelegram } = useTelegram();
   const expertId = params.id as string;
 
@@ -102,6 +120,13 @@ export default function BookSessionPage() {
     expertName: string;
   } | null>(null);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
+  const [tonPaymentState, setTonPaymentState] = useState<{
+    bookingId: string;
+    tonLink: string;
+    depositTON: string;
+    depositSGD: string;
+  } | null>(null);
+  const [tonConfirming, setTonConfirming] = useState(false);
 
   const timezone =
     typeof Intl !== "undefined"
@@ -183,6 +208,7 @@ export default function BookSessionPage() {
       .then((data) => {
         if (cancelled) return;
         const list = Array.isArray(data) ? data : data?.slots ?? [];
+        const booked: BookedSlot[] = data?.bookedSlots ?? [];
         const now = new Date();
 
         // Explicit AvailableSlot records for this date
@@ -191,11 +217,10 @@ export default function BookSessionPage() {
         );
 
         if (explicitSlots.length > 0) {
-          setSlots(explicitSlots);
+          setSlots(explicitSlots.filter((s: AvailableSlot) => !isSlotBooked(s, booked)));
         } else {
-          // Fall back to weekly schedule (no default 10-6 fallback)
           const schedSlots = generateSlotsFromSchedule(selectedDate, weeklySchedule).filter(
-            (s) => new Date(s.startTime) > now
+            (s) => new Date(s.startTime) > now && !isSlotBooked(s, booked)
           );
           setSlots(schedSlots);
         }
@@ -263,12 +288,58 @@ export default function BookSessionPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create TON payment");
-      if (data.tonLink) {
-        window.location.href = data.tonLink;
+
+      setTonPaymentState({
+        bookingId: data.bookingId,
+        tonLink: data.tonLink,
+        depositTON: data.depositTON,
+        depositSGD: data.depositSGD,
+      });
+      setSubmitting(false);
+
+      // Open wallet immediately
+      if (isTelegramMiniApp()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).Telegram?.WebApp?.openLink?.(data.tonLink);
+      } else {
+        window.open(data.tonLink, "_blank", "noopener,noreferrer");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setSubmitting(false);
+    }
+  };
+
+  const handleTonConfirm = async () => {
+    if (!tonPaymentState) return;
+    setTonConfirming(true);
+    setError(null);
+    try {
+      const telegramInitData = getTelegramInitData();
+      const res = await fetch("/api/bookings/ton-confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+        },
+        body: JSON.stringify({ bookingId: tonPaymentState.bookingId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Confirmation failed");
+      router.push("/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setTonConfirming(false);
+    }
+  };
+
+  const handleOpenTonWallet = () => {
+    if (!tonPaymentState) return;
+    if (isTelegramMiniApp()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).Telegram?.WebApp?.openLink?.(tonPaymentState.tonLink);
+    } else {
+      window.open(tonPaymentState.tonLink, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -452,7 +523,44 @@ export default function BookSessionPage() {
           </p>
         )}
 
-        {isTelegram && totalCents > 0 ? (
+        {tonPaymentState ? (
+          <div className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+            <div className="text-center space-y-1">
+              <Wallet className="h-8 w-8 mx-auto text-indigo-600" />
+              <h3 className="font-semibold text-base">Complete TON Payment</h3>
+              <p className="text-sm text-muted-foreground">
+                Send <span className="font-mono font-bold">{tonPaymentState.depositTON} TON</span>{" "}
+                (≈ SGD {tonPaymentState.depositSGD})
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={handleOpenTonWallet}
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open TON Wallet
+            </Button>
+            <Button
+              size="lg"
+              className="w-full min-h-[52px] text-base font-semibold gap-2 bg-green-600 hover:bg-green-700"
+              onClick={handleTonConfirm}
+              disabled={tonConfirming}
+            >
+              {tonConfirming ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <CheckCircle2 className="h-5 w-5" />
+                  I&apos;ve Paid
+                </>
+              )}
+            </Button>
+            <p className="text-xs text-center text-muted-foreground">
+              Click &quot;I&apos;ve Paid&quot; after completing the transfer in your wallet
+            </p>
+          </div>
+        ) : isTelegram && totalCents > 0 ? (
           <div className="space-y-2">
             <Button
               size="lg"

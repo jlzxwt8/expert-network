@@ -18,7 +18,17 @@ export async function GET(
       orderBy: { startTime: "asc" },
     });
 
-    return NextResponse.json({ slots });
+    const bookedSlots = await prisma.booking.findMany({
+      where: {
+        expertId,
+        status: { in: ["PENDING", "CONFIRMED"] },
+        endTime: { gt: now },
+      },
+      select: { startTime: true, endTime: true },
+      orderBy: { startTime: "asc" },
+    });
+
+    return NextResponse.json({ slots, bookedSlots });
   } catch (error) {
     console.error("[experts/[id]/slots GET]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

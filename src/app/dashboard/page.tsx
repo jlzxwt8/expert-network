@@ -345,9 +345,21 @@ function BookingCard({
       .then((r) => r.json())
       .then((data) => {
         const list = Array.isArray(data) ? data : data?.slots ?? [];
+        const booked: { startTime: string; endTime: string }[] = data?.bookedSlots ?? [];
+
+        const isOverlapping = (slot: { startTime: string; endTime: string }) => {
+          const sS = new Date(slot.startTime).getTime();
+          const sE = new Date(slot.endTime).getTime();
+          return booked.some((b) => {
+            const bS = new Date(b.startTime).getTime();
+            const bE = new Date(b.endTime).getTime();
+            return sS < bE && sE > bS;
+          });
+        };
+
         const forDate = list.filter(
           (s: { startTime: string; isBooked: boolean }) =>
-            isSameDay(parseISO(s.startTime), rescheduleDate) && !s.isBooked
+            isSameDay(parseISO(s.startTime), rescheduleDate) && !s.isBooked && !isOverlapping(s)
         );
         if (forDate.length > 0) {
           setRescheduleSlots(forDate);
@@ -372,8 +384,9 @@ function BookingCard({
                 const e = eH < eh || (eH === eh && eM <= em)
                   ? setMinutes(setHours(day, eH), eM)
                   : setMinutes(setHours(day, eh), em);
-                if (e > s && s > now) {
-                  generated.push({ id: `rs-${idx++}`, startTime: s.toISOString(), endTime: e.toISOString() });
+                const slot = { id: `rs-${idx++}`, startTime: s.toISOString(), endTime: e.toISOString() };
+                if (e > s && s > now && !isOverlapping(slot)) {
+                  generated.push(slot);
                 }
                 h = eH; m = eM;
               }
