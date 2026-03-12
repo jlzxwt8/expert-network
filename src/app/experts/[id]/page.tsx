@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Star,
@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "@/components/user-menu";
+import { AudioPlayer } from "@/components/audio-player";
 import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {
@@ -125,7 +126,9 @@ function ReviewSkeleton() {
 export default function ExpertProfilePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const from = searchParams.get("from");
   const [expert, setExpert] = useState<Expert | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
@@ -248,13 +251,13 @@ export default function ExpertProfilePage() {
     <div className="min-h-screen w-full max-w-lg mx-auto pb-28">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link
-            href="/discover"
+          <button
+            onClick={() => router.push(from === "profile" ? "/profile" : "/discover")}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Experts
-          </Link>
+            {from === "profile" ? "My Profile" : "Experts"}
+          </button>
           <UserMenu />
         </div>
       </header>
@@ -360,6 +363,16 @@ export default function ExpertProfilePage() {
           )}
         </div>
       </section>
+
+      {/* Voice Introduction */}
+      {expert.hasAudio && (
+        <section className="mt-6">
+          <AudioPlayer
+            src={`/api/experts/${id}/audio`}
+            label={`${name}'s voice introduction`}
+          />
+        </section>
+      )}
 
       {/* About / Introduction Script */}
       <section className="mt-8">

@@ -580,7 +580,7 @@ export default function ProfilePage() {
               )}
               {isExpert && profile.isPublished && (
                 <button
-                  onClick={() => router.push(`/experts/${profile.id}`)}
+                  onClick={() => router.push(`/experts/${profile.id}?from=profile`)}
                   className="shrink-0 flex items-center gap-1 text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
