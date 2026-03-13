@@ -36,13 +36,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const platformWallet = process.env.PLATFORM_TON_WALLET;
-    if (!platformWallet) {
+    const platformWalletRaw = process.env.PLATFORM_TON_WALLET;
+    if (!platformWalletRaw) {
       return NextResponse.json(
         { error: "TON payments not configured" },
         { status: 500 }
       );
     }
+    // Sanitize: trim, strip quotes, convert URL-safe base64 to standard, ensure padding
+    let walletAddr = platformWalletRaw.trim().replace(/^["']|["']$/g, "");
+    walletAddr = walletAddr.replace(/-/g, "+").replace(/_/g, "/");
+    while (walletAddr.length % 4 !== 0) walletAddr += "=";
+    console.log("[ton-payment] raw env:", JSON.stringify(platformWalletRaw), "cleaned:", walletAddr, "len:", walletAddr.length);
 
     const start = new Date(startTime);
     const end = new Date(endTime);
@@ -111,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       bookingId: booking.id,
-      walletAddress: platformWallet,
+      walletAddress: walletAddr,
       amountNanoTON: depositNanoTON.toString(),
       comment,
       depositTON: depositTON.toFixed(4),

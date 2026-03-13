@@ -320,16 +320,20 @@ export default function BookSessionPage() {
         .storeStringTail(data.comment)
         .endCell();
 
+      console.log("[TON] walletAddress from API:", JSON.stringify(data.walletAddress), "len:", data.walletAddress?.length);
+
+      const payload = commentCell.toBoc().toString("base64");
       const transaction = {
         validUntil: Math.floor(Date.now() / 1000) + 300,
         messages: [
           {
             address: data.walletAddress,
             amount: data.amountNanoTON,
-            payload: commentCell.toBoc().toString("base64"),
+            payload,
           },
         ],
       };
+      console.log("[TON] transaction:", JSON.stringify(transaction));
 
       const result = await tonConnectUI.sendTransaction(transaction);
 

@@ -28,10 +28,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing bookingId" }, { status: 400 });
     }
 
-    const platformWallet = process.env.PLATFORM_TON_WALLET;
-    if (!platformWallet) {
+    const platformWalletRaw = process.env.PLATFORM_TON_WALLET;
+    if (!platformWalletRaw) {
       return NextResponse.json({ error: "TON payments not configured" }, { status: 500 });
     }
+    let walletAddr = platformWalletRaw.trim().replace(/^["']|["']$/g, "");
+    walletAddr = walletAddr.replace(/-/g, "+").replace(/_/g, "/");
+    while (walletAddr.length % 4 !== 0) walletAddr += "=";
+    console.log("[ton-retry] raw env:", JSON.stringify(platformWalletRaw), "cleaned:", walletAddr, "len:", walletAddr.length);
 
     const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
     if (!booking) {
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       bookingId: booking.id,
-      walletAddress: platformWallet,
+      walletAddress: walletAddr,
       amountNanoTON: depositNanoTON.toString(),
       comment,
       depositTON: depositTON.toFixed(4),
