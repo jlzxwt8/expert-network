@@ -53,22 +53,6 @@ export async function resolveUserId(request?: NextRequest): Promise<string | nul
       select: { id: true },
     });
     if (exists) return session.user.id;
-
-    // Session is valid but user was deleted — re-create from session data
-    try {
-      const sessionUser = session.user as { id: string; name?: string; email?: string; image?: string };
-      const recreated = await prisma.user.create({
-        data: {
-          id: sessionUser.id,
-          name: sessionUser.name ?? null,
-          email: sessionUser.email ?? null,
-          image: sessionUser.image ?? null,
-        },
-      });
-      return recreated.id;
-    } catch {
-      // Creation may fail if ID format is invalid or unique constraint
-    }
   }
 
   return null;
