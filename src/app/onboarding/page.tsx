@@ -420,18 +420,14 @@ export default function OnboardingPage() {
     });
   }, [currentStep, addStepMessage]);
 
-  const handleAvailabilityContinue = async () => {
+  const handleAvailabilityContinue = () => {
     const hasSlotsSet = Object.keys(onboardSchedule).length > 0;
     if (hasSlotsSet) {
       setMessages((prev) => [
         ...prev,
         { id: "user-avail", role: "user", content: "Availability set" },
       ]);
-      try {
-        await saveOnboarding({ weeklySchedule: onboardSchedule });
-      } catch {
-        // Silently fail
-      }
+      saveOnboarding({ weeklySchedule: onboardSchedule }).catch(() => {});
     } else {
       setMessages((prev) => [
         ...prev,
