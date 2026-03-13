@@ -1,0 +1,82 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
+
+const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
+
+function tonFriendlyToRaw(addr: string): string {
+  const std = addr.replace(/-/g, "+").replace(/_/g, "/");
+  const buf = Buffer.from(std, "base64");
+  if (buf.length !== 36) throw new Error(`Invalid TON address length: ${buf.length}`);
+  const workchain = buf[1] > 127 ? buf[1] - 256 : buf[1];
+  const hash = buf.subarray(2, 34).toString("hex");
+  return `${workchain}:${hash}`;
+}
+
+async function getSGDToTONRate(): Promise<number> {
+  try {
+    const res = await fetch(TON_RATE_API, { next: { revalidate: 300 } });
+    const data = await res.json();
+    const sgdRate = data?.rates?.TON?.prices?.SGD;
+    if (sgdRate && sgdRate > 0) return sgdRate;
+  } catch (e) {
+    console.error("[ton-retry] Rate fetch failed:", e);
+  }
+  return 3.5;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { bookingId } = await request.json();
+    if (!bookingId) {
+      return NextResponse.json({ error: "Missing bookingId" }, { status: 400 });
+    }
+
+    const platformWallet = process.env.PLATFORM_TON_WALLET;
+    if (!platformWallet) {
+      return NextResponse.json({ error: "TON payments not configured" }, { status: 500 });
+    }
+
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+    if (booking.founderId !== userId) {
+      return NextResponse.json({ error: "Not your booking" }, { status: 403 });
+    }
+    if (booking.status !== "PENDING" || booking.paymentMethod !== "ton") {
+      return NextResponse.json({ error: "Booking is not awaiting TON payment" }, { status: 400 });
+    }
+
+    const depositCents = booking.depositAmountCents ?? Math.ceil((booking.totalAmountCents ?? 0) / 2);
+    const tonRate = await getSGDToTONRate();
+    const depositSGD = depositCents / 100;
+    const depositTON = depositSGD / tonRate;
+    const depositNanoTON = Math.ceil(depositTON * 1e9);
+
+    const comment = `booking:${booking.id}`;
+    const normalizedAddress = tonFriendlyToRaw(platformWallet);
+
+    return NextResponse.json({
+      bookingId: booking.id,
+      walletAddress: normalizedAddress,
+      amountNanoTON: depositNanoTON.toString(),
+      comment,
+      depositTON: depositTON.toFixed(4),
+      depositSGD: depositSGD.toFixed(2),
+      tonRate: tonRate.toFixed(2),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[bookings/ton-retry POST]", message, error);
+    return NextResponse.json(
+      { error: "Failed to prepare TON payment", detail: message },
+      { status: 500 },
+    );
+  }
+}

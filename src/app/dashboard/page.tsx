@@ -4,6 +4,8 @@ import { memo, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getTelegramInitData } from "@/lib/telegram";
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
+import { beginCell } from "@ton/core";
 import {
   User,
   Calendar,
@@ -18,6 +20,7 @@ import {
   RotateCcw,
   MapPinned,
   Trash2,
+  Wallet,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { format, parseISO, isSameDay, startOfDay, setHours, setMinutes } from "date-fns";
@@ -45,6 +48,10 @@ interface Booking {
   offlineAddress?: string | null;
   cancelledBy?: string | null;
   cancelReason?: string | null;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  depositAmountCents?: number | null;
+  currency?: string | null;
   expert?: {
     id: string;
     user: { name: string | null; nickName: string | null };
@@ -289,11 +296,14 @@ const BookingCard = memo(function BookingCard({
   statusVariant: (s: string) => "default" | "secondary" | "destructive" | "outline";
   onUpdate: () => Promise<void>;
 }) {
+  const [tonConnectUI] = useTonConnectUI();
+  const tonWallet = useTonWallet();
   const [showCancel, setShowCancel] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [paying, setPaying] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>();
   const [rescheduleSlots, setRescheduleSlots] = useState<{ id: string; startTime: string; endTime: string }[]>([]);
@@ -333,6 +343,69 @@ const BookingCard = memo(function BookingCard({
     } catch {
       setActionError("Network error — please try again");
     } finally { setDeleting(false); }
+  };
+
+  const isPendingTON =
+    booking.status === "PENDING" &&
+    booking.paymentMethod === "ton" &&
+    booking.paymentStatus === "pending";
+
+  const handleRetryTONPayment = async () => {
+    setPaying(true);
+    setActionError(null);
+    try {
+      if (!tonWallet) {
+        await tonConnectUI.openModal();
+        setPaying(false);
+        return;
+      }
+
+      const tgHeaders = getHeaders();
+      const res = await fetch("/api/bookings/ton-retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
+        body: JSON.stringify({ bookingId: booking.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || data.error || "Failed to prepare payment");
+
+      const commentCell = beginCell()
+        .storeUint(0, 32)
+        .storeStringTail(data.comment)
+        .endCell();
+
+      const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 300,
+        messages: [
+          {
+            address: data.walletAddress,
+            amount: data.amountNanoTON,
+            payload: commentCell.toBoc().toString("base64"),
+          },
+        ],
+      };
+
+      const result = await tonConnectUI.sendTransaction(transaction);
+
+      const confirmRes = await fetch("/api/bookings/ton-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
+        body: JSON.stringify({ bookingId: booking.id, boc: result.boc }),
+      });
+      const confirmData = await confirmRes.json();
+      if (!confirmRes.ok) throw new Error(confirmData.error ?? "Confirmation failed");
+
+      await onUpdate();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong";
+      if (msg.includes("declined") || msg.includes("cancel")) {
+        setActionError("Payment was cancelled");
+      } else {
+        setActionError(msg);
+      }
+    } finally {
+      setPaying(false);
+    }
   };
 
   const handleCancel = async () => {
@@ -525,7 +598,48 @@ const BookingCard = memo(function BookingCard({
           <Badge variant={statusVariant(booking.status)}>{booking.status}</Badge>
         </div>
 
-        {canModify && (
+        {isPendingTON && (
+          <>
+            <Separator className="my-3" />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                className="gap-1"
+                disabled={paying}
+                onClick={handleRetryTONPayment}
+              >
+                {paying ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : !tonWallet ? (
+                  <>
+                    <Wallet className="h-3.5 w-3.5" />
+                    Connect Wallet to Pay
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="h-3.5 w-3.5" />
+                    Pay Now
+                    {booking.depositAmountCents != null && (
+                      <span className="ml-1 text-xs opacity-80">
+                        ({booking.currency || "SGD"} {(booking.depositAmountCents / 100).toFixed(2)})
+                      </span>
+                    )}
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 hover:text-red-700"
+                onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />Cancel
+              </Button>
+            </div>
+          </>
+        )}
+
+        {canModify && !isPendingTON && (
           <>
             <Separator className="my-3" />
             <div className="flex flex-wrap gap-2">
