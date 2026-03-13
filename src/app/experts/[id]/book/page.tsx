@@ -306,7 +306,7 @@ export default function BookSessionPage() {
         body: JSON.stringify(bookingPayload()),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create TON payment");
+      if (!res.ok) throw new Error(data.detail || data.error || "Failed to create TON payment");
 
       createdBookingId = data.bookingId;
       setTonPending({

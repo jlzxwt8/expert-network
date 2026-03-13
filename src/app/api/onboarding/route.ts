@@ -84,6 +84,11 @@ export async function POST(request: NextRequest) {
         ? Math.round(body.priceOfflineCents)
         : undefined;
 
+    const weeklySchedule =
+      body.weeklySchedule && typeof body.weeklySchedule === "object" && !Array.isArray(body.weeklySchedule)
+        ? body.weeklySchedule
+        : undefined;
+
     const updateData: Record<string, unknown> = {};
     if (Object.keys(socialLinks).length > 0) Object.assign(updateData, socialLinks);
     if (sessionType !== null) updateData.sessionType = sessionType;
@@ -92,6 +97,7 @@ export async function POST(request: NextRequest) {
     if (gender !== undefined) updateData.gender = gender;
     if (priceOnlineCents !== undefined) updateData.priceOnlineCents = priceOnlineCents;
     if (priceOfflineCents !== undefined) updateData.priceOfflineCents = priceOfflineCents;
+    if (weeklySchedule !== undefined) updateData.weeklySchedule = weeklySchedule;
 
     if (Object.keys(updateData).length === 0 && newDomains === undefined) {
       return NextResponse.json(

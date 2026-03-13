@@ -64,7 +64,18 @@ async function findOrLinkTelegramUser(
 ): Promise<string | null> {
   let user = await prisma.user.findUnique({ where: { telegramId: tgId } });
 
-  if (!user && tgUsername) {
+  if (user) {
+    // Keep telegramUsername in sync
+    if (tgUsername && user.telegramUsername !== tgUsername) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { telegramUsername: tgUsername },
+      });
+    }
+    return user.id;
+  }
+
+  if (tgUsername) {
     user = await prisma.user.findFirst({
       where: { telegramUsername: tgUsername },
     });
@@ -73,8 +84,9 @@ async function findOrLinkTelegramUser(
         where: { id: user.id },
         data: { telegramId: tgId, telegramUsername: tgUsername },
       });
+      return user.id;
     }
   }
 
-  return user?.id ?? null;
+  return null;
 }
