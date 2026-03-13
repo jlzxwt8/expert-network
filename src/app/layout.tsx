@@ -16,10 +16,28 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+const APP_URL = "https://expert-network.vercel.app";
+const TITLE = "Help&Grow Expert Network";
+const DESCRIPTION =
+  "Connect with Singapore's top AI, fintech, and business experts. Book advisory sessions with verified professionals.";
+
 export const metadata: Metadata = {
-  title: "Help&Grow Expert Network",
-  description: "Connect with Singapore's top AI, fintech, and business experts. Book advisory sessions with verified professionals.",
+  title: TITLE,
+  description: DESCRIPTION,
   keywords: ["Singapore", "experts", "AI", "fintech", "startup", "advisory"],
+  metadataBase: new URL(APP_URL),
+  openGraph: {
+    type: "website",
+    siteName: TITLE,
+    title: TITLE,
+    description: DESCRIPTION,
+    url: APP_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {
