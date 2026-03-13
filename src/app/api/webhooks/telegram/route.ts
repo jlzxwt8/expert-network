@@ -133,28 +133,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // --- Text message handling ---
+    // --- Message handling ---
     const message = update.message;
-    if (!message?.text) {
+    if (!message) {
       return NextResponse.json({ ok: true });
     }
 
     const chatId = message.chat.id;
-    const text = message.text.trim();
 
-    // Store the Telegram chat ID so we can send notifications later
+    // Link telegramId for any message type (text, sticker, etc.)
     const fromUsername = message.from?.username;
-    if (fromUsername) {
+    const fromId = message.from?.id;
+    if (fromUsername && fromId) {
       prisma.user
         .updateMany({
           where: {
             telegramUsername: fromUsername,
-            OR: [{ telegramId: null }, { telegramId: String(chatId) }],
+            OR: [{ telegramId: null }, { telegramId: String(fromId) }],
           },
-          data: { telegramId: String(chatId) },
+          data: { telegramId: String(fromId) },
         })
         .catch(() => {});
     }
+
+    if (!message.text) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const text = message.text.trim();
 
     // /start command
     if (text === "/start" || text.startsWith("/start@")) {

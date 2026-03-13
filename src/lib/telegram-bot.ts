@@ -28,6 +28,7 @@ async function resolveChatId(
     select: { telegramId: true },
   });
   if (user?.telegramId) return parseInt(user.telegramId, 10);
+  console.log(`[notify] Cannot resolve chatId: user @${telegramUsername} has no telegramId — they need to message the bot first`);
   return null;
 }
 
@@ -40,7 +41,11 @@ export async function sendTelegramMessage(
   if (inlineKeyboard?.length) {
     extra.reply_markup = { inline_keyboard: inlineKeyboard };
   }
-  return callBotApi("sendMessage", { chat_id: chatId, text, ...extra });
+  const result = await callBotApi("sendMessage", { chat_id: chatId, text, ...extra });
+  if (!result.ok) {
+    console.error("[notify] Telegram sendMessage failed:", result.description, "chatId:", chatId);
+  }
+  return result;
 }
 
 /**
