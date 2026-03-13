@@ -429,14 +429,15 @@ export default function OnboardingPage() {
     });
   }, [currentStep, addStepMessage]);
 
-  const handleAvailabilityContinue = () => {
-    const hasSlotsSet = Object.keys(onboardSchedule).length > 0;
+  const handleAvailabilityContinue = (schedule?: WeeklySchedule) => {
+    const sched = schedule ?? onboardSchedule;
+    const hasSlotsSet = Object.keys(sched).length > 0;
     if (hasSlotsSet) {
       setMessages((prev) => [
         ...prev,
         { id: "user-avail", role: "user", content: "Availability set" },
       ]);
-      saveOnboarding({ weeklySchedule: onboardSchedule }).catch(() => {});
+      saveOnboarding({ weeklySchedule: sched }).catch(() => {});
     } else {
       setMessages((prev) => [
         ...prev,
@@ -1473,16 +1474,21 @@ export default function OnboardingPage() {
           <div className="space-y-3">
             <WeeklyScheduleEditor
               schedule={onboardSchedule}
-              onSave={async (s) => setOnboardSchedule(s)}
+              onSave={async (s) => {
+                setOnboardSchedule(s);
+                handleAvailabilityContinue(s);
+              }}
               compact
               showHeader={false}
               showHint={false}
             />
             <Button
-              onClick={handleAvailabilityContinue}
-              className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+              variant="outline"
+              onClick={() => handleAvailabilityContinue()}
+              className="min-h-[44px] w-full text-muted-foreground"
             >
-              {Object.keys(onboardSchedule).length > 0 ? "Continue" : "Skip & Continue"}
+              <SkipForward className="mr-2 h-4 w-4" />
+              Skip & Continue
             </Button>
           </div>
         )}
