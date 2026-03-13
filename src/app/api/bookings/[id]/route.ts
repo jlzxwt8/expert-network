@@ -105,6 +105,7 @@ export async function PATCH(
       // Notify the other party
       if (isFounder) {
         notifyCancellation({
+          telegramId: updated.expert.user.telegramId,
           telegramUsername: updated.expert.user.telegramUsername,
           otherPartyName: founderName,
           cancelledByName: cancellerName,
@@ -114,6 +115,7 @@ export async function PATCH(
         }).catch(() => {});
       } else {
         notifyCancellation({
+          telegramId: updated.founder.telegramId,
           telegramUsername: updated.founder.telegramUsername,
           otherPartyName: expertName,
           cancelledByName: cancellerName,
@@ -177,6 +179,7 @@ export async function PATCH(
       // Notify the other party
       if (isFounder) {
         notifyReschedule({
+          telegramId: updated.expert.user.telegramId,
           telegramUsername: updated.expert.user.telegramUsername,
           otherPartyName: rFounderName,
           rescheduledByName: reschedulerName,
@@ -186,6 +189,7 @@ export async function PATCH(
         }).catch(() => {});
       } else {
         notifyReschedule({
+          telegramId: updated.founder.telegramId,
           telegramUsername: updated.founder.telegramUsername,
           otherPartyName: rExpertName,
           rescheduledByName: reschedulerName,

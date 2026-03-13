@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
     const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
 
     notifyExpertBooking({
+      expertTelegramId: booking.expert.user.telegramId,
       expertTelegramUsername: booking.expert.user.telegramUsername,
       founderName:
         booking.founder.nickName ?? booking.founder.name ?? "Client",
@@ -131,6 +132,7 @@ export async function POST(request: NextRequest) {
     }).catch(() => {});
 
     notifyFounderBooking({
+      founderTelegramId: booking.founder.telegramId,
       founderTelegramUsername: booking.founder.telegramUsername,
       expertName:
         booking.expert.user.nickName ?? booking.expert.user.name ?? "Expert",

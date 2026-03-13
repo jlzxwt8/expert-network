@@ -63,20 +63,22 @@ export async function POST(request: NextRequest) {
     }).catch(() => {});
 
     notifyExpertBooking({
+      expertTelegramId: updated.expert.user.telegramId,
       expertTelegramUsername: updated.expert.user.telegramUsername,
       founderName: updated.founder.nickName ?? updated.founder.name ?? "Client",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
       depositAmount: depositLabel,
-    }).catch(() => {});
+    }).catch((e) => console.error("[ton-confirm] expert notify error:", e));
 
     notifyFounderBooking({
+      founderTelegramId: updated.founder.telegramId,
       founderTelegramUsername: updated.founder.telegramUsername,
       expertName: updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert",
       sessionType: updated.sessionType,
       startTime: updated.startTime,
       depositAmount: depositLabel,
-    }).catch(() => {});
+    }).catch((e) => console.error("[ton-confirm] founder notify error:", e));
 
     return NextResponse.json({ status: "confirmed", bookingId: updated.id });
   } catch (error) {

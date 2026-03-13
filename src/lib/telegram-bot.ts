@@ -14,12 +14,14 @@ async function callBotApi(method: string, body: Record<string, unknown>) {
 }
 
 /**
- * Resolve a Telegram username to a chat ID.
- * This only works if the user has previously interacted with the bot.
- * We look up the user's telegramId from our database as a fallback.
+ * Resolve a Telegram chat ID from telegramId string or by looking up telegramUsername.
  */
-async function resolveChatId(telegramUsername: string): Promise<number | null> {
-  // Import prisma dynamically to avoid circular deps
+async function resolveChatId(
+  telegramId?: string | null,
+  telegramUsername?: string | null
+): Promise<number | null> {
+  if (telegramId) return parseInt(telegramId, 10);
+  if (!telegramUsername) return null;
   const { prisma } = await import("@/lib/prisma");
   const user = await prisma.user.findFirst({
     where: { telegramUsername },
@@ -45,7 +47,7 @@ export async function sendTelegramMessage(
  * Send a greeting to a user who just added their Telegram username.
  */
 export async function sendGreeting(telegramUsername: string): Promise<boolean> {
-  const chatId = await resolveChatId(telegramUsername);
+  const chatId = await resolveChatId(undefined, telegramUsername);
   if (!chatId) return false;
 
   const text = [
@@ -70,15 +72,22 @@ export async function sendGreeting(telegramUsername: string): Promise<boolean> {
  * Notify an expert about a new booking.
  */
 export async function notifyExpertBooking(params: {
-  expertTelegramUsername: string | null;
+  expertTelegramId?: string | null;
+  expertTelegramUsername?: string | null;
   founderName: string;
   sessionType: string;
   startTime: Date;
   depositAmount: string;
 }): Promise<boolean> {
-  if (!params.expertTelegramUsername) return false;
-  const chatId = await resolveChatId(params.expertTelegramUsername);
-  if (!chatId) return false;
+  if (!params.expertTelegramId && !params.expertTelegramUsername) {
+    console.log("[notify] Skip expert notify: no telegramId or username");
+    return false;
+  }
+  const chatId = await resolveChatId(params.expertTelegramId, params.expertTelegramUsername);
+  if (!chatId) {
+    console.log("[notify] Skip expert notify: could not resolve chatId for", params.expertTelegramUsername, params.expertTelegramId);
+    return false;
+  }
 
   const dateStr = params.startTime.toLocaleDateString("en-SG", {
     weekday: "short",
@@ -110,15 +119,22 @@ export async function notifyExpertBooking(params: {
  * Notify a mentee about their booking confirmation.
  */
 export async function notifyFounderBooking(params: {
-  founderTelegramUsername: string | null;
+  founderTelegramId?: string | null;
+  founderTelegramUsername?: string | null;
   expertName: string;
   sessionType: string;
   startTime: Date;
   depositAmount: string;
 }): Promise<boolean> {
-  if (!params.founderTelegramUsername) return false;
-  const chatId = await resolveChatId(params.founderTelegramUsername);
-  if (!chatId) return false;
+  if (!params.founderTelegramId && !params.founderTelegramUsername) {
+    console.log("[notify] Skip founder notify: no telegramId or username");
+    return false;
+  }
+  const chatId = await resolveChatId(params.founderTelegramId, params.founderTelegramUsername);
+  if (!chatId) {
+    console.log("[notify] Skip founder notify: could not resolve chatId for", params.founderTelegramUsername, params.founderTelegramId);
+    return false;
+  }
 
   const dateStr = params.startTime.toLocaleDateString("en-SG", {
     weekday: "short",
@@ -150,15 +166,16 @@ export async function notifyFounderBooking(params: {
  * Notify a user that their booking has been cancelled.
  */
 export async function notifyCancellation(params: {
-  telegramUsername: string | null;
+  telegramId?: string | null;
+  telegramUsername?: string | null;
   otherPartyName: string;
   cancelledByName: string;
   sessionType: string;
   startTime: Date;
   reason?: string | null;
 }): Promise<boolean> {
-  if (!params.telegramUsername) return false;
-  const chatId = await resolveChatId(params.telegramUsername);
+  if (!params.telegramId && !params.telegramUsername) return false;
+  const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
   if (!chatId) return false;
 
   const dateStr = params.startTime.toLocaleDateString("en-SG", {
@@ -192,15 +209,16 @@ export async function notifyCancellation(params: {
  * Notify a user that their booking has been rescheduled.
  */
 export async function notifyReschedule(params: {
-  telegramUsername: string | null;
+  telegramId?: string | null;
+  telegramUsername?: string | null;
   otherPartyName: string;
   rescheduledByName: string;
   sessionType: string;
   oldStartTime: Date;
   newStartTime: Date;
 }): Promise<boolean> {
-  if (!params.telegramUsername) return false;
-  const chatId = await resolveChatId(params.telegramUsername);
+  if (!params.telegramId && !params.telegramUsername) return false;
+  const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
   if (!chatId) return false;
 
   const fmt = (d: Date) =>
@@ -231,13 +249,14 @@ export async function notifyReschedule(params: {
  * Send a session reminder (e.g. 1 hour before).
  */
 export async function sendSessionReminder(params: {
-  telegramUsername: string | null;
+  telegramId?: string | null;
+  telegramUsername?: string | null;
   expertName: string;
   sessionType: string;
   startTime: Date;
 }): Promise<boolean> {
-  if (!params.telegramUsername) return false;
-  const chatId = await resolveChatId(params.telegramUsername);
+  if (!params.telegramId && !params.telegramUsername) return false;
+  const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
   if (!chatId) return false;
 
   const dateStr = params.startTime.toLocaleDateString("en-SG", {
