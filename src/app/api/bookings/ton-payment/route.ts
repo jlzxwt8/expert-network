@@ -110,8 +110,9 @@ export async function POST(request: NextRequest) {
     });
 
     const comment = `booking:${booking.id}`;
-    // Normalize address to non-bounceable user-friendly format (standard base64)
-    const normalizedAddress = Address.parse(platformWallet).toString({
+    // Convert URL-safe base64 to standard base64 before parsing
+    const standardBase64 = platformWallet.replace(/-/g, "+").replace(/_/g, "/");
+    const normalizedAddress = Address.parse(standardBase64).toString({
       bounceable: false,
       urlSafe: false,
     });
