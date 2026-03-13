@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
-import { notifyCancellation, notifyReschedule } from "@/lib/telegram-bot";
+import { notifyCancellation, notifyReschedule, notifyLocationUpdate } from "@/lib/telegram-bot";
 
 export async function GET(
   request: NextRequest,
@@ -215,6 +215,39 @@ export async function PATCH(
         },
         include: { expert: { include: { user: true } }, founder: true },
       });
+
+      const isOnline = updated.sessionType === "ONLINE";
+      const location = isOnline
+        ? (meetingLink || updated.meetingLink || "")
+        : (offlineAddress || updated.offlineAddress || "");
+      const updaterName = isFounder
+        ? (updated.founder.nickName ?? updated.founder.name ?? "Client")
+        : (updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert");
+
+      // Notify the other party
+      if (isFounder) {
+        notifyLocationUpdate({
+          telegramId: updated.expert.user.telegramId,
+          telegramUsername: updated.expert.user.telegramUsername,
+          otherPartyName: updated.founder.nickName ?? updated.founder.name ?? "Client",
+          updatedByName: updaterName,
+          sessionType: updated.sessionType,
+          startTime: updated.startTime,
+          isOnline,
+          location,
+        }).catch(() => {});
+      } else {
+        notifyLocationUpdate({
+          telegramId: updated.founder.telegramId,
+          telegramUsername: updated.founder.telegramUsername,
+          otherPartyName: updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert",
+          updatedByName: updaterName,
+          sessionType: updated.sessionType,
+          startTime: updated.startTime,
+          isOnline,
+          location,
+        }).catch(() => {});
+      }
 
       return NextResponse.json(updated);
     }

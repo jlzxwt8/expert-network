@@ -246,6 +246,50 @@ export async function notifyReschedule(params: {
 }
 
 /**
+ * Notify a user that the meeting location or link has been updated.
+ */
+export async function notifyLocationUpdate(params: {
+  telegramId?: string | null;
+  telegramUsername?: string | null;
+  otherPartyName: string;
+  updatedByName: string;
+  sessionType: string;
+  startTime: Date;
+  isOnline: boolean;
+  location: string;
+}): Promise<boolean> {
+  if (!params.telegramId && !params.telegramUsername) return false;
+  const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
+  if (!chatId) return false;
+
+  const dateStr = params.startTime.toLocaleDateString("en-SG", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const locationLabel = params.isOnline ? "Meeting Link" : "Location";
+  const icon = params.isOnline ? "🔗" : "📍";
+
+  const text = [
+    `${icon} *${locationLabel} Updated*`,
+    ``,
+    `*${params.updatedByName}* updated the ${locationLabel.toLowerCase()} for your ${params.sessionType.toLowerCase()} session.`,
+    ``,
+    `🗓 ${dateStr}`,
+    `${icon} ${params.location}`,
+  ].join("\n");
+
+  await sendTelegramMessage(chatId, text, [
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+  ]);
+
+  return true;
+}
+
+/**
  * Send a session reminder (e.g. 1 hour before).
  */
 export async function sendSessionReminder(params: {
