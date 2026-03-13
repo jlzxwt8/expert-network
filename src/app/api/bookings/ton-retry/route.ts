@@ -4,15 +4,6 @@ import { resolveUserId } from "@/lib/request-auth";
 
 const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
 
-function tonFriendlyToRaw(addr: string): string {
-  const std = addr.replace(/-/g, "+").replace(/_/g, "/");
-  const buf = Buffer.from(std, "base64");
-  if (buf.length !== 36) throw new Error(`Invalid TON address length: ${buf.length}`);
-  const workchain = buf[1] > 127 ? buf[1] - 256 : buf[1];
-  const hash = buf.subarray(2, 34).toString("hex");
-  return `${workchain}:${hash}`;
-}
-
 async function getSGDToTONRate(): Promise<number> {
   try {
     const res = await fetch(TON_RATE_API, { next: { revalidate: 300 } });
@@ -60,11 +51,10 @@ export async function POST(request: NextRequest) {
     const depositNanoTON = Math.ceil(depositTON * 1e9);
 
     const comment = `booking:${booking.id}`;
-    const normalizedAddress = tonFriendlyToRaw(platformWallet);
 
     return NextResponse.json({
       bookingId: booking.id,
-      walletAddress: normalizedAddress,
+      walletAddress: platformWallet,
       amountNanoTON: depositNanoTON.toString(),
       comment,
       depositTON: depositTON.toFixed(4),
