@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getVoiceSynthesis } from "@/lib/integrations/config";
+import { resolveUserId } from "@/lib/request-auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const expert = await prisma.expert.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
       include: { user: true },
     });
 

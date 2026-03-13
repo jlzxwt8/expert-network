@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useTelegram } from "@/components/telegram-provider";
+import { getTelegramInitData } from "@/lib/telegram";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -156,6 +157,11 @@ export default function OnboardingPage() {
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
 
+  const tgInitData = getTelegramInitData();
+  const tgHeaders: Record<string, string> = tgInitData
+    ? { "x-telegram-init-data": tgInitData }
+    : {};
+
   const nickName =
     userNickName ||
     ((session?.user as { nickName?: string })?.nickName ??
@@ -188,7 +194,7 @@ export default function OnboardingPage() {
       if (userRole !== "EXPERT") {
         fetch("/api/user", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...tgHeaders },
           body: JSON.stringify({ role: "EXPERT" }),
         }).catch(console.error);
       }
@@ -288,9 +294,10 @@ export default function OnboardingPage() {
 
     fetch("/api/expert/wallet", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...tgHeaders },
       body: JSON.stringify({ action: "connect", address }),
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, tonWallet]);
 
   const handleWalletContinue = () => {
@@ -449,7 +456,7 @@ export default function OnboardingPage() {
   const saveOnboarding = async (data: Record<string, unknown>) => {
     const res = await fetch("/api/onboarding", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...tgHeaders },
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error("Failed to save");
@@ -493,7 +500,7 @@ export default function OnboardingPage() {
     try {
       await fetch("/api/user", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...tgHeaders },
         body: JSON.stringify({ nickName: name }),
       });
     } catch {
@@ -535,13 +542,13 @@ export default function OnboardingPage() {
       try {
         await fetch("/api/user", {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...tgHeaders },
           body: JSON.stringify({ telegramUsername: username }),
         });
         // Send greeting via bot
         fetch("/api/telegram/notify", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...tgHeaders },
           body: JSON.stringify({
             type: "greeting",
             telegramUsername: username,
@@ -617,6 +624,7 @@ export default function OnboardingPage() {
     try {
       const res = await fetch("/api/onboarding/upload", {
         method: "POST",
+        headers: { ...tgHeaders },
         body: formData,
       });
       if (!res.ok) {
@@ -691,7 +699,10 @@ export default function OnboardingPage() {
     ]);
 
     try {
-      const res = await fetch("/api/onboarding/generate", { method: "POST" });
+      const res = await fetch("/api/onboarding/generate", {
+        method: "POST",
+        headers: { ...tgHeaders },
+      });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         console.error("Generate API error:", errBody);
@@ -733,6 +744,7 @@ export default function OnboardingPage() {
 
       const cloneRes = await fetch("/api/expert/voice-clone", {
         method: "POST",
+        headers: { ...tgHeaders },
         body: formData,
       });
 
@@ -755,6 +767,7 @@ export default function OnboardingPage() {
 
       const audioRes = await fetch("/api/expert/generate-audio", {
         method: "POST",
+        headers: { ...tgHeaders },
       });
 
       if (audioRes.ok) {
@@ -795,6 +808,7 @@ export default function OnboardingPage() {
     try {
       const audioRes = await fetch("/api/expert/generate-audio", {
         method: "POST",
+        headers: { ...tgHeaders },
       });
       if (audioRes.ok) {
         const audioData = await audioRes.json();
@@ -848,7 +862,10 @@ export default function OnboardingPage() {
   const handlePublish = async () => {
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/onboarding/publish", { method: "POST" });
+      const res = await fetch("/api/onboarding/publish", {
+        method: "POST",
+        headers: { ...tgHeaders },
+      });
       if (!res.ok) throw new Error("Publish failed");
       router.push("/dashboard");
     } catch {

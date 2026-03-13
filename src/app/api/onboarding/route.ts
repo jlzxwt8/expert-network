@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { domainStrings, setExpertDomains } from "@/lib/domains";
 import type { OnboardingStep, SessionType } from "@/generated/prisma/client";
+import { resolveUserId } from "@/lib/request-auth";
 
 const SOCIAL_LINK_KEYS = [
   "linkedIn",
@@ -41,8 +40,8 @@ function parseSessionType(value: unknown): SessionType | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -102,13 +101,13 @@ export async function POST(request: NextRequest) {
     }
 
     let expert = await prisma.expert.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
     });
 
     if (!expert) {
       expert = await prisma.expert.create({
         data: {
-          userId: session.user.id,
+          userId,
           ...updateData,
         } as Parameters<typeof prisma.expert.create>[0]["data"],
       });
@@ -141,15 +140,15 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const expert = await prisma.expert.findUnique({
-      where: { userId: session.user.id },
+      where: { userId },
       include: { user: true, domains: true },
     });
 

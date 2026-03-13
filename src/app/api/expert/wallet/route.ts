@@ -1,17 +1,15 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateCustodialWallet } from "@/lib/ton-wallet";
+import { resolveUserId } from "@/lib/request-auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id: string }).id;
     const expert = await prisma.expert.findUnique({
       where: { userId },
       select: { tonWalletAddress: true, tonWalletType: true },
@@ -35,14 +33,13 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = (session.user as { id: string }).id;
     const expert = await prisma.expert.findUnique({ where: { userId } });
     if (!expert) {
       return NextResponse.json({ error: "Expert not found" }, { status: 404 });
