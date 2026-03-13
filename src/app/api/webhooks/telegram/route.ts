@@ -46,8 +46,8 @@ function buildExpertButtons(
   experts: { expertId: string; name: string; profileUrl: string; bookUrl: string }[]
 ): Record<string, unknown>[][] {
   return experts.slice(0, 5).map((e) => [
-    { text: `View ${e.name}`, url: e.profileUrl },
-    { text: `Book ${e.name}`, url: e.bookUrl },
+    { text: `View ${e.name}`, web_app: { url: e.profileUrl } },
+    { text: `Book ${e.name}`, web_app: { url: e.bookUrl } },
   ]);
 }
 
@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
         sessionType: booking.sessionType,
         startTime: booking.startTime,
         depositAmount: depositLabel,
+        timezone: booking.timezone,
       }).catch(() => {});
 
       return NextResponse.json({ ok: true });

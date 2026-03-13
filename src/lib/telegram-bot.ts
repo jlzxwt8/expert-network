@@ -32,6 +32,19 @@ async function resolveChatId(
   return null;
 }
 
+function formatDate(date: Date, timezone?: string | null): string {
+  const tz = timezone || "Asia/Singapore";
+  return date.toLocaleString("en-SG", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: tz,
+    timeZoneName: "short",
+  });
+}
+
 export async function sendTelegramMessage(
   chatId: number,
   text: string,
@@ -83,6 +96,7 @@ export async function notifyExpertBooking(params: {
   sessionType: string;
   startTime: Date;
   depositAmount: string;
+  timezone?: string | null;
 }): Promise<boolean> {
   if (!params.expertTelegramId && !params.expertTelegramUsername) {
     console.log("[notify] Skip expert notify: no telegramId or username");
@@ -94,13 +108,7 @@ export async function notifyExpertBooking(params: {
     return false;
   }
 
-  const dateStr = params.startTime.toLocaleDateString("en-SG", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateStr = formatDate(params.startTime, params.timezone);
 
   const text = [
     `📅 *New Booking!*`,
@@ -130,6 +138,7 @@ export async function notifyFounderBooking(params: {
   sessionType: string;
   startTime: Date;
   depositAmount: string;
+  timezone?: string | null;
 }): Promise<boolean> {
   if (!params.founderTelegramId && !params.founderTelegramUsername) {
     console.log("[notify] Skip founder notify: no telegramId or username");
@@ -141,13 +150,7 @@ export async function notifyFounderBooking(params: {
     return false;
   }
 
-  const dateStr = params.startTime.toLocaleDateString("en-SG", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateStr = formatDate(params.startTime, params.timezone);
 
   const text = [
     `✅ *Booking Confirmed!*`,
@@ -178,18 +181,13 @@ export async function notifyCancellation(params: {
   sessionType: string;
   startTime: Date;
   reason?: string | null;
+  timezone?: string | null;
 }): Promise<boolean> {
   if (!params.telegramId && !params.telegramUsername) return false;
   const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
   if (!chatId) return false;
 
-  const dateStr = params.startTime.toLocaleDateString("en-SG", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateStr = formatDate(params.startTime, params.timezone);
 
   const lines = [
     `❌ *Booking Cancelled*`,
@@ -221,19 +219,13 @@ export async function notifyReschedule(params: {
   sessionType: string;
   oldStartTime: Date;
   newStartTime: Date;
+  timezone?: string | null;
 }): Promise<boolean> {
   if (!params.telegramId && !params.telegramUsername) return false;
   const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
   if (!chatId) return false;
 
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-SG", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const fmt = (d: Date) => formatDate(d, params.timezone);
 
   const text = [
     `🔄 *Booking Rescheduled*`,
@@ -262,18 +254,13 @@ export async function notifyLocationUpdate(params: {
   startTime: Date;
   isOnline: boolean;
   location: string;
+  timezone?: string | null;
 }): Promise<boolean> {
   if (!params.telegramId && !params.telegramUsername) return false;
   const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
   if (!chatId) return false;
 
-  const dateStr = params.startTime.toLocaleDateString("en-SG", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateStr = formatDate(params.startTime, params.timezone);
 
   const locationLabel = params.isOnline ? "Meeting Link" : "Location";
   const icon = params.isOnline ? "🔗" : "📍";
@@ -303,18 +290,13 @@ export async function sendSessionReminder(params: {
   expertName: string;
   sessionType: string;
   startTime: Date;
+  timezone?: string | null;
 }): Promise<boolean> {
   if (!params.telegramId && !params.telegramUsername) return false;
   const chatId = await resolveChatId(params.telegramId, params.telegramUsername);
   if (!chatId) return false;
 
-  const dateStr = params.startTime.toLocaleDateString("en-SG", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateStr = formatDate(params.startTime, params.timezone);
 
   const text = [
     `⏰ *Session Reminder*`,

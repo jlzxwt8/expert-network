@@ -112,6 +112,7 @@ export async function PATCH(
           sessionType: updated.sessionType,
           startTime: updated.startTime,
           reason: updated.cancelReason,
+          timezone: updated.timezone,
         }).catch(() => {});
       } else {
         notifyCancellation({
@@ -122,6 +123,7 @@ export async function PATCH(
           sessionType: updated.sessionType,
           startTime: updated.startTime,
           reason: updated.cancelReason,
+          timezone: updated.timezone,
         }).catch(() => {});
       }
 
@@ -186,6 +188,7 @@ export async function PATCH(
           sessionType: updated.sessionType,
           oldStartTime,
           newStartTime: newStart,
+          timezone: updated.timezone,
         }).catch(() => {});
       } else {
         notifyReschedule({
@@ -196,6 +199,7 @@ export async function PATCH(
           sessionType: updated.sessionType,
           oldStartTime,
           newStartTime: newStart,
+          timezone: updated.timezone,
         }).catch(() => {});
       }
 
@@ -235,6 +239,7 @@ export async function PATCH(
           startTime: updated.startTime,
           isOnline,
           location,
+          timezone: updated.timezone,
         }).catch(() => {});
       } else {
         notifyLocationUpdate({
@@ -246,6 +251,7 @@ export async function PATCH(
           startTime: updated.startTime,
           isOnline,
           location,
+          timezone: updated.timezone,
         }).catch(() => {});
       }
 

@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       sessionType: updated.sessionType,
       startTime: updated.startTime,
       depositAmount: depositLabel,
+      timezone: updated.timezone,
     }).catch((e) => console.error("[ton-confirm] expert notify error:", e));
 
     notifyFounderBooking({
@@ -78,6 +79,7 @@ export async function POST(request: NextRequest) {
       sessionType: updated.sessionType,
       startTime: updated.startTime,
       depositAmount: depositLabel,
+      timezone: updated.timezone,
     }).catch((e) => console.error("[ton-confirm] founder notify error:", e));
 
     return NextResponse.json({ status: "confirmed", bookingId: updated.id });

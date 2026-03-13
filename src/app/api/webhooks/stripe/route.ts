@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
           sessionType: booking.sessionType,
           startTime: booking.startTime,
           depositAmount: depositLabel,
+          timezone: booking.timezone,
         }).catch(() => {});
 
         notifyFounderBooking({
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
           sessionType: booking.sessionType,
           startTime: booking.startTime,
           depositAmount: depositLabel,
+          timezone: booking.timezone,
         }).catch(() => {});
 
         console.log(
