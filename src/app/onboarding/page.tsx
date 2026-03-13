@@ -141,6 +141,7 @@ export default function OnboardingPage() {
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
 
   const [userNickName, setUserNickName] = useState("");
   const [selectedGender, setSelectedGender] = useState<string>("");
@@ -204,6 +205,14 @@ export default function OnboardingPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Auto-focus the text input when switching to a step that has one
+  useEffect(() => {
+    const stepsWithInput: Step[] = ["NICKNAME", "TELEGRAM_ID", "SOCIAL_LINKS"];
+    if (stepsWithInput.includes(currentStep)) {
+      setTimeout(() => textInputRef.current?.focus(), 100);
+    }
+  }, [currentStep, currentSocialIndex]);
 
   // Greeting — trigger when NextAuth session is authenticated, or when
   // Telegram auth has completed (the cookie is set but useSession may lag)
@@ -1134,6 +1143,7 @@ export default function OnboardingPage() {
         {currentStep === "NICKNAME" && (
           <div className="flex gap-2">
             <Input
+              ref={textInputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Your name or nickname"
@@ -1160,6 +1170,7 @@ export default function OnboardingPage() {
         {currentStep === "TELEGRAM_ID" && (
           <div className="flex gap-2">
             <Input
+              ref={textInputRef}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="@username"
@@ -1267,6 +1278,7 @@ export default function OnboardingPage() {
           <div className="space-y-2">
             <div className="flex gap-2">
               <Input
+                ref={textInputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={platform.placeholder}
