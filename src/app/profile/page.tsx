@@ -22,6 +22,9 @@ import {
   DollarSign,
   Send,
   Clock,
+  CreditCard,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AudioPlayer } from "@/components/audio-player";
@@ -57,6 +60,8 @@ interface ExpertProfile {
   sessionType: string;
   documentName: string | null;
   weeklySchedule: WeeklySchedule | null;
+  stripeAccountId: string | null;
+  stripeAccountStatus: string | null;
   isPublished: boolean;
   user: {
     id: string;
@@ -118,6 +123,7 @@ export default function ProfilePage() {
   const [savingPricing, setSavingPricing] = useState(false);
   const [pOnline, setPOnline] = useState("");
   const [pOffline, setPOffline] = useState("");
+  const [stripeKycLoading, setStripeKycLoading] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -566,6 +572,63 @@ export default function ProfilePage() {
     }
   };
 
+  const handleStripeKyc = async () => {
+    setStripeKycLoading(true);
+    try {
+      const headers: Record<string, string> = {
+        ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+      };
+      const res = await fetch("/api/stripe/connect", {
+        method: "POST",
+        headers,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to create Stripe account");
+      }
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank");
+        showMessage("Complete the Stripe verification in the new tab.", "stripe");
+      }
+    } catch (err) {
+      showMessage(
+        err instanceof Error ? err.message : "Stripe setup failed",
+        "stripe",
+        true,
+        5000
+      );
+    } finally {
+      setStripeKycLoading(false);
+    }
+  };
+
+  const refreshStripeStatus = async () => {
+    try {
+      const headers: Record<string, string> = {
+        ...(telegramInitData ? { "x-telegram-init-data": telegramInitData } : {}),
+      };
+      const res = await fetch("/api/stripe/connect", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                stripeAccountStatus: data.status,
+                stripeAccountId: prev.stripeAccountId,
+              }
+            : prev
+        );
+        if (data.status === "active") {
+          showMessage("Stripe account verified! You can now receive payments.", "stripe");
+        }
+      }
+    } catch {
+      // silent
+    }
+  };
+
   if (sessionStatus === "loading" || loading) {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center">
@@ -602,11 +665,11 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.back()}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Dashboard
+              Back
             </button>
             {editingName ? (
               <div className="flex items-center gap-2">
@@ -723,6 +786,91 @@ export default function ProfilePage() {
                 )}
                 Publish Profile
               </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Stripe KYC Banner */}
+        {isExpert && profile.stripeAccountStatus !== "active" && (
+          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+            <CardContent className="p-4 space-y-3">
+              {renderToast("stripe")}
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-blue-100 dark:bg-blue-900/50 p-1.5 mt-0.5">
+                  {profile.stripeAccountStatus === "restricted" ? (
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  ) : profile.stripeAccountStatus === "onboarding" ? (
+                    <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  ) : (
+                    <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                    {profile.stripeAccountStatus === "restricted"
+                      ? "Stripe account restricted"
+                      : profile.stripeAccountStatus === "onboarding"
+                        ? "Complete Stripe verification"
+                        : "Set up Stripe to receive payments"}
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                    {profile.stripeAccountStatus === "restricted"
+                      ? "Your Stripe account has restrictions. Complete the required verification to continue receiving payments."
+                      : profile.stripeAccountStatus === "onboarding"
+                        ? "You started setting up Stripe but haven't completed the verification. Continue to finish."
+                        : "Connect a Stripe account so you can receive session payments directly. This requires a quick identity verification."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={handleStripeKyc}
+                  disabled={stripeKycLoading}
+                >
+                  {stripeKycLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="h-4 w-4" />
+                  )}
+                  {profile.stripeAccountStatus === "none" || !profile.stripeAccountStatus
+                    ? "Set Up Stripe"
+                    : "Continue Verification"}
+                </Button>
+                {profile.stripeAccountId && profile.stripeAccountStatus === "onboarding" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshStripeStatus}
+                    className="gap-1"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    Refresh Status
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Stripe Connected — success indicator */}
+        {isExpert && profile.stripeAccountStatus === "active" && (
+          <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-emerald-100 dark:bg-emerald-900/50 p-1.5">
+                  <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                    Stripe account active
+                  </p>
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    You&apos;re set up to receive payments from session bookings.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}

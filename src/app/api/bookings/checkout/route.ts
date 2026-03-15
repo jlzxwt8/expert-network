@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createCheckoutSession, calculateBookingAmount } from "@/lib/stripe";
+import { createCheckoutSession, calculateBookingAmount, getPlatformFeePercent } from "@/lib/stripe";
 import { findOverlappingBooking } from "@/lib/booking-utils";
 
 export async function POST(request: NextRequest) {
@@ -73,6 +73,31 @@ export async function POST(request: NextRequest) {
     const origin =
       request.headers.get("origin") || process.env.NEXTAUTH_URL || "";
 
+    const paymentIntentData: Record<string, unknown> = {
+      setup_future_usage: "off_session",
+      metadata: {
+        expertId,
+        founderId: session.user.id,
+        sessionType,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        timezone: timezone || "Asia/Singapore",
+        meetingLink: meetingLink || "",
+        totalCents: String(totalCents),
+        depositCents: String(depositCents),
+        currency: expert.currency,
+      },
+    };
+
+    if (expert.stripeAccountId && expert.stripeAccountStatus === "active") {
+      const feePercent = getPlatformFeePercent();
+      const applicationFee = Math.round(depositCents * (feePercent / 100));
+      paymentIntentData.application_fee_amount = applicationFee;
+      paymentIntentData.transfer_data = {
+        destination: expert.stripeAccountId,
+      };
+    }
+
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
       payment_method_types: ["card"],
@@ -89,21 +114,7 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      payment_intent_data: {
-        setup_future_usage: "off_session",
-        metadata: {
-          expertId,
-          founderId: session.user.id,
-          sessionType,
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-          timezone: timezone || "Asia/Singapore",
-          meetingLink: meetingLink || "",
-          totalCents: String(totalCents),
-          depositCents: String(depositCents),
-          currency: expert.currency,
-        },
-      },
+      payment_intent_data: paymentIntentData,
       metadata: {
         type: "booking_deposit",
         expertId,

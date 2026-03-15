@@ -1,0 +1,155 @@
+import { NextRequest, NextResponse } from "next/server";
+import { resolveUserId } from "@/lib/request-auth";
+import { prisma } from "@/lib/prisma";
+import { findOverlappingBooking } from "@/lib/booking-utils";
+import { calculateBookingAmount } from "@/lib/stripe";
+import {
+  createUnifiedOrder,
+  buildPaymentParams,
+  isWechatPayConfigured,
+  convertSGDToCNY,
+} from "@/lib/wechat-pay";
+import type { SessionType } from "@/generated/prisma/client";
+
+export async function POST(request: NextRequest) {
+  try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!isWechatPayConfigured()) {
+      return NextResponse.json(
+        { error: "WeChat Pay not configured" },
+        { status: 500 }
+      );
+    }
+
+    const {
+      expertId,
+      sessionType,
+      startTime: startISO,
+      endTime: endISO,
+      slotId,
+      timezone,
+      meetingLink,
+    } = await request.json();
+
+    if (!expertId || !sessionType || !startISO || !endISO) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const start = new Date(startISO);
+    const end = new Date(endISO);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
+      return NextResponse.json(
+        { error: "Invalid time range" },
+        { status: 400 }
+      );
+    }
+
+    const expert = await prisma.expert.findUnique({
+      where: { id: expertId },
+      include: { user: true },
+    });
+
+    if (!expert || !expert.isPublished) {
+      return NextResponse.json(
+        { error: "Expert not found" },
+        { status: 404 }
+      );
+    }
+
+    const overlap = await findOverlappingBooking(expertId, start, end);
+    if (overlap) {
+      return NextResponse.json(
+        { error: "Time slot already booked" },
+        { status: 409 }
+      );
+    }
+
+    const pricePerHour =
+      sessionType === "OFFLINE"
+        ? expert.priceOfflineCents
+        : expert.priceOnlineCents;
+
+    if (!pricePerHour) {
+      return NextResponse.json(
+        { error: "Expert has not set pricing for this session type" },
+        { status: 400 }
+      );
+    }
+
+    const { totalCents, depositCents } = calculateBookingAmount(
+      pricePerHour,
+      start,
+      end
+    );
+
+    const booking = await prisma.booking.create({
+      data: {
+        expertId,
+        founderId: userId,
+        sessionType: sessionType as SessionType,
+        startTime: start,
+        endTime: end,
+        timezone: timezone || "Asia/Singapore",
+        meetingLink: meetingLink || null,
+        status: "PENDING",
+        totalAmountCents: totalCents,
+        depositAmountCents: depositCents,
+        currency: expert.currency,
+        paymentMethod: "wechat_pay",
+        paymentStatus: "pending",
+      },
+    });
+
+    if (slotId) {
+      await prisma.availableSlot
+        .update({ where: { id: slotId }, data: { isBooked: true } })
+        .catch(() => {});
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { wechatOpenId: true },
+    });
+
+    if (!user?.wechatOpenId) {
+      return NextResponse.json(
+        { error: "WeChat identity not found" },
+        { status: 400 }
+      );
+    }
+
+    const depositCNY = convertSGDToCNY(depositCents);
+    const expertName =
+      expert.user.nickName ?? expert.user.name ?? "Expert";
+
+    const { prepayId } = await createUnifiedOrder({
+      outTradeNo: booking.id,
+      description: `Session with ${expertName}`,
+      totalAmountCNY: depositCNY,
+      openid: user.wechatOpenId,
+    });
+
+    const paymentParams = buildPaymentParams(prepayId);
+
+    return NextResponse.json({
+      bookingId: booking.id,
+      paymentParams,
+      depositSGD: (depositCents / 100).toFixed(2),
+      depositCNY: (depositCNY / 100).toFixed(2),
+      totalSGD: (totalCents / 100).toFixed(2),
+    });
+  } catch (err) {
+    console.error("[wechat-pay] error:", err);
+    return NextResponse.json(
+      { error: "Payment creation failed" },
+      { status: 500 }
+    );
+  }
+}

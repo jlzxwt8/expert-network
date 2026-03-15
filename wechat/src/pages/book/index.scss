@@ -1,0 +1,128 @@
+.book-page {
+  padding-bottom: 160px;
+
+  &__loading, &__error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: #8c8c8c;
+    font-size: 28px;
+  }
+
+  &__header {
+    padding: 32px;
+    background: #fff;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  &__expert-name {
+    display: block;
+    font-size: 36px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 12px;
+  }
+
+  &__session-type {
+    display: block;
+    font-size: 28px;
+    color: #6366f1;
+    margin-bottom: 8px;
+  }
+
+  &__price {
+    display: block;
+    font-size: 32px;
+    font-weight: 600;
+    color: #059669;
+  }
+
+  &__section {
+    padding: 32px;
+  }
+
+  &__section-title {
+    display: block;
+    font-size: 32px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 24px;
+  }
+
+  &__no-slots {
+    display: block;
+    font-size: 26px;
+    color: #9ca3af;
+    text-align: center;
+    padding: 48px 0;
+  }
+
+  &__date-group {
+    margin-bottom: 32px;
+  }
+
+  &__date-label {
+    display: block;
+    font-size: 26px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 16px;
+  }
+
+  &__slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  &__slot {
+    padding: 16px 28px;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    font-size: 26px;
+    color: #374151;
+    background: #fff;
+
+    &--selected {
+      border-color: #6366f1;
+      background: #eef2ff;
+      color: #6366f1;
+      font-weight: 500;
+    }
+  }
+
+  &__bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 32px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid #f3f4f6;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  &__deposit {
+    display: block;
+    font-size: 24px;
+    color: #6b7280;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  &__confirm-btn {
+    text-align: center;
+    padding: 24px 0;
+    border-radius: 16px;
+    font-size: 30px;
+    font-weight: 600;
+    background: #6366f1;
+    color: #fff;
+
+    &--disabled {
+      opacity: 0.4;
+    }
+  }
+}

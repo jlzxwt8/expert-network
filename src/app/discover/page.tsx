@@ -389,13 +389,13 @@ function DiscoverContent() {
         <div className="px-4 pt-4 pb-2">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <Link
-                href="/"
+              <button
+                onClick={() => router.back()}
                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
-                Home
-              </Link>
+                Back
+              </button>
               <h1 className="text-xl font-bold text-foreground">
                 Discover Experts
               </h1>

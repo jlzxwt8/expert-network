@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getTelegramInitData } from "@/lib/telegram";
@@ -69,6 +70,7 @@ function getHeaders() {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { status: sessionStatus, isTelegram } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -172,13 +174,13 @@ export default function DashboardPage() {
       <header className="border-b px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <Link
-              href="/"
+            <button
+              onClick={() => router.back()}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              Home
-            </Link>
+              Back
+            </button>
             <h1 className="text-xl font-bold">Dashboard</h1>
           </div>
           <UserMenu />

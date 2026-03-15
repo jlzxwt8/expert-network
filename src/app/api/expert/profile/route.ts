@@ -68,11 +68,11 @@ export async function PATCH(request: NextRequest) {
     if (Array.isArray(body.servicesOffered)) {
       updateData.servicesOffered = body.servicesOffered;
     }
-    if (typeof body.priceOnlineCents === "number" && body.priceOnlineCents >= 0) {
-      updateData.priceOnlineCents = Math.round(body.priceOnlineCents);
+    if (body.priceOnlineCents === null || (typeof body.priceOnlineCents === "number" && body.priceOnlineCents >= 0)) {
+      updateData.priceOnlineCents = body.priceOnlineCents === null ? null : Math.round(body.priceOnlineCents);
     }
-    if (typeof body.priceOfflineCents === "number" && body.priceOfflineCents >= 0) {
-      updateData.priceOfflineCents = Math.round(body.priceOfflineCents);
+    if (body.priceOfflineCents === null || (typeof body.priceOfflineCents === "number" && body.priceOfflineCents >= 0)) {
+      updateData.priceOfflineCents = body.priceOfflineCents === null ? null : Math.round(body.priceOfflineCents);
     }
     if (body.weeklySchedule !== undefined) {
       updateData.weeklySchedule = body.weeklySchedule;

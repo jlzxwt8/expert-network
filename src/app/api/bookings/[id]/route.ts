@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
 import { notifyCancellation, notifyReschedule, notifyLocationUpdate } from "@/lib/telegram-bot";
+import { notifyWechatBookingCancelled, notifyWechatBookingRescheduled, notifyWechatLocationUpdated } from "@/lib/wechat-notify";
 
 export async function GET(
   request: NextRequest,
@@ -102,7 +103,7 @@ export async function PATCH(
       const founderName = updated.founder.nickName ?? updated.founder.name ?? "Client";
       const expertName = updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert";
 
-      // Notify the other party
+      // Notify the other party (Telegram + WeChat)
       if (isFounder) {
         notifyCancellation({
           telegramId: updated.expert.user.telegramId,
@@ -114,6 +115,14 @@ export async function PATCH(
           reason: updated.cancelReason,
           timezone: updated.timezone,
         }).catch(() => {});
+        notifyWechatBookingCancelled({
+          userId: updated.expert.userId,
+          otherPartyName: founderName,
+          sessionType: updated.sessionType,
+          startTime: updated.startTime,
+          reason: updated.cancelReason ?? undefined,
+          timezone: updated.timezone,
+        }).catch(() => {});
       } else {
         notifyCancellation({
           telegramId: updated.founder.telegramId,
@@ -123,6 +132,14 @@ export async function PATCH(
           sessionType: updated.sessionType,
           startTime: updated.startTime,
           reason: updated.cancelReason,
+          timezone: updated.timezone,
+        }).catch(() => {});
+        notifyWechatBookingCancelled({
+          userId: updated.founderId,
+          otherPartyName: expertName,
+          sessionType: updated.sessionType,
+          startTime: updated.startTime,
+          reason: updated.cancelReason ?? undefined,
           timezone: updated.timezone,
         }).catch(() => {});
       }
@@ -178,7 +195,7 @@ export async function PATCH(
       const rFounderName = updated.founder.nickName ?? updated.founder.name ?? "Client";
       const rExpertName = updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert";
 
-      // Notify the other party
+      // Notify the other party (Telegram + WeChat)
       if (isFounder) {
         notifyReschedule({
           telegramId: updated.expert.user.telegramId,
@@ -190,6 +207,14 @@ export async function PATCH(
           newStartTime: newStart,
           timezone: updated.timezone,
         }).catch(() => {});
+        notifyWechatBookingRescheduled({
+          userId: updated.expert.userId,
+          otherPartyName: rFounderName,
+          sessionType: updated.sessionType,
+          oldTime: oldStartTime,
+          newTime: newStart,
+          timezone: updated.timezone,
+        }).catch(() => {});
       } else {
         notifyReschedule({
           telegramId: updated.founder.telegramId,
@@ -199,6 +224,14 @@ export async function PATCH(
           sessionType: updated.sessionType,
           oldStartTime,
           newStartTime: newStart,
+          timezone: updated.timezone,
+        }).catch(() => {});
+        notifyWechatBookingRescheduled({
+          userId: updated.founderId,
+          otherPartyName: rExpertName,
+          sessionType: updated.sessionType,
+          oldTime: oldStartTime,
+          newTime: newStart,
           timezone: updated.timezone,
         }).catch(() => {});
       }
@@ -228,7 +261,7 @@ export async function PATCH(
         ? (updated.founder.nickName ?? updated.founder.name ?? "Client")
         : (updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert");
 
-      // Notify the other party
+      // Notify the other party (Telegram + WeChat)
       if (isFounder) {
         notifyLocationUpdate({
           telegramId: updated.expert.user.telegramId,
@@ -241,6 +274,13 @@ export async function PATCH(
           location,
           timezone: updated.timezone,
         }).catch(() => {});
+        notifyWechatLocationUpdated({
+          userId: updated.expert.userId,
+          otherPartyName: updated.founder.nickName ?? updated.founder.name ?? "Client",
+          startTime: updated.startTime,
+          location,
+          timezone: updated.timezone,
+        }).catch(() => {});
       } else {
         notifyLocationUpdate({
           telegramId: updated.founder.telegramId,
@@ -250,6 +290,13 @@ export async function PATCH(
           sessionType: updated.sessionType,
           startTime: updated.startTime,
           isOnline,
+          location,
+          timezone: updated.timezone,
+        }).catch(() => {});
+        notifyWechatLocationUpdated({
+          userId: updated.founderId,
+          otherPartyName: updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert",
+          startTime: updated.startTime,
           location,
           timezone: updated.timezone,
         }).catch(() => {});

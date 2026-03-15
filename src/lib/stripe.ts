@@ -69,6 +69,66 @@ function encodeBody(obj: Record<string, unknown>, prefix = ""): string {
   return parts.filter(Boolean).join("&");
 }
 
+// ---- Connected Accounts (Marketplace) ----
+
+interface StripeAccount {
+  id: string;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  details_submitted: boolean;
+  requirements?: {
+    currently_due: string[];
+    eventually_due: string[];
+    disabled_reason: string | null;
+  };
+}
+
+export async function createConnectedAccount(params: {
+  email?: string;
+  country?: string;
+  metadata?: Record<string, string>;
+}): Promise<StripeAccount> {
+  return stripeRequest<StripeAccount>("POST", "/accounts", {
+    type: "express",
+    country: params.country || "SG",
+    email: params.email || undefined,
+    capabilities: {
+      transfers: { requested: "true" },
+    },
+    business_type: "individual",
+    metadata: params.metadata,
+  });
+}
+
+interface AccountLink {
+  url: string;
+  expires_at: number;
+}
+
+export async function createAccountLink(params: {
+  account: string;
+  refresh_url: string;
+  return_url: string;
+  type?: string;
+}): Promise<AccountLink> {
+  return stripeRequest<AccountLink>("POST", "/account_links", {
+    account: params.account,
+    refresh_url: params.refresh_url,
+    return_url: params.return_url,
+    type: params.type || "account_onboarding",
+  });
+}
+
+export async function retrieveAccount(accountId: string): Promise<StripeAccount> {
+  return stripeRequest<StripeAccount>("GET", `/accounts/${accountId}`);
+}
+
+export function getAccountStatus(account: StripeAccount): "onboarding" | "active" | "restricted" {
+  if (!account.details_submitted) return "onboarding";
+  if (account.charges_enabled && account.payouts_enabled) return "active";
+  return "restricted";
+}
+
 // ---- Checkout Sessions ----
 
 interface CheckoutSession {
@@ -99,6 +159,15 @@ export async function createCheckoutSession(params: {
   cancel_url: string;
 }): Promise<CheckoutSession> {
   return stripeRequest<CheckoutSession>("POST", "/checkout/sessions", params);
+}
+
+export function getPlatformFeePercent(): number {
+  const raw = process.env.STRIPE_PLATFORM_FEE_PERCENT;
+  if (raw) {
+    const n = parseFloat(raw);
+    if (!isNaN(n) && n >= 0 && n <= 100) return n;
+  }
+  return 15;
 }
 
 // ---- Payment Intents ----

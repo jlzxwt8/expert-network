@@ -1,0 +1,170 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { decryptResource } from "@/lib/wechat-pay";
+import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import {
+  notifyExpertBooking,
+  notifyFounderBooking,
+} from "@/lib/telegram-bot";
+
+interface WechatPayNotification {
+  id: string;
+  create_time: string;
+  resource_type: string;
+  event_type: string;
+  resource: {
+    original_type: string;
+    algorithm: string;
+    ciphertext: string;
+    associated_data: string;
+    nonce: string;
+  };
+}
+
+interface DecryptedPayment {
+  out_trade_no: string;
+  transaction_id: string;
+  trade_state: string;
+  trade_state_desc: string;
+  payer: { openid: string };
+  amount: { total: number; payer_total: number; currency: string };
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.text();
+    const notification: WechatPayNotification = JSON.parse(body);
+
+    if (notification.event_type !== "TRANSACTION.SUCCESS") {
+      return NextResponse.json({ code: "SUCCESS", message: "OK" });
+    }
+
+    const { ciphertext, nonce, associated_data } = notification.resource;
+
+    let decrypted: DecryptedPayment;
+    try {
+      const plaintext = decryptResource(ciphertext, nonce, associated_data);
+      decrypted = JSON.parse(plaintext);
+    } catch (err) {
+      console.error("[wechat-pay-webhook] decrypt error:", err);
+      return NextResponse.json(
+        { code: "FAIL", message: "Decrypt failed" },
+        { status: 400 }
+      );
+    }
+
+    if (decrypted.trade_state !== "SUCCESS") {
+      console.log(
+        "[wechat-pay-webhook] trade_state not SUCCESS:",
+        decrypted.trade_state
+      );
+      return NextResponse.json({ code: "SUCCESS", message: "OK" });
+    }
+
+    const bookingId = decrypted.out_trade_no;
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        expert: { include: { user: true } },
+        founder: true,
+      },
+    });
+
+    if (!booking) {
+      console.error("[wechat-pay-webhook] booking not found:", bookingId);
+      return NextResponse.json({ code: "SUCCESS", message: "OK" });
+    }
+
+    if (booking.status !== "PENDING") {
+      console.log(
+        "[wechat-pay-webhook] booking already processed:",
+        bookingId,
+        booking.status
+      );
+      return NextResponse.json({ code: "SUCCESS", message: "OK" });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: "CONFIRMED",
+        paymentStatus: "deposit_paid",
+        stripePaymentIntentId: decrypted.transaction_id,
+      },
+      include: {
+        expert: { include: { user: true } },
+        founder: true,
+      },
+    });
+
+    const depositLabel = updated.depositAmountCents
+      ? `${updated.currency} ${(updated.depositAmountCents / 100).toFixed(2)}`
+      : "deposit";
+
+    storeBookingEvent({
+      expertId: updated.expertId,
+      founderName: updated.founder.nickName ?? updated.founder.name ?? "Client",
+      sessionType: updated.sessionType,
+      startTime: updated.startTime,
+      status: updated.status,
+    }).catch((e: unknown) =>
+      console.error("[wechat-pay-webhook] mem9 error:", e)
+    );
+
+    notifyExpertBooking({
+      expertTelegramId: updated.expert.user.telegramId,
+      expertTelegramUsername: updated.expert.user.telegramUsername,
+      founderName:
+        updated.founder.nickName ?? updated.founder.name ?? "Client",
+      sessionType: updated.sessionType,
+      startTime: updated.startTime,
+      depositAmount: depositLabel,
+      timezone: updated.timezone,
+    }).catch((e: unknown) =>
+      console.error("[wechat-pay-webhook] expert notify error:", e)
+    );
+
+    notifyFounderBooking({
+      founderTelegramId: updated.founder.telegramId,
+      founderTelegramUsername: updated.founder.telegramUsername,
+      expertName:
+        updated.expert.user.nickName ??
+        updated.expert.user.name ??
+        "Expert",
+      sessionType: updated.sessionType,
+      startTime: updated.startTime,
+      depositAmount: depositLabel,
+      timezone: updated.timezone,
+    }).catch((e: unknown) =>
+      console.error("[wechat-pay-webhook] founder notify error:", e)
+    );
+
+    // WeChat Subscribe Message notifications
+    const { notifyWechatBookingConfirmed } = await import("@/lib/wechat-notify");
+    notifyWechatBookingConfirmed({
+      userId: updated.expert.userId,
+      expertName: updated.founder.nickName ?? updated.founder.name ?? "Client",
+      sessionType: updated.sessionType,
+      startTime: updated.startTime,
+      depositAmount: depositLabel,
+      timezone: updated.timezone,
+    }).catch(() => {});
+    notifyWechatBookingConfirmed({
+      userId: updated.founderId,
+      expertName: updated.expert.user.nickName ?? updated.expert.user.name ?? "Expert",
+      sessionType: updated.sessionType,
+      startTime: updated.startTime,
+      depositAmount: depositLabel,
+      timezone: updated.timezone,
+    }).catch(() => {});
+
+    return NextResponse.json({ code: "SUCCESS", message: "OK" });
+  } catch (err) {
+    console.error("[wechat-pay-webhook] error:", err);
+    return NextResponse.json(
+      { code: "FAIL", message: "Internal error" },
+      { status: 500 }
+    );
+  }
+}

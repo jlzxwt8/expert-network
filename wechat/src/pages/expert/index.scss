@@ -1,0 +1,364 @@
+.expert-profile {
+  padding-bottom: 140px;
+
+  &__skeleton {
+    padding: 32px;
+  }
+
+  &__skeleton-img {
+    width: 100%;
+    height: 500px;
+    border-radius: 16px;
+    background: #f3f4f6;
+    margin-bottom: 24px;
+  }
+
+  &__skeleton-line {
+    height: 28px;
+    border-radius: 8px;
+    background: #f3f4f6;
+    margin-bottom: 16px;
+    width: 70%;
+
+    &--lg { width: 50%; height: 36px; }
+    &--sm { width: 40%; }
+  }
+
+  &__error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 600px;
+    color: #8c8c8c;
+    font-size: 28px;
+  }
+
+  &__error-btn {
+    margin-top: 24px;
+    padding: 16px 48px;
+    background: #f3f4f6;
+    border-radius: 12px;
+    font-size: 28px;
+    color: #1a1a2e;
+  }
+
+  // Hero
+  &__hero {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  }
+
+  &__avatar-img {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  }
+
+  &__avatar-placeholder-text {
+    font-size: 120px;
+    font-weight: 700;
+    color: #c7d2fe;
+  }
+
+  // Info
+  &__info {
+    padding: 24px 32px;
+  }
+
+  &__name {
+    display: block;
+    font-size: 40px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 16px;
+  }
+
+  &__domains {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  &__domain-chip {
+    font-size: 24px;
+    padding: 6px 20px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    color: #374151;
+  }
+
+  &__rating {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  &__stars {
+    display: flex;
+  }
+
+  &__star {
+    font-size: 28px;
+    color: #d1d5db;
+
+    &--filled {
+      color: #fbbf24;
+    }
+  }
+
+  &__review-count {
+    font-size: 24px;
+    color: #8c8c8c;
+  }
+
+  &__verified {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    font-size: 24px;
+    font-weight: 500;
+  }
+
+  // Sections
+  &__section {
+    padding: 0 32px;
+    margin-top: 40px;
+  }
+
+  &__section-title {
+    display: block;
+    font-size: 32px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 20px;
+  }
+
+  &__text {
+    display: block;
+    font-size: 26px;
+    color: #6b7280;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  &__text-muted {
+    display: block;
+    font-size: 26px;
+    color: #9ca3af;
+    padding: 24px 0;
+  }
+
+  // Services
+  &__service-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+    border: 1px solid #f3f4f6;
+  }
+
+  &__service-title {
+    display: block;
+    font-size: 28px;
+    font-weight: 500;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+  }
+
+  &__service-desc {
+    display: block;
+    font-size: 24px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+
+  // Social links
+  &__social-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  &__social-btn {
+    padding: 12px 24px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    font-size: 26px;
+    color: #374151;
+  }
+
+  // Document
+  &__document {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+  }
+
+  &__document-name {
+    font-size: 26px;
+    color: #374151;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__document-action {
+    font-size: 22px;
+    color: #6366f1;
+    flex-shrink: 0;
+    margin-left: 16px;
+  }
+
+  // Pricing
+  &__prices {
+    display: flex;
+    gap: 16px;
+  }
+
+  &__price-card {
+    flex: 1;
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__price-label {
+    font-size: 26px;
+    color: #6b7280;
+  }
+
+  &__price-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  &__price-note {
+    display: block;
+    font-size: 22px;
+    color: #9ca3af;
+    margin-top: 16px;
+  }
+
+  // Reviews
+  &__review {
+    padding: 24px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  &__review-header {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  &__review-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  &__review-meta {
+    flex: 1;
+  }
+
+  &__review-name {
+    display: block;
+    font-size: 26px;
+    font-weight: 500;
+    color: #1a1a2e;
+  }
+
+  &__review-date {
+    display: block;
+    font-size: 22px;
+    color: #9ca3af;
+    margin-top: 4px;
+  }
+
+  &__review-stars {
+    margin-bottom: 8px;
+  }
+
+  &__review-comment {
+    display: block;
+    font-size: 26px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+
+  &__load-more {
+    text-align: center;
+    padding: 24px;
+    font-size: 26px;
+    color: #6366f1;
+  }
+
+  // Bottom bar
+  &__bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 20px;
+    padding: 20px 32px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid #f3f4f6;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  &__book-btn {
+    flex: 1;
+    text-align: center;
+    padding: 24px 0;
+    border-radius: 16px;
+    font-size: 30px;
+    font-weight: 600;
+
+    &--primary {
+      background: #6366f1;
+      color: #fff;
+    }
+
+    &--outline {
+      background: #fff;
+      color: #6366f1;
+      border: 2px solid #e5e7eb;
+    }
+  }
+}

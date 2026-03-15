@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyWebhookSignature, retrievePaymentIntent } from "@/lib/stripe";
+import { verifyWebhookSignature, retrievePaymentIntent, getAccountStatus } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
@@ -147,6 +147,40 @@ export async function POST(request: NextRequest) {
           });
           console.log(
             `[webhooks/stripe] Booking ${bookingId} remainder paid`
+          );
+        }
+        break;
+      }
+
+      case "account.updated": {
+        const acct = dataObject as {
+          id?: string;
+          charges_enabled?: boolean;
+          payouts_enabled?: boolean;
+          details_submitted?: boolean;
+          requirements?: {
+            currently_due: string[];
+            eventually_due: string[];
+            disabled_reason: string | null;
+          };
+        };
+
+        if (acct.id) {
+          const status = getAccountStatus({
+            id: acct.id as string,
+            charges_enabled: !!acct.charges_enabled,
+            payouts_enabled: !!acct.payouts_enabled,
+            details_submitted: !!acct.details_submitted,
+            requirements: acct.requirements,
+          });
+
+          await prisma.expert.updateMany({
+            where: { stripeAccountId: acct.id as string },
+            data: { stripeAccountStatus: status },
+          });
+
+          console.log(
+            `[webhooks/stripe] Connected account ${acct.id} status → ${status}`
           );
         }
         break;

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState, startTransition } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   Monitor,
   MapPin,
@@ -422,13 +421,13 @@ export default function BookSessionPage() {
       <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between">
           <div>
-            <Link
-              href={searchParams.get("from") === "profile" ? `/experts/${expertId}` : "/discover"}
+            <button
+              onClick={() => router.back()}
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-1"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              {searchParams.get("from") === "profile" ? "Profile" : "Experts"}
-            </Link>
+              Back
+            </button>
             <h1 className="text-lg font-semibold">Book a Session</h1>
           </div>
           <UserMenu />

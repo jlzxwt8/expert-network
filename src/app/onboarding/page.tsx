@@ -18,6 +18,8 @@ import {
   Wallet,
   CheckCircle,
   DollarSign,
+  CreditCard,
+  ExternalLink,
 } from "lucide-react";
 
 import {
@@ -55,6 +57,7 @@ type Step =
   | "SESSION_PREFS"
   | "PRICING"
   | "AVAILABILITY"
+  | "STRIPE_KYC"
   | "AI_GENERATION"
   | "VOICE_SAMPLE"
   | "PREVIEW";
@@ -103,6 +106,8 @@ function getProgressValue(step: Step): number {
       return 35;
     case "AVAILABILITY":
       return 42;
+    case "STRIPE_KYC":
+      return 46;
     case "AI_GENERATION":
       return 50;
     case "VOICE_SAMPLE":
@@ -154,6 +159,8 @@ export default function OnboardingPage() {
   const [generatingDefaultAudio, setGeneratingDefaultAudio] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
+  const [stripeKycLoading, setStripeKycLoading] = useState(false);
+  const [stripeKycDone, setStripeKycDone] = useState(false);
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -442,6 +449,69 @@ export default function OnboardingPage() {
       setMessages((prev) => [
         ...prev,
         { id: "user-avail-skip", role: "user", content: "Skipped availability" },
+      ]);
+    }
+    setCurrentStep("STRIPE_KYC");
+  };
+
+  // Stripe KYC step
+  useEffect(() => {
+    if (currentStep !== "STRIPE_KYC") return;
+    addStepMessage("stripe-kyc", {
+      id: "stripe-kyc",
+      role: "ai",
+      content:
+        "To receive payments from session bookings, you need to set up a Stripe account. This is a quick identity verification required by our payment provider. You can also skip this and complete it later from your profile.",
+      type: "text",
+    });
+  }, [currentStep, addStepMessage]);
+
+  const handleStripeKycStart = async () => {
+    setStripeKycLoading(true);
+    try {
+      const res = await fetch("/api/stripe/connect", {
+        method: "POST",
+        headers: { ...tgHeaders },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to create Stripe account");
+      }
+      const data = await res.json();
+      if (data.url) {
+        setMessages((prev) => [
+          ...prev,
+          { id: "user-stripe-kyc", role: "user", content: "Opening Stripe verification..." },
+        ]);
+        window.open(data.url, "_blank");
+        setStripeKycDone(true);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Stripe setup failed";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `stripe-error-${Date.now()}`,
+          role: "ai",
+          content: `${msg}. You can try again or skip for now.`,
+          type: "text",
+        },
+      ]);
+    } finally {
+      setStripeKycLoading(false);
+    }
+  };
+
+  const handleStripeKycContinue = () => {
+    if (!stripeKycDone) {
+      setMessages((prev) => [
+        ...prev,
+        { id: "user-stripe-skip", role: "user", content: "Skipped Stripe setup" },
+      ]);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { id: "user-stripe-done", role: "user", content: "Stripe verification started" },
       ]);
     }
     startAIGeneration();
@@ -1489,6 +1559,61 @@ export default function OnboardingPage() {
             >
               <SkipForward className="mr-2 h-4 w-4" />
               Skip & Continue
+            </Button>
+          </div>
+        )}
+
+        {currentStep === "STRIPE_KYC" && (
+          <div className="space-y-3">
+            {stripeKycDone ? (
+              <div className="flex items-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4">
+                <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-emerald-800">
+                    Stripe verification started
+                  </p>
+                  <p className="text-xs text-emerald-600">
+                    Complete the verification in the new tab, then continue.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <Button
+                onClick={handleStripeKycStart}
+                disabled={stripeKycLoading}
+                className="min-h-[48px] w-full bg-indigo-600 hover:bg-indigo-700"
+              >
+                {stripeKycLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Setting up Stripe...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Set Up Stripe Account
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              onClick={handleStripeKycContinue}
+              variant={stripeKycDone ? "default" : "outline"}
+              className={cn(
+                "min-h-[44px] w-full",
+                stripeKycDone
+                  ? "bg-indigo-600 hover:bg-indigo-700"
+                  : "text-muted-foreground"
+              )}
+            >
+              {stripeKycDone ? (
+                "Continue"
+              ) : (
+                <>
+                  <SkipForward className="mr-2 h-4 w-4" />
+                  Skip for Now
+                </>
+              )}
             </Button>
           </div>
         )}
