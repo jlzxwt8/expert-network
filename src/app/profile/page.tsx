@@ -588,8 +588,7 @@ export default function ProfilePage() {
       }
       const data = await res.json();
       if (data.url) {
-        window.open(data.url, "_blank");
-        showMessage("Complete the Stripe verification in the new tab.", "stripe");
+        window.location.href = data.url;
       }
     } catch (err) {
       showMessage(

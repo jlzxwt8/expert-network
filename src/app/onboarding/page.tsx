@@ -159,7 +159,7 @@ export default function OnboardingPage() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [stripeKycLoading, setStripeKycLoading] = useState(false);
-  const [stripeKycDone, setStripeKycDone] = useState(false);
+  const [stripeKycDone] = useState(false);
 
   // Track which step-questions have already been added to avoid duplicates
   const addedQuestionsRef = useRef<Set<string>>(new Set());
@@ -482,8 +482,8 @@ export default function OnboardingPage() {
           ...prev,
           { id: "user-stripe-kyc", role: "user", content: "Opening Stripe verification..." },
         ]);
-        window.open(data.url, "_blank");
-        setStripeKycDone(true);
+        window.location.href = data.url;
+        return;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Stripe setup failed";
