@@ -14,12 +14,15 @@ import {
  * and returns an Account Link URL for KYC onboarding.
  */
 export async function POST(request: NextRequest) {
+  let step = "init";
   try {
+    step = "auth";
     const userId = await resolveUserId(request);
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    step = "find-expert";
     const expert = await prisma.expert.findUnique({
       where: { userId },
       include: { user: true },
@@ -38,6 +41,7 @@ export async function POST(request: NextRequest) {
     let stripeAccountId = expert.stripeAccountId;
 
     if (!stripeAccountId) {
+      step = "create-account";
       const account = await createConnectedAccount({
         email: expert.user.email ?? undefined,
         country: "SG",
@@ -48,6 +52,7 @@ export async function POST(request: NextRequest) {
       });
       stripeAccountId = account.id;
 
+      step = "save-account-id";
       await prisma.expert.update({
         where: { id: expert.id },
         data: {
@@ -57,6 +62,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    step = "create-account-link";
     const accountLink = await createAccountLink({
       account: stripeAccountId,
       refresh_url: `${origin}/api/stripe/connect/refresh?from=onboarding`,
@@ -69,9 +75,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[stripe/connect POST]", message, error);
+    console.error(`[stripe/connect POST] step=${step}`, message, error);
     return NextResponse.json(
-      { error: "Failed to create Stripe account", detail: message },
+      { error: "Failed to create Stripe account", detail: `[${step}] ${message}` },
       { status: 500 }
     );
   }
