@@ -19,7 +19,6 @@ import {
   CheckCircle,
   DollarSign,
   CreditCard,
-  ExternalLink,
 } from "lucide-react";
 
 import {

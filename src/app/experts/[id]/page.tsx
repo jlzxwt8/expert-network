@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Star,
@@ -126,9 +126,7 @@ function ReviewSkeleton() {
 export default function ExpertProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const id = params.id as string;
-  const from = searchParams.get("from");
   const [expert, setExpert] = useState<Expert | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsTotal, setReviewsTotal] = useState(0);
