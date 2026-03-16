@@ -124,7 +124,7 @@ export default function DashboardPage() {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-4 p-6">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading dashboard…</p>
+        <p className="text-sm text-muted-foreground">Loading bookings…</p>
       </div>
     );
   }
@@ -249,7 +249,10 @@ const BookingCard = memo(function BookingCard({
     : booking.expert?.user?.nickName || booking.expert?.user?.name || "Expert";
   const isOnline = booking.sessionType === "ONLINE";
   const start = parseISO(booking.startTime);
+  const msUntilStart = start.getTime() - Date.now();
   const canModify = booking.status === "PENDING" || booking.status === "CONFIRMED";
+  const canRescheduleOrCancel = canModify && msUntilStart >= 2 * 60 * 60 * 1000;
+  const canChangeLocation = canModify && (isOnline || msUntilStart >= 60 * 60 * 1000);
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -629,20 +632,32 @@ const BookingCard = memo(function BookingCard({
           </>
         )}
 
-        {canModify && !isPendingTON && (
+        {canModify && !isPendingTON && (canRescheduleOrCancel || canChangeLocation) && (
           <>
             <Separator className="my-3" />
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => { setShowReschedule(!showReschedule); setShowCancel(false); setShowLocation(false); }}>
-                <RotateCcw className="mr-1 h-3.5 w-3.5" />Reschedule
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => { setShowLocation(!showLocation); setShowCancel(false); setShowReschedule(false); }}>
-                <MapPinned className="mr-1 h-3.5 w-3.5" />{isOnline ? "Meeting Link" : "Location"}
-              </Button>
-              <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}>
-                <X className="mr-1 h-3.5 w-3.5" />Cancel
-              </Button>
+              {canRescheduleOrCancel && (
+                <Button variant="outline" size="sm" onClick={() => { setShowReschedule(!showReschedule); setShowCancel(false); setShowLocation(false); }}>
+                  <RotateCcw className="mr-1 h-3.5 w-3.5" />Reschedule
+                </Button>
+              )}
+              {canChangeLocation && (
+                <Button variant="outline" size="sm" onClick={() => { setShowLocation(!showLocation); setShowCancel(false); setShowReschedule(false); }}>
+                  <MapPinned className="mr-1 h-3.5 w-3.5" />{isOnline ? "Meeting Link" : "Location"}
+                </Button>
+              )}
+              {canRescheduleOrCancel && (
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => { setShowCancel(!showCancel); setShowReschedule(false); setShowLocation(false); }}>
+                  <X className="mr-1 h-3.5 w-3.5" />Cancel
+                </Button>
+              )}
             </div>
+            {!canRescheduleOrCancel && (
+              <p className="mt-1 text-xs text-muted-foreground">Reschedule & cancel disabled — booking starts within 2 hours</p>
+            )}
+            {!canChangeLocation && !isOnline && (
+              <p className="mt-1 text-xs text-muted-foreground">Location change disabled — booking starts within 1 hour</p>
+            )}
           </>
         )}
 

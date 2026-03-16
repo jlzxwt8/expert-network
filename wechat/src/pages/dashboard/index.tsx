@@ -219,28 +219,37 @@ export default function DashboardPage() {
                   </View>
                 )}
 
-                {(booking.status === "CONFIRMED" || booking.status === "PENDING") && (
-                  <View className="dashboard__card-actions">
-                    {booking.status === "CONFIRMED" && (
-                      <View
-                        className="dashboard__action-btn dashboard__action-btn--secondary"
-                        onClick={() =>
-                          Taro.navigateTo({
-                            url: `/pages/book/index?id=${booking.expertId}&type=${booking.sessionType}&rescheduleId=${booking.id}`,
-                          })
-                        }
-                      >
-                        Reschedule
-                      </View>
-                    )}
-                    <View
-                      className="dashboard__action-btn dashboard__action-btn--danger"
-                      onClick={() => handleCancel(booking.id)}
-                    >
-                      Cancel
+                {(booking.status === "CONFIRMED" || booking.status === "PENDING") && (() => {
+                  const msUntil = new Date(booking.startTime).getTime() - Date.now();
+                  const canRescheduleCancel = msUntil >= 2 * 60 * 60 * 1000;
+                  if (!canRescheduleCancel) return (
+                    <View className="dashboard__card-hint">
+                      <Text>Reschedule & cancel disabled — starts within 2 hours</Text>
                     </View>
-                  </View>
-                )}
+                  );
+                  return (
+                    <View className="dashboard__card-actions">
+                      {booking.status === "CONFIRMED" && (
+                        <View
+                          className="dashboard__action-btn dashboard__action-btn--secondary"
+                          onClick={() =>
+                            Taro.navigateTo({
+                              url: `/pages/book/index?id=${booking.expertId}&type=${booking.sessionType}&rescheduleId=${booking.id}`,
+                            })
+                          }
+                        >
+                          Reschedule
+                        </View>
+                      )}
+                      <View
+                        className="dashboard__action-btn dashboard__action-btn--danger"
+                        onClick={() => handleCancel(booking.id)}
+                      >
+                        Cancel
+                      </View>
+                    </View>
+                  );
+                })()}
               </View>
             );
           })}

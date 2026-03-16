@@ -78,6 +78,10 @@ export async function PATCH(
 
     const action = typeof body.action === "string" ? body.action : null;
 
+    const msUntilStart = booking.startTime.getTime() - Date.now();
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+
     // === CANCEL ===
     if (action === "cancel" || body.status === "CANCELLED") {
       if (booking.status === "CANCELLED") {
@@ -85,6 +89,12 @@ export async function PATCH(
       }
       if (booking.status === "COMPLETED") {
         return NextResponse.json({ error: "Cannot cancel a completed booking" }, { status: 400 });
+      }
+      if (msUntilStart < TWO_HOURS_MS) {
+        return NextResponse.json(
+          { error: "Cannot cancel a booking that starts within 2 hours" },
+          { status: 400 }
+        );
       }
 
       const updated = await prisma.booking.update({
@@ -152,6 +162,12 @@ export async function PATCH(
       if (booking.status === "CANCELLED" || booking.status === "COMPLETED") {
         return NextResponse.json(
           { error: `Cannot reschedule a ${booking.status.toLowerCase()} booking` },
+          { status: 400 }
+        );
+      }
+      if (msUntilStart < TWO_HOURS_MS) {
+        return NextResponse.json(
+          { error: "Cannot reschedule a booking that starts within 2 hours" },
           { status: 400 }
         );
       }
@@ -241,6 +257,13 @@ export async function PATCH(
 
     // === UPDATE LOCATION ===
     if (action === "update_location") {
+      if (booking.sessionType !== "ONLINE" && msUntilStart < ONE_HOUR_MS) {
+        return NextResponse.json(
+          { error: "Cannot change location for an offline booking that starts within 1 hour" },
+          { status: 400 }
+        );
+      }
+
       const offlineAddress = typeof body.offlineAddress === "string" ? body.offlineAddress.trim() : null;
       const meetingLink = typeof body.meetingLink === "string" ? body.meetingLink.trim() : null;
 

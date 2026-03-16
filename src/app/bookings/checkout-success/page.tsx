@@ -38,7 +38,7 @@ function CheckoutSuccessContent() {
       })
       .catch(() => {
         setStatus("error");
-        setErrorMsg("Network error — please check your bookings in the dashboard.");
+        setErrorMsg("Network error — please check your bookings.");
       });
   }, [sessionId]);
 
@@ -63,7 +63,7 @@ function CheckoutSuccessContent() {
             </div>
             <h1 className="text-xl font-bold">Verification Issue</h1>
             <p className="text-muted-foreground text-sm">
-              {errorMsg || "We couldn't verify the booking. Your payment was successful — please check the dashboard."}
+              {errorMsg || "We couldn't verify the booking. Your payment was successful — please check your bookings."}
             </p>
             <Button
               onClick={() => router.push("/booking")}
