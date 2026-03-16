@@ -19,6 +19,7 @@ import {
   MapPinned,
   Trash2,
   Wallet,
+  ExternalLink,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { format, parseISO, isSameDay, startOfDay, setHours, setMinutes } from "date-fns";
@@ -550,9 +551,16 @@ const BookingCard = memo(function BookingCard({
               </p>
             )}
             {isOnline && booking.meetingLink && (
-              <p className="mt-1.5 text-xs text-muted-foreground flex items-start gap-1">
-                <Monitor className="h-3 w-3 mt-0.5 shrink-0" /><span className="truncate">{booking.meetingLink}</span>
-              </p>
+              <a
+                href={booking.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                <Monitor className="h-3 w-3 shrink-0" />
+                <span className="truncate">Join Meeting</span>
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
             )}
             {booking.cancelReason && <p className="mt-1.5 text-xs text-red-500">Reason: {booking.cancelReason}</p>}
           </div>
