@@ -52,6 +52,7 @@ interface Booking {
   paymentMethod?: string | null;
   paymentStatus?: string | null;
   depositAmountCents?: number | null;
+  totalAmountCents?: number | null;
   currency?: string | null;
   expert?: {
     id: string;
@@ -352,6 +353,33 @@ const BookingCard = memo(function BookingCard({
     booking.paymentMethod === "ton" &&
     booking.paymentStatus === "pending";
 
+  const isRemainderDue = booking.paymentStatus === "remainder_due";
+
+  const handlePayRemainder = async () => {
+    setPaying(true);
+    setActionError(null);
+    try {
+      const tgHeaders = getHeaders();
+      const res = await fetch(`/api/bookings/${booking.id}/pay-remainder`, {
+        method: "POST",
+        headers: { ...(tgHeaders || {}) },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || data.error || "Failed to create payment");
+      if (data.alreadyPaid) {
+        await onUpdate();
+        return;
+      }
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setPaying(false);
+    }
+  };
+
   const handleRetryTONPayment = async () => {
     setPaying(true);
     setActionError(null);
@@ -637,6 +665,38 @@ const BookingCard = memo(function BookingCard({
               >
                 <X className="mr-1 h-3.5 w-3.5" />Cancel
               </Button>
+            </div>
+          </>
+        )}
+
+        {isRemainderDue && (
+          <>
+            <Separator className="my-3" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                className="gap-1"
+                disabled={paying}
+                onClick={handlePayRemainder}
+              >
+                {paying ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Wallet className="h-3.5 w-3.5" />
+                    Pay Remainder
+                    {booking.totalAmountCents != null && booking.depositAmountCents != null && (
+                      <span className="ml-1 text-xs opacity-80">
+                        ({booking.currency || "SGD"}{" "}
+                        {((booking.totalAmountCents - booking.depositAmountCents) / 100).toFixed(2)})
+                      </span>
+                    )}
+                  </>
+                )}
+              </Button>
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Remainder payment due
+              </span>
             </div>
           </>
         )}

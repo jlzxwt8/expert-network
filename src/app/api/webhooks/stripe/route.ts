@@ -34,6 +34,24 @@ export async function POST(request: NextRequest) {
       case "checkout.session.completed": {
         const session = dataObject;
         const sessionMeta = session.metadata as Record<string, string> | undefined;
+
+        if (sessionMeta?.type === "booking_remainder") {
+          const bookingId = sessionMeta.bookingId;
+          if (bookingId) {
+            await prisma.booking.update({
+              where: { id: bookingId },
+              data: {
+                paymentStatus: "fully_paid",
+                remainderChargedAt: new Date(),
+              },
+            });
+            console.log(
+              `[webhooks/stripe] Booking ${bookingId} remainder paid via checkout`
+            );
+          }
+          break;
+        }
+
         if (sessionMeta?.type !== "booking_deposit") break;
 
         const alreadyExists = await prisma.booking.findFirst({

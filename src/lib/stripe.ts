@@ -144,7 +144,7 @@ export async function retrieveCheckoutSession(id: string): Promise<CheckoutSessi
 
 export async function createCheckoutSession(params: {
   mode: string;
-  payment_method_types: string[];
+  payment_method_types?: string[];
   line_items: {
     price_data: {
       currency: string;
@@ -154,6 +154,7 @@ export async function createCheckoutSession(params: {
     quantity: number;
   }[];
   payment_intent_data?: Record<string, unknown>;
+  payment_method_options?: Record<string, unknown>;
   metadata?: Record<string, string>;
   success_url: string;
   cancel_url: string;

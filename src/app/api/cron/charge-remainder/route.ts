@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     let charged = 0;
     let failed = 0;
-    let tonDue = 0;
+    let manualDue = 0;
 
     for (const booking of bookings) {
       const remainderCents =
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // Stripe card remainder
+      // Stripe card remainder (only if card was saved)
       if (
         booking.paymentMethod === "stripe" &&
         booking.stripeCustomerId &&
@@ -92,8 +92,10 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      // TON or Telegram Payments: mark as remainder_due
+      // Stripe without saved card (PayNow, GrabPay, Alipay, WeChat Pay),
+      // TON, or Telegram Payments: mark as remainder_due for manual payment
       if (
+        booking.paymentMethod === "stripe" ||
         booking.paymentMethod === "ton" ||
         booking.paymentMethod === "telegram_payments"
       ) {
@@ -101,7 +103,7 @@ export async function GET(request: NextRequest) {
           where: { id: booking.id },
           data: { paymentStatus: "remainder_due" },
         });
-        tonDue++;
+        manualDue++;
         continue;
       }
     }
@@ -148,14 +150,14 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(
-      `[cron/charge-remainder] Processed ${bookings.length} bookings: ${charged} charged, ${failed} failed, ${tonDue} TON/TG due, ${reminders} reminders sent`
+      `[cron/charge-remainder] Processed ${bookings.length} bookings: ${charged} charged, ${failed} failed, ${manualDue} manual due, ${reminders} reminders sent`
     );
 
     return NextResponse.json({
       processed: bookings.length,
       charged,
       failed,
-      tonDue,
+      manualDue,
       reminders,
     });
   } catch (error) {

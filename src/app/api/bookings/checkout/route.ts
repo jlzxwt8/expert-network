@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
       request.headers.get("origin") || process.env.NEXTAUTH_URL || "";
 
     const paymentIntentData: Record<string, unknown> = {
-      setup_future_usage: "off_session",
       metadata: {
         expertId,
         founderId: session.user.id,
@@ -100,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
-      payment_method_types: ["card"],
+      payment_method_types: ["card", "paynow", "grabpay", "alipay", "wechat_pay"],
       line_items: [
         {
           price_data: {
@@ -115,6 +114,9 @@ export async function POST(request: NextRequest) {
         },
       ],
       payment_intent_data: paymentIntentData,
+      payment_method_options: {
+        card: { setup_future_usage: "off_session" },
+      },
       metadata: {
         type: "booking_deposit",
         expertId,
