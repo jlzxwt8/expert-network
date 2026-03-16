@@ -107,7 +107,7 @@ export default function BookSessionPage() {
 
   const [sessionType, setSessionType] = useState<SessionType>("ONLINE");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedSlot, setSelectedSlot] = useState<DefaultSlot | AvailableSlot | null>(null);
+  const [selectedSlots, setSelectedSlots] = useState<(DefaultSlot | AvailableSlot)[]>([]);
   const [slots, setSlots] = useState<(DefaultSlot | AvailableSlot)[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -167,15 +167,14 @@ export default function BookSessionPage() {
       ? expertPricing?.priceOfflineCents
       : expertPricing?.priceOnlineCents;
 
-  const slotDurationMinutes = selectedSlot
-    ? Math.max(
-        30,
-        Math.round(
-          (new Date(selectedSlot.endTime).getTime() -
-            new Date(selectedSlot.startTime).getTime()) /
-            (60 * 1000)
-        )
-      )
+  const sortedSelected = [...selectedSlots].sort(
+    (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+  );
+  const mergedStart = sortedSelected.length > 0 ? sortedSelected[0].startTime : null;
+  const mergedEnd = sortedSelected.length > 0 ? sortedSelected[sortedSelected.length - 1].endTime : null;
+
+  const slotDurationMinutes = mergedStart && mergedEnd
+    ? Math.max(30, Math.round((new Date(mergedEnd).getTime() - new Date(mergedStart).getTime()) / (60 * 1000)))
     : 30;
 
   const totalCents = pricePerHour ? Math.round(pricePerHour * slotDurationMinutes / 60) : 0;
@@ -200,7 +199,7 @@ export default function BookSessionPage() {
 
   const handleSessionTypeChange = (type: SessionType) => {
     setSessionType(type);
-    setSelectedSlot(null);
+    setSelectedSlots([]);
     updateTypeParam(type);
   };
 
@@ -212,7 +211,7 @@ export default function BookSessionPage() {
     let cancelled = false;
     setSlotsLoading(true);
     setSlots([]);
-    setSelectedSlot(null);
+    setSelectedSlots([]);
 
     fetch(`/api/experts/${expertId}/slots`)
       .then((res) => res.json())
@@ -256,8 +255,8 @@ export default function BookSessionPage() {
   const bookingPayload = () => ({
     expertId,
     sessionType,
-    startTime: selectedSlot!.startTime,
-    endTime: selectedSlot!.endTime,
+    startTime: mergedStart!,
+    endTime: mergedEnd!,
     timezone,
     ...(sessionType === "ONLINE" && { meetingLink: meetingLink.trim() }),
     ...(sessionType === "OFFLINE" && { offlineAddress: offlineAddress.trim() }),
@@ -397,7 +396,7 @@ export default function BookSessionPage() {
   };
 
   const handleConfirm = () => {
-    if (!selectedSlot || !expertId) return;
+    if (selectedSlots.length === 0 || !expertId) return;
     if (sessionType === "ONLINE" && !meetingLink.trim()) {
       setError("Please enter a meeting link for online sessions.");
       return;
@@ -418,7 +417,7 @@ export default function BookSessionPage() {
 
   const canConfirm =
     !!selectedDate &&
-    !!selectedSlot &&
+    selectedSlots.length > 0 &&
     !submitting &&
     (sessionType === "ONLINE" ? meetingLink.trim().length > 0 : offlineAddress.trim().length > 0);
 
@@ -522,7 +521,7 @@ export default function BookSessionPage() {
             Available times
           </h2>
           <p className="mb-2 text-xs text-muted-foreground">
-            Times shown in {timezone} · 30 min per session
+            Times shown in {timezone} · 30 min per slot · select consecutive slots for longer sessions
           </p>
           {!selectedDate ? (
             <p className="rounded-lg border border-dashed border-muted-foreground/30 py-8 text-center text-sm text-muted-foreground">
@@ -541,26 +540,51 @@ export default function BookSessionPage() {
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {slots.map((slot) => (
-                <button
-                  key={slot.id}
-                  type="button"
-                  onClick={() => startTransition(() => setSelectedSlot(slot))}
-                  className={cn(
-                    "min-h-[48px] rounded-lg border text-sm font-medium transition-colors",
-                    selectedSlot?.id === slot.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-input bg-muted/50 hover:bg-muted"
-                  )}
-                >
-                  {format(parseISO(slot.startTime), "h:mm a")}
-                </button>
-              ))}
+              {slots.map((slot) => {
+                const isSelected = selectedSlots.some((s) => s.id === slot.id);
+                return (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => startTransition(() => {
+                      setSelectedSlots((prev) => {
+                        if (isSelected) {
+                          const without = prev.filter((s) => s.id !== slot.id);
+                          if (without.length === 0) return [];
+                          const sorted = [...without].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+                          const contiguous: typeof sorted = [sorted[0]];
+                          for (let i = 1; i < sorted.length; i++) {
+                            if (new Date(sorted[i].startTime).getTime() === new Date(sorted[i - 1].endTime).getTime()) {
+                              contiguous.push(sorted[i]);
+                            } else break;
+                          }
+                          return contiguous;
+                        }
+                        const next = [...prev, slot].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+                        for (let i = 1; i < next.length; i++) {
+                          if (new Date(next[i].startTime).getTime() !== new Date(next[i - 1].endTime).getTime()) {
+                            return [slot];
+                          }
+                        }
+                        return next;
+                      });
+                    })}
+                    className={cn(
+                      "min-h-[48px] rounded-lg border text-sm font-medium transition-colors",
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-input bg-muted/50 hover:bg-muted"
+                    )}
+                  >
+                    {format(parseISO(slot.startTime), "h:mm a")}
+                  </button>
+                );
+              })}
             </div>
           )}
         </section>
 
-        {selectedSlot && totalCents > 0 && (
+        {selectedSlots.length > 0 && totalCents > 0 && (
           <section className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
             <h3 className="font-semibold text-sm">Payment Summary</h3>
             <div className="flex justify-between text-sm">
