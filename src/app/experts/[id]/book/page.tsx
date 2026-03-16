@@ -75,7 +75,7 @@ function generateSlotsFromSchedule(date: Date, schedule: WeeklySchedule | null):
 
     while (h < eh || (h === eh && m < em)) {
       const start = setMinutes(setHours(day, h), m);
-      const nextM = m + 60;
+      const nextM = m + 30;
       const endH = h + Math.floor(nextM / 60);
       const endM = nextM % 60;
       const end = endH < eh || (endH === eh && endM <= em)
@@ -167,18 +167,18 @@ export default function BookSessionPage() {
       ? expertPricing?.priceOfflineCents
       : expertPricing?.priceOnlineCents;
 
-  const slotDurationHours = selectedSlot
+  const slotDurationMinutes = selectedSlot
     ? Math.max(
-        1,
-        Math.ceil(
+        30,
+        Math.round(
           (new Date(selectedSlot.endTime).getTime() -
             new Date(selectedSlot.startTime).getTime()) /
-            (60 * 60 * 1000)
+            (60 * 1000)
         )
       )
-    : 1;
+    : 30;
 
-  const totalCents = pricePerHour ? pricePerHour * slotDurationHours : 0;
+  const totalCents = pricePerHour ? Math.round(pricePerHour * slotDurationMinutes / 60) : 0;
   const depositCents = Math.ceil(totalCents / 2);
   const remainderCents = totalCents - depositCents;
 
@@ -522,7 +522,7 @@ export default function BookSessionPage() {
             Available times
           </h2>
           <p className="mb-2 text-xs text-muted-foreground">
-            Times shown in {timezone} · 1 hour per session
+            Times shown in {timezone} · 30 min per session
           </p>
           {!selectedDate ? (
             <p className="rounded-lg border border-dashed border-muted-foreground/30 py-8 text-center text-sm text-muted-foreground">
@@ -566,7 +566,7 @@ export default function BookSessionPage() {
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
                 {expertPricing?.currency || "SGD"} {((pricePerHour || 0) / 100).toFixed(2)}/hr
-                &times; {slotDurationHours}h
+                &times; {slotDurationMinutes} min
               </span>
               <span className="font-medium">
                 {expertPricing?.currency || "SGD"} {(totalCents / 100).toFixed(2)}

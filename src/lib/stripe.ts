@@ -258,8 +258,8 @@ export function calculateBookingAmount(
   endTime: Date
 ): { totalCents: number; depositCents: number; remainderCents: number } {
   const durationMs = endTime.getTime() - startTime.getTime();
-  const durationHours = Math.max(1, Math.ceil(durationMs / (60 * 60 * 1000)));
-  const totalCents = pricePerHourCents * durationHours;
+  const durationMinutes = Math.max(30, Math.round(durationMs / (60 * 1000)));
+  const totalCents = Math.round(pricePerHourCents * durationMinutes / 60);
   const depositCents = Math.ceil(totalCents / 2);
   const remainderCents = totalCents - depositCents;
   return { totalCents, depositCents, remainderCents };

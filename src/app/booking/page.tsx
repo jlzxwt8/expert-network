@@ -448,7 +448,7 @@ const BookingCard = memo(function BookingCard({
               let h = sh, m = sm || 0;
               while (h < eh || (h === eh && m < em)) {
                 const s = setMinutes(setHours(day, h), m);
-                const nextM = m + 60;
+                const nextM = m + 30;
                 const eH = h + Math.floor(nextM / 60);
                 const eM = nextM % 60;
                 const e = eH < eh || (eH === eh && eM <= em)
