@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
       payment_intent_data: paymentIntentData,
       payment_method_options: {
         card: { setup_future_usage: "off_session" },
+        wechat_pay: { client: "web" },
       },
       metadata: {
         type: "booking_deposit",
