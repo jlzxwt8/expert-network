@@ -113,6 +113,7 @@ export default function BookSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineAddress, setOfflineAddress] = useState("");
+  const [meetingLink, setMeetingLink] = useState("");
   const [expertPricing, setExpertPricing] = useState<{
     priceOnlineCents: number | null;
     priceOfflineCents: number | null;
@@ -258,7 +259,8 @@ export default function BookSessionPage() {
     startTime: selectedSlot!.startTime,
     endTime: selectedSlot!.endTime,
     timezone,
-    ...(sessionType === "OFFLINE" && { meetingLink: offlineAddress.trim() }),
+    ...(sessionType === "ONLINE" && { meetingLink: meetingLink.trim() }),
+    ...(sessionType === "OFFLINE" && { offlineAddress: offlineAddress.trim() }),
   });
 
   const handleStripeCheckout = async () => {
@@ -396,6 +398,10 @@ export default function BookSessionPage() {
 
   const handleConfirm = () => {
     if (!selectedSlot || !expertId) return;
+    if (sessionType === "ONLINE" && !meetingLink.trim()) {
+      setError("Please enter a meeting link for online sessions.");
+      return;
+    }
     if (sessionType === "OFFLINE" && !offlineAddress.trim()) {
       setError("Please enter a meeting address for offline sessions.");
       return;
@@ -414,7 +420,7 @@ export default function BookSessionPage() {
     !!selectedDate &&
     !!selectedSlot &&
     !submitting &&
-    (sessionType === "ONLINE" || offlineAddress.trim().length > 0);
+    (sessionType === "ONLINE" ? meetingLink.trim().length > 0 : offlineAddress.trim().length > 0);
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
@@ -469,10 +475,24 @@ export default function BookSessionPage() {
           </div>
         </section>
 
+        {sessionType === "ONLINE" && (
+          <section>
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+              Meeting link <span className="text-destructive">*</span>
+            </h2>
+            <Input
+              value={meetingLink}
+              onChange={(e) => setMeetingLink(e.target.value)}
+              placeholder="https://zoom.us/j/... or https://meet.google.com/..."
+              className="min-h-[44px]"
+            />
+          </section>
+        )}
+
         {sessionType === "OFFLINE" && (
           <section>
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-              Meeting address
+              Meeting address <span className="text-destructive">*</span>
             </h2>
             <Input
               value={offlineAddress}

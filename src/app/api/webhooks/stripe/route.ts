@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
             endTime: new Date(meta.endTime!),
             timezone: meta.timezone || "Asia/Singapore",
             meetingLink: meta.meetingLink || null,
+            offlineAddress: meta.offlineAddress || null,
             status: "CONFIRMED",
             totalAmountCents: parseInt(meta.totalCents || "0", 10),
             depositAmountCents: parseInt(meta.depositCents || "0", 10),

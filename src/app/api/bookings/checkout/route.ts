@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { expertId, sessionType, startTime, endTime, timezone, meetingLink } =
+    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress } =
       body;
 
     if (!expertId || !sessionType || !startTime || !endTime) {
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
         endTime: end.toISOString(),
         timezone: timezone || "Asia/Singapore",
         meetingLink: meetingLink || "",
+        offlineAddress: offlineAddress || "",
         totalCents: String(totalCents),
         depositCents: String(depositCents),
         currency: expert.currency,
