@@ -446,11 +446,11 @@ export default function ExpertProfilePage() {
       )}
 
       {/* Session Pricing */}
-      {(expert.priceOnlineCents || expert.priceOfflineCents) && (
+      {(expert.priceOnlineCents != null || expert.priceOfflineCents != null) && (
         <section className="mt-8">
           <h2 className="text-lg font-semibold text-foreground mb-3">Session Rates</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            {expert.priceOnlineCents && expert.sessionType !== "OFFLINE" && (
+            {expert.priceOnlineCents != null && expert.sessionType !== "OFFLINE" && (
               <Card>
                 <CardContent className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -458,13 +458,14 @@ export default function ExpertProfilePage() {
                     Online
                   </div>
                   <span className="text-lg font-bold">
-                    {expert.currency} {(expert.priceOnlineCents / 100).toFixed(0)}
-                    <span className="text-sm font-normal text-muted-foreground">/hr</span>
+                    {expert.priceOnlineCents > 0 ? (
+                      <>{expert.currency} {(expert.priceOnlineCents / 100).toFixed(0)}<span className="text-sm font-normal text-muted-foreground">/hr</span></>
+                    ) : "Free"}
                   </span>
                 </CardContent>
               </Card>
             )}
-            {expert.priceOfflineCents && expert.sessionType !== "ONLINE" && (
+            {expert.priceOfflineCents != null && expert.sessionType !== "ONLINE" && (
               <Card>
                 <CardContent className="flex items-center justify-between p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -472,8 +473,9 @@ export default function ExpertProfilePage() {
                     Offline
                   </div>
                   <span className="text-lg font-bold">
-                    {expert.currency} {(expert.priceOfflineCents / 100).toFixed(0)}
-                    <span className="text-sm font-normal text-muted-foreground">/hr</span>
+                    {expert.priceOfflineCents > 0 ? (
+                      <>{expert.currency} {(expert.priceOfflineCents / 100).toFixed(0)}<span className="text-sm font-normal text-muted-foreground">/hr</span></>
+                    ) : "Free"}
                   </span>
                 </CardContent>
               </Card>

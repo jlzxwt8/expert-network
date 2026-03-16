@@ -154,8 +154,8 @@ export default function ProfilePage() {
         (data.servicesOffered as ServiceItem[] | null) ?? []
       );
       setUploadedFileName(data.documentName ?? null);
-      setPOnline(data.priceOnlineCents ? String(data.priceOnlineCents / 100) : "");
-      setPOffline(data.priceOfflineCents ? String(data.priceOfflineCents / 100) : "");
+      setPOnline(data.priceOnlineCents != null ? String(data.priceOnlineCents / 100) : "");
+      setPOffline(data.priceOfflineCents != null ? String(data.priceOfflineCents / 100) : "");
       setTgUsername(data.user?.telegramUsername ?? "");
     } catch {
       setProfile(null);
@@ -490,8 +490,8 @@ export default function ProfilePage() {
   };
 
   const handleCancelPricing = () => {
-    setPOnline(profile?.priceOnlineCents ? String(profile.priceOnlineCents / 100) : "");
-    setPOffline(profile?.priceOfflineCents ? String(profile.priceOfflineCents / 100) : "");
+    setPOnline(profile?.priceOnlineCents != null ? String(profile.priceOnlineCents / 100) : "");
+    setPOffline(profile?.priceOfflineCents != null ? String(profile.priceOfflineCents / 100) : "");
     setEditingPricing(false);
   };
 
@@ -1169,9 +1169,9 @@ export default function ProfilePage() {
                       <div className="flex items-center justify-between rounded-lg border p-3">
                         <span className="text-sm text-muted-foreground">Online</span>
                         <span className="font-medium">
-                          {profile.priceOnlineCents
+                          {profile.priceOnlineCents != null && profile.priceOnlineCents > 0
                             ? `SGD ${(profile.priceOnlineCents / 100).toFixed(2)}/hr`
-                            : "Not set"}
+                            : profile.priceOnlineCents === 0 ? "Free" : "Not set"}
                         </span>
                       </div>
                     )}
@@ -1179,9 +1179,9 @@ export default function ProfilePage() {
                       <div className="flex items-center justify-between rounded-lg border p-3">
                         <span className="text-sm text-muted-foreground">Offline</span>
                         <span className="font-medium">
-                          {profile.priceOfflineCents
+                          {profile.priceOfflineCents != null && profile.priceOfflineCents > 0
                             ? `SGD ${(profile.priceOfflineCents / 100).toFixed(2)}/hr`
-                            : "Not set"}
+                            : profile.priceOfflineCents === 0 ? "Free" : "Not set"}
                         </span>
                       </div>
                     )}

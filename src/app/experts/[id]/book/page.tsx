@@ -395,6 +395,29 @@ export default function BookSessionPage() {
     setTonPending(null);
   };
 
+  const handleFreeBooking = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const tgHeaders = getTelegramInitData();
+      const res = await fetch("/api/bookings/free", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(tgHeaders ? { "x-telegram-init-data": tgHeaders } : {}),
+        },
+        body: JSON.stringify(bookingPayload()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create booking");
+      router.push("/booking");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleConfirm = () => {
     if (selectedSlots.length === 0 || !expertId) return;
     if (sessionType === "ONLINE" && !meetingLink.trim()) {
@@ -405,11 +428,14 @@ export default function BookSessionPage() {
       setError("Please enter a meeting address for offline sessions.");
       return;
     }
-    if (!pricePerHour || pricePerHour <= 0) {
+    if (pricePerHour == null) {
       setError("Expert has not set pricing for this session type.");
       return;
     }
-    // On web: use Stripe; in Telegram: handled by separate buttons
+    if (totalCents === 0) {
+      handleFreeBooking();
+      return;
+    }
     if (!isTelegram) {
       handleStripeCheckout();
     }
@@ -584,31 +610,40 @@ export default function BookSessionPage() {
           )}
         </section>
 
-        {selectedSlots.length > 0 && totalCents > 0 && (
+        {selectedSlots.length > 0 && (
           <section className="rounded-xl border-2 border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
-            <h3 className="font-semibold text-sm">Payment Summary</h3>
+            <h3 className="font-semibold text-sm">
+              {totalCents > 0 ? "Payment Summary" : "Booking Summary"}
+            </h3>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">
-                {expertPricing?.currency || "SGD"} {((pricePerHour || 0) / 100).toFixed(2)}/hr
-                &times; {slotDurationMinutes} min
+                {totalCents > 0
+                  ? `${expertPricing?.currency || "SGD"} ${((pricePerHour || 0) / 100).toFixed(2)}/hr × ${slotDurationMinutes} min`
+                  : `${slotDurationMinutes} min session`}
               </span>
               <span className="font-medium">
-                {expertPricing?.currency || "SGD"} {(totalCents / 100).toFixed(2)}
+                {totalCents > 0
+                  ? `${expertPricing?.currency || "SGD"} ${(totalCents / 100).toFixed(2)}`
+                  : "Free"}
               </span>
             </div>
-            <hr className="border-indigo-200" />
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Deposit (50%) — due now</span>
-              <span className="font-bold text-indigo-700">
-                {expertPricing?.currency || "SGD"} {(depositCents / 100).toFixed(2)}
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Remainder — charged 24h after session</span>
-              <span className="text-muted-foreground">
-                {expertPricing?.currency || "SGD"} {(remainderCents / 100).toFixed(2)}
-              </span>
-            </div>
+            {totalCents > 0 && (
+              <>
+                <hr className="border-indigo-200" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Deposit (50%) — due now</span>
+                  <span className="font-bold text-indigo-700">
+                    {expertPricing?.currency || "SGD"} {(depositCents / 100).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Remainder — charged 24h after session</span>
+                  <span className="text-muted-foreground">
+                    {expertPricing?.currency || "SGD"} {(remainderCents / 100).toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
           </section>
         )}
 
@@ -636,7 +671,7 @@ export default function BookSessionPage() {
               Cancel
             </Button>
           </div>
-        ) : isTelegram && totalCents > 0 ? (
+        ) : isTelegram && totalCents > 0 && !submitting ? (
           <div className="space-y-2">
             <Button
               size="lg"
