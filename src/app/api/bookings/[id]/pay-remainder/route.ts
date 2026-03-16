@@ -85,7 +85,7 @@ export async function POST(
 
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
-      payment_method_types: ["card", "paynow", "grabpay", "alipay", "wechat_pay"],
+      payment_method_types: ["paynow", "grabpay", "card"],
       line_items: [
         {
           price_data: {
@@ -100,9 +100,7 @@ export async function POST(
         },
       ],
       payment_intent_data: paymentIntentData,
-      payment_method_options: {
-        wechat_pay: { client: "web" },
-      },
+      payment_method_options: {},
       metadata: {
         type: "booking_remainder",
         bookingId: booking.id,

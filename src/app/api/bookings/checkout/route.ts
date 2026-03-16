@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     const checkoutSession = await createCheckoutSession({
       mode: "payment",
-      payment_method_types: ["card", "paynow", "grabpay", "alipay", "wechat_pay"],
+      payment_method_types: ["paynow", "grabpay", "card"],
       line_items: [
         {
           price_data: {
@@ -117,7 +117,6 @@ export async function POST(request: NextRequest) {
       payment_intent_data: paymentIntentData,
       payment_method_options: {
         card: { setup_future_usage: "off_session" },
-        wechat_pay: { client: "web" },
       },
       metadata: {
         type: "booking_deposit",
