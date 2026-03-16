@@ -74,7 +74,7 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
             My Profile
           </Link>
           <Link
-            href="/dashboard"
+            href="/booking"
             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
             onClick={() => setOpen(false)}
           >

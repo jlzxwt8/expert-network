@@ -66,7 +66,7 @@ function CheckoutSuccessContent() {
               {errorMsg || "We couldn't verify the booking. Your payment was successful — please check the dashboard."}
             </p>
             <Button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/booking")}
               className="gap-2"
             >
               Go to Dashboard
@@ -93,7 +93,7 @@ function CheckoutSuccessContent() {
           </p>
           <div className="flex gap-3 pt-2">
             <Button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/booking")}
               className="flex-1 gap-2"
             >
               My Bookings

@@ -351,7 +351,7 @@ export default function BookSessionPage() {
       const confirmData = await confirmRes.json();
       if (!confirmRes.ok) throw new Error(confirmData.error ?? "Confirmation failed");
 
-      router.push("/dashboard");
+      router.push("/booking");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong";
       if (msg.includes("declined") || msg.includes("cancel")) {

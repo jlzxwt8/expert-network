@@ -8,15 +8,12 @@ import { getTelegramInitData } from "@/lib/telegram";
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { beginCell } from "@ton/core";
 import {
-  User,
   Calendar,
   Clock,
   Monitor,
   MapPin,
-  ExternalLink,
   Loader2,
   ArrowLeft,
-  Pencil,
   X,
   RotateCcw,
   MapPinned,
@@ -31,7 +28,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
-import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
 
 interface UserData {
   id: string;
@@ -75,11 +71,9 @@ export default function DashboardPage() {
   const { status: sessionStatus, isTelegram } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>({});
   const [loading, setLoading] = useState(true);
 
   const isExpert = !!userData?.expert;
-  const expertId = userData?.expert?.id;
 
   const loadDashboard = useCallback(async () => {
     const tgHeaders = getHeaders();
@@ -110,14 +104,6 @@ export default function DashboardPage() {
     const bookingsData = bookingsRes?.ok ? await bookingsRes.json() : { bookings: [] };
     setBookings(bookingsData?.bookings ?? []);
 
-    if (user?.expert?.id) {
-      const profileRes = await fetch("/api/expert/profile", { headers: tgHeaders, ...noCache }).catch(() => null);
-      const profileData = profileRes?.ok ? await profileRes.json() : null;
-      if (profileData?.weeklySchedule) {
-        setWeeklySchedule(profileData.weeklySchedule as WeeklySchedule);
-      }
-    }
-
     setLoading(false);
   }, []);
 
@@ -147,7 +133,7 @@ export default function DashboardPage() {
     return (
       <div className="mx-auto flex min-h-screen max-w-lg items-center justify-center p-6">
         <Link href="/auth/signin" className="text-sm text-muted-foreground underline">
-          Please sign in to view your dashboard
+          Please sign in to view your bookings
         </Link>
       </div>
     );
@@ -163,12 +149,12 @@ export default function DashboardPage() {
   };
 
   const now = new Date();
-  const activeBookings = bookings.filter(
-    (b) => b.status !== "CANCELLED" && b.status !== "COMPLETED" && new Date(b.startTime) >= now
-  );
-  const pastBookings = bookings.filter(
-    (b) => b.status === "CANCELLED" || b.status === "COMPLETED" || new Date(b.startTime) < now
-  );
+  const activeBookings = bookings
+    .filter((b) => b.status !== "CANCELLED" && b.status !== "COMPLETED" && new Date(b.startTime) >= now)
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const pastBookings = bookings
+    .filter((b) => b.status === "CANCELLED" || b.status === "COMPLETED" || new Date(b.startTime) < now)
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
@@ -182,51 +168,16 @@ export default function DashboardPage() {
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
             </button>
-            <h1 className="text-xl font-bold">Dashboard</h1>
+            <h1 className="text-xl font-bold">My Bookings</h1>
           </div>
           <UserMenu />
         </div>
       </header>
 
       <main className="space-y-6 p-4 pb-12">
-        {isExpert && (
-          <section>
-            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Your Profile</h2>
-            <Card>
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                    <User className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Expert Profile</p>
-                    <p className="text-xs text-muted-foreground">
-                      {userData?.expert?.isPublished ? "Published" : "Not yet published"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/profile"><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Link>
-                  </Button>
-                  {expertId && userData?.expert?.isPublished && (
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/experts/${expertId}`}>
-                        Public<ExternalLink className="ml-1 h-3.5 w-3.5" />
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        )}
-
         {/* Upcoming Bookings */}
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-            {isExpert ? "Upcoming Bookings" : "Your Bookings"}
-          </h2>
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Upcoming</h2>
           {activeBookings.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -249,7 +200,7 @@ export default function DashboardPage() {
         {/* Past Bookings */}
         {pastBookings.length > 0 && (
           <section>
-            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Past Bookings</h2>
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">Past</h2>
             <div className="space-y-3">
               {pastBookings.map((b) => (
                 <BookingCard
@@ -258,29 +209,6 @@ export default function DashboardPage() {
                 />
               ))}
             </div>
-          </section>
-        )}
-
-        {/* Weekly Schedule (Expert only) */}
-        {isExpert && (
-          <WeeklyScheduleEditor
-            schedule={weeklySchedule}
-            onSave={async (s) => {
-              setWeeklySchedule(s);
-              await fetch("/api/expert/profile", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", ...getHeaders() },
-                body: JSON.stringify({ weeklySchedule: s }),
-              });
-            }}
-          />
-        )}
-
-        {!isExpert && (
-          <section>
-            <Button asChild variant="outline" className="w-full" size="lg">
-              <Link href="/discover">Find More Experts</Link>
-            </Button>
           </section>
         )}
       </main>

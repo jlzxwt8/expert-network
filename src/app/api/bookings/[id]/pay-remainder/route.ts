@@ -109,8 +109,8 @@ export async function POST(
         expertId: booking.expertId,
         founderId: booking.founderId,
       },
-      success_url: `${origin}/dashboard?remainder_paid=${booking.id}`,
-      cancel_url: `${origin}/dashboard?remainder_cancelled=${booking.id}`,
+      success_url: `${origin}/booking?remainder_paid=${booking.id}`,
+      cancel_url: `${origin}/booking?remainder_cancelled=${booking.id}`,
     });
 
     return NextResponse.json({ checkoutUrl: checkoutSession.url });

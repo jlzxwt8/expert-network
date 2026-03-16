@@ -99,7 +99,7 @@ export function HomeContent() {
                     className="border-slate-500/50 bg-slate-800/50 text-white hover:bg-slate-700/50 hover:text-white font-semibold"
                   >
                     {isExpert ? (
-                      <Link href="/dashboard">View My Dashboard</Link>
+                      <Link href="/booking">My Bookings</Link>
                     ) : (
                       <Link href="/onboarding">Become an Expert</Link>
                     )}

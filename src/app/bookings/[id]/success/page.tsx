@@ -101,7 +101,7 @@ export default function BookingSuccessPage() {
           {error ?? "Booking not found"}
         </p>
         <Button asChild>
-          <Link href="/dashboard">View My Bookings</Link>
+          <Link href="/booking">View My Bookings</Link>
         </Button>
       </div>
     );
@@ -185,7 +185,7 @@ export default function BookingSuccessPage() {
             <Link href="/discover">Back to Discovery</Link>
           </Button>
           <Button asChild size="lg" className="w-full">
-            <Link href="/dashboard">View My Bookings</Link>
+            <Link href="/booking">View My Bookings</Link>
           </Button>
         </div>
       </main>

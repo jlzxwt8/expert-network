@@ -942,7 +942,7 @@ export default function OnboardingPage() {
         headers: { ...tgHeaders },
       });
       if (!res.ok) throw new Error("Publish failed");
-      router.push("/dashboard");
+      router.push("/booking");
     } catch {
       setIsSubmitting(false);
     }

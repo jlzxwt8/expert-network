@@ -122,7 +122,7 @@ export async function notifyExpertBooking(params: {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
@@ -164,7 +164,7 @@ export async function notifyFounderBooking(params: {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View My Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+    [{ text: "📋 View My Bookings", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
@@ -202,7 +202,7 @@ export async function notifyCancellation(params: {
   }
 
   await sendTelegramMessage(chatId, lines.join("\n"), [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
@@ -236,7 +236,7 @@ export async function notifyReschedule(params: {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
@@ -275,7 +275,7 @@ export async function notifyLocationUpdate(params: {
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/dashboard` } }],
+    [{ text: "📋 View Bookings", web_app: { url: `${APP_URL}/booking` } }],
   ]);
 
   return true;
