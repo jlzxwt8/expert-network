@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { retrieveCheckoutSession, retrievePaymentIntent } from "@/lib/stripe";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
+import { resolveUserId } from "@/lib/request-auth";
 import type { SessionType } from "@/generated/prisma/client";
 
 /**
@@ -15,12 +14,13 @@ import type { SessionType } from "@/generated/prisma/client";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { sessionId } = await request.json();
+    const body = await request.json();
+    const sessionId = body.sessionId;
     if (!sessionId || typeof sessionId !== "string") {
       return NextResponse.json(
         { error: "Missing session_id" },
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     if (
       checkoutSession.metadata?.type !== "booking_deposit" ||
-      checkoutSession.metadata?.founderId !== session.user.id
+      checkoutSession.metadata?.founderId !== userId
     ) {
       return NextResponse.json(
         { error: "Session not found or unauthorized" },

@@ -5,11 +5,17 @@ import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 import type { SessionType } from "@/generated/prisma/client";
 
+export const maxDuration = 30;
+
 export async function POST(request: NextRequest) {
   const sig = request.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!sig || !webhookSecret) {
+    console.error("[webhooks/stripe] Missing:", {
+      hasSignature: !!sig,
+      hasSecret: !!webhookSecret,
+    });
     return NextResponse.json(
       { error: "Missing signature or webhook secret" },
       { status: 400 }
@@ -23,11 +29,15 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[webhooks/stripe] Signature verification failed:", msg);
+    console.error("[webhooks/stripe] Secret prefix:", webhookSecret.slice(0, 10) + "...");
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  const eventType = event.type as string;
+  const eventId = event.id as string;
+  console.log(`[webhooks/stripe] Processing ${eventType} (${eventId})`);
+
   try {
-    const eventType = event.type as string;
     const dataObject = (event.data as { object: Record<string, unknown> })?.object;
 
     switch (eventType) {
@@ -210,12 +220,15 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("[webhooks/stripe] Processing error:", message, error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error(`[webhooks/stripe] Processing error for ${eventType} (${eventId}):`, message);
+    if (stack) console.error("[webhooks/stripe] Stack:", stack);
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 }
     );
   }
 
+  console.log(`[webhooks/stripe] Successfully processed ${eventType} (${eventId})`);
   return NextResponse.json({ received: true });
 }
