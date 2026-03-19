@@ -3,12 +3,6 @@ import type { AIProvider } from "./types";
 export type { ProfileInput, ProfileOutput, ImageInput, MatchResult, ServiceItem } from "./types";
 
 function createProvider(): AIProvider {
-  if (process.env.AI_PROVIDER === "qwen") {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { QwenProvider } = require("./qwen") as typeof import("./qwen");
-    return new QwenProvider();
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { GeminiProvider } = require("./gemini") as typeof import("./gemini");
   return new GeminiProvider();
