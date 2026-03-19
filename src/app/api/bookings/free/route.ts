@@ -33,6 +33,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Expert not found" }, { status: 404 });
     }
 
+    if (expert.userId === userId) {
+      return NextResponse.json({ error: "You cannot book yourself" }, { status: 400 });
+    }
+
     const pricePerHour =
       sessionType === "OFFLINE" ? expert.priceOfflineCents : expert.priceOnlineCents;
 

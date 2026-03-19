@@ -48,7 +48,7 @@ export async function chat(
   if (allExperts.length === 0) {
     return {
       reply:
-        "We don't have any published experts yet. Please check back later!",
+        "We don't have any published profiles yet. Please check back later!",
       experts: [],
     };
   }

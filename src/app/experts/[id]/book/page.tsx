@@ -429,7 +429,7 @@ export default function BookSessionPage() {
       return;
     }
     if (pricePerHour == null) {
-      setError("Expert has not set pricing for this session type.");
+      setError("This advisor has not set pricing for this session type.");
       return;
     }
     if (totalCents === 0) {

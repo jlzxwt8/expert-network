@@ -182,7 +182,7 @@ export function WeeklyScheduleEditor({
 
       {showHint && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Set your recurring weekly availability. Founders will see these times when booking.
+          Set your recurring weekly availability. Others will see these times when booking.
         </p>
       )}
 

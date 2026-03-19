@@ -17,14 +17,14 @@ const geistMono = localFont({
 });
 
 const APP_URL = "https://expert-network.vercel.app";
-const TITLE = "Help&Grow Expert Network";
+const TITLE = "Help&Grow — AI Startup Hub for Singapore & SEA";
 const DESCRIPTION =
-  "Connect with Singapore's top AI, fintech, and business experts. Book advisory sessions with verified professionals.";
+  "The go-to platform for AI startups expanding in Singapore and Southeast Asia. Connect with founders, industry experts, and investors for advisory sessions on localisation, talent, BD, and investment.";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  keywords: ["Singapore", "experts", "AI", "fintech", "startup", "advisory"],
+  keywords: ["Singapore", "Southeast Asia", "AI startup", "advisory", "investors", "founders", "experts", "localisation", "business development"],
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: "website",

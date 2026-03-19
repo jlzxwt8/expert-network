@@ -1,3 +1,7 @@
+// ---------------------------------------------------------------------------
+// Shared interfaces
+// ---------------------------------------------------------------------------
+
 export interface ProfileInput {
   linkedIn?: string;
   website?: string;
@@ -52,7 +56,7 @@ export interface AIProvider {
 }
 
 // ---------------------------------------------------------------------------
-// Shared helpers
+// Response parsing helpers
 // ---------------------------------------------------------------------------
 
 export function cleanJsonResponse(text: string): string {
@@ -73,38 +77,37 @@ export function ensureString(value: unknown): string {
   return String(value ?? "");
 }
 
-const DOMAIN_VISUALS: Record<string, string> = {
-  "Marketing & BD":
-    "megaphone waves, handshake silhouette, growth analytics charts, globe with connection arcs",
-  Headhunter:
-    "magnifying glass over profile cards, talent pipeline, connecting dots",
-  Law: "balanced scales, gavel silhouette, document layers with legal seals",
-  Funding:
-    "rising bar charts, currency symbols, rocket launch trail, investor handshake",
-};
+export function parseProfileResponse(text: string): ProfileOutput {
+  const cleaned = cleanJsonResponse(text);
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    console.error("[AI] Failed to parse profile JSON, raw:", text.slice(0, 500));
+    throw new Error("AI returned invalid response format. Please try again.");
+  }
 
-export function buildImagePrompt(data: ImageInput): string {
-  const bioSnippet = data.bio.slice(0, 200);
-  const visualElements = data.domains
-    .map((d) => DOMAIN_VISUALS[d] || d.toLowerCase())
-    .join("; ");
+  if (parsed.sourceSummary) {
+    console.log("[AI] Source summary:", parsed.sourceSummary);
+  }
 
-  const genderDesc = data.gender === "female" ? "female" : data.gender === "male" ? "male" : "";
-  const personDesc = [genderDesc, "professional expert"].filter(Boolean).join(" ");
-  const nameHint = data.nickName ? ` The character's name is "${data.nickName}" — reflect a culturally appropriate appearance for this name.` : "";
-
-  return `A stylized digital avatar illustration of a ${personDesc}. Modern cartoon style, NOT a real photo. The character has a confident, approachable expression shown from shoulders up. Rich indigo and purple color palette.${nameHint} Background has floating abstract elements: ${visualElements}. Premium, creative, slightly playful professional feel. The character wears modern business-casual attire with subtle details reflecting expertise in ${data.domains.join(" and ")}. Context: ${bioSnippet}. No text or watermarks in the image.`;
+  return {
+    bio: ensureString(parsed.bio),
+    services: Array.isArray(parsed.services) ? parsed.services : [],
+    videoScript: ensureString(parsed.videoScript),
+    sourceSummary: ensureString(parsed.sourceSummary ?? ""),
+  };
 }
 
-export function formatSocialLinks(data: ProfileInput): string {
-  return [
-    data.linkedIn && `LinkedIn: ${data.linkedIn}`,
-    data.website && `Official Website: ${data.website}`,
-    data.twitter && `X/Twitter: ${data.twitter}`,
-    data.substack && `Substack: ${data.substack}`,
-    data.instagram && `Instagram: ${data.instagram}`,
-    data.xiaohongshu && `XiaoHongShu: ${data.xiaohongshu}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+export function parseMatchResponse(text: string): MatchResult {
+  if (!text.trim()) {
+    throw new Error("Empty response from AI model");
+  }
+  const cleaned = cleanJsonResponse(text);
+  try {
+    return JSON.parse(cleaned) as MatchResult;
+  } catch {
+    console.error("[AI] Failed to parse match response:", text.slice(0, 500));
+    throw new Error("Failed to parse AI response");
+  }
 }

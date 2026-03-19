@@ -9,6 +9,8 @@ const MIGRATIONS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "User_wechatOpenId_key" ON "User"("wechatOpenId")`,
   // Reset test-mode Stripe Connected Accounts so experts re-KYC in live mode
   `UPDATE "Expert" SET "stripeAccountId" = NULL, "stripeAccountStatus" = 'none' WHERE "stripeAccountId" IS NOT NULL`,
+  `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "expertSuggestion" TEXT`,
+  `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "suggestionAt" TIMESTAMP`,
 ];
 
 /**

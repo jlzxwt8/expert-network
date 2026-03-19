@@ -163,10 +163,35 @@ export async function GET(request: NextRequest) {
       include: {
         expert: { include: { user: true } },
         founder: true,
+        review: {
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            expertSuggestion: true,
+            suggestionAt: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json({ bookings });
+    // Auto-complete bookings whose session has ended
+    const now = new Date();
+    const toComplete = bookings.filter(
+      (b) => b.status === "CONFIRMED" && new Date(b.endTime) < now
+    );
+    if (toComplete.length > 0) {
+      await prisma.booking.updateMany({
+        where: { id: { in: toComplete.map((b) => b.id) } },
+        data: { status: "COMPLETED" },
+      });
+      for (const b of toComplete) {
+        (b as { status: string }).status = "COMPLETED";
+      }
+    }
+
+    return NextResponse.json({ bookings, isExpert: !!isExpert });
   } catch (error) {
     console.error("[bookings GET]", error);
     return NextResponse.json(

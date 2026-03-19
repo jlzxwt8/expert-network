@@ -76,6 +76,7 @@ interface Review {
   id: string;
   rating: number;
   comment: string | null;
+  expertSuggestion: string | null;
   createdAt: string;
   founder: ReviewFounder;
 }
@@ -145,7 +146,7 @@ export default function ExpertProfilePage() {
     try {
       const res = await fetch(`/api/experts/${id}`);
       if (!res.ok) {
-        if (res.status === 404) setError("Expert not found");
+        if (res.status === 404) setError("Profile not found");
         else setError("Failed to load profile");
         setExpert(null);
         return;
@@ -203,7 +204,7 @@ export default function ExpertProfilePage() {
   if (!id) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Invalid expert ID</p>
+        <p className="text-muted-foreground">Invalid profile ID</p>
       </div>
     );
   }
@@ -229,7 +230,7 @@ export default function ExpertProfilePage() {
   if (error || !expert) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-4">
-        <p className="text-muted-foreground mb-4">{error ?? "Expert not found"}</p>
+        <p className="text-muted-foreground mb-4">{error ?? "Profile not found"}</p>
         <Button variant="outline" onClick={() => router.push("/discover")}>
           Back to Discover
         </Button>
@@ -533,6 +534,12 @@ export default function ExpertProfilePage() {
                         <p className="mt-1 text-sm text-muted-foreground">
                           {r.comment}
                         </p>
+                      )}
+                      {r.expertSuggestion && (
+                        <div className="mt-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3 py-2">
+                          <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-0.5">Mentor&apos;s Suggestion</p>
+                          <p className="text-sm text-foreground">{r.expertSuggestion}</p>
+                        </div>
                       )}
                     </div>
                   </div>

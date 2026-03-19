@@ -104,7 +104,7 @@ function CheckoutSuccessContent() {
               onClick={() => router.push("/discover")}
               className="flex-1"
             >
-              Browse Experts
+              Explore More
             </Button>
           </div>
         </CardContent>

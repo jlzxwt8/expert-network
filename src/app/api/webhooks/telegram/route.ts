@@ -166,24 +166,24 @@ export async function POST(request: NextRequest) {
     // /start command
     if (text === "/start" || text.startsWith("/start@")) {
       const welcomeText = [
-        `👋 *Welcome to Help&Grow Expert Network!*`,
+        `👋 *Welcome to Help&Grow!*`,
         ``,
-        `I can help you find the perfect expert for your needs. Just describe what you're looking for, for example:`,
+        `The AI startup community for Singapore & Southeast Asia. Tell me what you're looking for:`,
         ``,
-        `• _"I need a marketing expert for my startup"_`,
-        `• _"Looking for a tech mentor with AI experience"_`,
+        `• _"I need advice on expanding my AI startup in SEA"_`,
+        `• _"Looking for an AI expert with localisation experience"_`,
         `• _"Who can help with fundraising in Singapore?"_`,
         ``,
         `Or use these commands:`,
-        `/find <your need> — Find matching experts`,
+        `/find <your need> — Find the right people`,
         `/help — Show this help message`,
       ].join("\n");
 
       await sendMessage(botToken, chatId, welcomeText, {
         reply_markup: {
           inline_keyboard: [
-            [webAppButton("🚀 Open Full App", "/")],
-            [webAppButton("🔍 Browse Experts")],
+            [webAppButton("🚀 Open Help&Grow", "/")],
+            [webAppButton("🔍 Discover Community")],
           ],
         },
       });
@@ -193,13 +193,13 @@ export async function POST(request: NextRequest) {
     // /help command
     if (text === "/help" || text.startsWith("/help@")) {
       const helpText = [
-        `*Help&Grow Expert Network Bot*`,
+        `*Help&Grow Bot*`,
         ``,
-        `💬 *Chat with me* — Tell me what kind of expert you need and I'll recommend the best matches.`,
+        `💬 *Chat with me* — Tell me what you're looking for and I'll recommend the best matches.`,
         ``,
         `*Commands:*`,
-        `/find <description> — Find experts matching your needs`,
-        `/browse — Open the expert directory`,
+        `/find <description> — Find people matching your needs`,
+        `/browse — Open the community directory`,
         `/help — Show this message`,
         ``,
         `You can also type any question naturally!`,
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
         {
           reply_markup: {
             inline_keyboard: [
-              [webAppButton("🔍 Browse Experts")],
+              [webAppButton("🔍 Discover Community")],
             ],
           },
         }
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
       const replyText = `🎯 *Expert Recommendations*\n\n${lines.join("\n\n")}`;
 
       const buttons = buildExpertButtons(result.experts);
-      buttons.push([webAppButton("🔍 Browse All Experts")]);
+      buttons.push([webAppButton("🔍 Discover More")]);
 
       await sendMessage(botToken, chatId, replyText, {
         reply_markup: { inline_keyboard: buttons },
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
       await sendMessage(botToken, chatId, result.reply, {
         reply_markup: {
           inline_keyboard: [
-            [webAppButton("🔍 Browse All Experts")],
+            [webAppButton("🔍 Discover More")],
           ],
         },
       });

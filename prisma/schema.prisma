@@ -242,6 +242,9 @@ model Review {
   rating    Int
   comment   String?  @db.Text
 
+  expertSuggestion String? @db.Text
+  suggestionAt     DateTime?
+
   createdAt DateTime @default(now())
 
   @@index([expertId])

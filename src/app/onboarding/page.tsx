@@ -237,7 +237,7 @@ export default function OnboardingPage() {
           id: "greeting",
           role: "ai",
           content:
-            "Hey! Welcome to Help&Grow Expert Network. Let's set up your professional profile. It'll take just 2 minutes.",
+            "Hey! Welcome to Help&Grow — the AI startup community for Singapore & Southeast Asia. Let's set up your professional profile. It'll take just 2 minutes.",
           type: "text",
         },
       ]);
@@ -374,7 +374,7 @@ export default function OnboardingPage() {
     addStepMessage("session", {
       id: "session",
       role: "ai",
-      content: "How would you like to meet with startup founders?",
+      content: "How would you like to meet with people who book sessions with you?",
       type: "options",
     });
   }, [currentStep, addStepMessage]);
@@ -430,7 +430,7 @@ export default function OnboardingPage() {
       id: "availability",
       role: "ai",
       content:
-        "Set your weekly availability so founders know when to book. Tap the + button next to each day to add time slots. You can skip this and set it later.",
+        "Set your weekly availability so others know when to book you. Tap the + button next to each day to add time slots. You can skip this and set it later.",
       type: "text",
     });
   }, [currentStep, addStepMessage]);
@@ -768,7 +768,7 @@ export default function OnboardingPage() {
       {
         id: "ai-processing",
         role: "ai",
-        content: "Generating your expert profile — searching social profiles, writing bio, and creating your avatar image...",
+        content: "Generating your profile — searching social profiles, writing bio, and creating your avatar image...",
         type: "text",
       },
     ]);

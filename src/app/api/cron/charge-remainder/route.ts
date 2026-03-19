@@ -20,6 +20,18 @@ export async function GET(request: NextRequest) {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   try {
+    // Auto-complete confirmed bookings whose session has ended
+    const completed = await prisma.booking.updateMany({
+      where: {
+        status: "CONFIRMED",
+        endTime: { lt: new Date() },
+      },
+      data: { status: "COMPLETED" },
+    });
+    if (completed.count > 0) {
+      console.log(`[cron/charge-remainder] Auto-completed ${completed.count} bookings`);
+    }
+
     const bookings = await prisma.booking.findMany({
       where: {
         paymentStatus: "deposit_paid",
@@ -130,7 +142,8 @@ export async function GET(request: NextRequest) {
       const expertName =
         b.expert.user.nickName ?? b.expert.user.name ?? "Expert";
 
-      // Remind founder
+      const founderName = b.founder.nickName ?? b.founder.name ?? "Client";
+
       sendSessionReminder({
         telegramUsername: b.founder.telegramUsername,
         expertName,
@@ -138,13 +151,13 @@ export async function GET(request: NextRequest) {
         startTime: b.startTime,
       }).catch(() => {});
 
-      // Remind expert
       sendSessionReminder({
         telegramUsername: b.expert.user.telegramUsername,
-        expertName: b.founder.nickName ?? b.founder.name ?? "Client",
+        expertName: founderName,
         sessionType: b.sessionType,
         startTime: b.startTime,
       }).catch(() => {});
+
 
       reminders++;
     }

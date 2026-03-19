@@ -81,10 +81,10 @@ function SignInForm() {
     <Card className="w-full max-w-md border-0 bg-white/95 shadow-xl backdrop-blur sm:border">
       <CardHeader className="space-y-1 text-center pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
-          Help&Grow Expert Network
+          Help&amp;Grow
         </CardTitle>
         <CardDescription className="text-base">
-          {isExpert ? "Join as an Expert" : "Sign In"}
+          {isExpert ? "Join the Community" : "Sign In"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -165,7 +165,7 @@ function SignInFallback() {
     <Card className="w-full max-w-md border-0 bg-white/95 shadow-xl backdrop-blur sm:border">
       <CardHeader className="space-y-1 text-center pb-4">
         <CardTitle className="text-2xl font-bold tracking-tight">
-          Help&Grow Expert Network
+          Help&amp;Grow
         </CardTitle>
         <CardDescription className="text-base">Sign In</CardDescription>
       </CardHeader>

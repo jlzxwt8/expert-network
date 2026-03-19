@@ -38,10 +38,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!expert) {
-      return NextResponse.json(
-        { error: "Expert not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Expert not found" }, { status: 404 });
+    }
+
+    if (expert.userId === session.user.id) {
+      return NextResponse.json({ error: "You cannot book yourself" }, { status: 400 });
     }
 
     const overlap = await findOverlappingBooking(expertId, start, end);

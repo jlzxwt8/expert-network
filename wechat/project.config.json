@@ -1,8 +1,8 @@
 {
   "miniprogramRoot": "./dist",
   "projectname": "wechat",
-  "description": "Help&Grow Expert Network WeChat Mini Program",
-  "appid": "touristappid",
+  "description": "Help&Grow WeChat Mini Program",
+  "appid": "wx09d0eb079596060d",
   "setting": {
     "urlCheck": true,
     "es6": false,

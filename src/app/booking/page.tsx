@@ -20,6 +20,8 @@ import {
   Trash2,
   Wallet,
   ExternalLink,
+  Star,
+  MessageSquarePlus,
 } from "lucide-react";
 import { UserMenu } from "@/components/user-menu";
 import { format, parseISO, isSameDay, startOfDay, setHours, setMinutes } from "date-fns";
@@ -28,12 +30,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface UserData {
   id: string;
   role: string;
   expert?: { id: string; isPublished: boolean } | null;
+}
+
+interface BookingReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  expertSuggestion: string | null;
+  suggestionAt: string | null;
+  createdAt: string;
 }
 
 interface Booking {
@@ -53,13 +66,16 @@ interface Booking {
   currency?: string | null;
   expert?: {
     id: string;
-    user: { name: string | null; nickName: string | null };
+    userId?: string;
+    user: { id?: string; name: string | null; nickName: string | null };
   };
+  founderId?: string;
   founder?: {
     id: string;
     name: string | null;
     nickName: string | null;
   };
+  review?: BookingReview | null;
 }
 
 function getHeaders() {
@@ -73,8 +89,6 @@ export default function DashboardPage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const isExpert = !!userData?.expert;
 
   const loadDashboard = useCallback(async () => {
     const tgHeaders = getHeaders();
@@ -100,8 +114,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const role = user?.expert ? "expert" : "founder";
-    const bookingsRes = await fetch(`/api/bookings?role=${role}`, { headers: tgHeaders, ...noCache }).catch(() => null);
+    const bookingsRes = await fetch("/api/bookings", { headers: tgHeaders, ...noCache }).catch(() => null);
     const bookingsData = bookingsRes?.ok ? await bookingsRes.json() : { bookings: [] };
     setBookings(bookingsData?.bookings ?? []);
 
@@ -182,18 +195,18 @@ export default function DashboardPage() {
           {activeBookings.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                {isExpert ? "No upcoming bookings" : (
-                  <div><p className="mb-4">No active bookings</p>
-                    <Button asChild><Link href="/discover">Find an Expert</Link></Button>
-                  </div>
-                )}
+                <p className="mb-4">No upcoming bookings</p>
+                <Button asChild><Link href="/discover">Explore &amp; Learn</Link></Button>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
-              {activeBookings.map((b) => (
-                <BookingCard key={b.id} booking={b} showFounder={isExpert} statusVariant={statusVariant} onUpdate={loadDashboard} />
-              ))}
+              {activeBookings.map((b) => {
+                const isMenteeForThis = b.founderId === userData?.id;
+                return (
+                  <BookingCard key={b.id} booking={b} showFounder={!isMenteeForThis} statusVariant={statusVariant} onUpdate={loadDashboard} currentUserId={userData?.id} isExpert={!isMenteeForThis} roleLabel={isMenteeForThis ? "Learner" : "Mentor"} />
+                );
+              })}
             </div>
           )}
         </section>
@@ -203,12 +216,19 @@ export default function DashboardPage() {
           <section>
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">Past</h2>
             <div className="space-y-3">
-              {pastBookings.map((b) => (
-                <BookingCard
-                  key={b.id} booking={b} showFounder={isExpert} statusVariant={statusVariant}
-                  showLeaveReview={!isExpert && b.status === "COMPLETED"} onUpdate={loadDashboard}
-                />
-              ))}
+              {pastBookings.map((b) => {
+                const isMenteeForThis = b.founderId === userData?.id;
+                return (
+                  <BookingCard
+                    key={b.id} booking={b} showFounder={!isMenteeForThis} statusVariant={statusVariant}
+                    showLeaveReview={isMenteeForThis && b.status === "COMPLETED" && !b.review}
+                    isExpert={!isMenteeForThis}
+                    onUpdate={loadDashboard}
+                    currentUserId={userData?.id}
+                    roleLabel={isMenteeForThis ? "Learner" : "Mentor"}
+                  />
+                );
+              })}
             </div>
           </section>
         )}
@@ -220,13 +240,16 @@ export default function DashboardPage() {
 /* ============= Booking Card ============= */
 
 const BookingCard = memo(function BookingCard({
-  booking, showFounder, showLeaveReview, statusVariant, onUpdate,
+  booking, showFounder, showLeaveReview, statusVariant, onUpdate, currentUserId, isExpert, roleLabel,
 }: {
   booking: Booking;
   showFounder?: boolean;
   showLeaveReview?: boolean;
+  isExpert?: boolean;
   statusVariant: (s: string) => "default" | "secondary" | "destructive" | "outline";
   onUpdate: () => Promise<void>;
+  currentUserId?: string;
+  roleLabel?: string;
 }) {
   const [tonConnectUI] = useTonConnectUI();
   const tonWallet = useTonWallet();
@@ -285,7 +308,7 @@ const BookingCard = memo(function BookingCard({
     booking.paymentMethod === "ton" &&
     booking.paymentStatus === "pending";
 
-  const isRemainderDue = booking.paymentStatus === "remainder_due";
+  const isRemainderDue = booking.paymentStatus === "remainder_due" && booking.founderId === currentUserId;
 
   const handlePayRemainder = async () => {
     setPaying(true);
@@ -564,7 +587,19 @@ const BookingCard = memo(function BookingCard({
             )}
             {booking.cancelReason && <p className="mt-1.5 text-xs text-red-500">Reason: {booking.cancelReason}</p>}
           </div>
-          <Badge variant={statusVariant(booking.status)}>{booking.status}</Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant={statusVariant(booking.status)}>{booking.status}</Badge>
+            {roleLabel && (
+              <span className={cn(
+                "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                roleLabel === "Mentor"
+                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+              )}>
+                {roleLabel}
+              </span>
+            )}
+          </div>
         </div>
 
         {isPendingTON && (
@@ -752,10 +787,145 @@ const BookingCard = memo(function BookingCard({
         )}
 
         {showLeaveReview && (
-          <><Separator className="my-3" /><Button variant="outline" size="sm" asChild><Link href={`/reviews/${booking.id}`}>Leave Review</Link></Button></>
+          <><Separator className="my-3" /><Button variant="outline" size="sm" asChild><Link href={`/reviews/${booking.id}`}><Star className="mr-1 h-3.5 w-3.5" />Leave Review</Link></Button></>
+        )}
+
+        {booking.status === "COMPLETED" && booking.review && (
+          <ReviewSuggestionSection review={booking.review} isExpert={!!isExpert} bookingId={booking.id} onUpdate={onUpdate} />
+        )}
+
+        {isExpert && booking.status === "COMPLETED" && !booking.review && (
+          <ExpertSuggestionForm bookingId={booking.id} onUpdate={onUpdate} />
         )}
       </CardContent>
     </Card>
   );
 });
 
+/* ============= Review + Suggestion Section (shown when review exists) ============= */
+
+function ReviewSuggestionSection({
+  review,
+  isExpert,
+  bookingId,
+  onUpdate,
+}: {
+  review: BookingReview;
+  isExpert: boolean;
+  bookingId: string;
+  onUpdate: () => Promise<void>;
+}) {
+  const hasRating = review.rating > 0;
+
+  return (
+    <>
+      <Separator className="my-3" />
+
+      {hasRating && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Mentee Review</p>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star
+                key={i}
+                className={cn(
+                  "h-3.5 w-3.5",
+                  i <= review.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"
+                )}
+              />
+            ))}
+          </div>
+          {review.comment && (
+            <p className="text-sm text-muted-foreground">{review.comment}</p>
+          )}
+        </div>
+      )}
+
+      {review.expertSuggestion && (
+        <div className={cn("space-y-1.5", hasRating && "mt-3")}>
+          <p className="text-xs font-medium text-muted-foreground">Mentor&apos;s Next-Step Suggestion</p>
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 px-3 py-2">
+            <p className="text-sm text-foreground">{review.expertSuggestion}</p>
+          </div>
+        </div>
+      )}
+
+      {isExpert && !review.expertSuggestion && (
+        <ExpertSuggestionForm bookingId={bookingId} onUpdate={onUpdate} />
+      )}
+    </>
+  );
+}
+
+/* ============= Expert Suggestion Form ============= */
+
+function ExpertSuggestionForm({
+  bookingId,
+  onUpdate,
+}: {
+  bookingId: string;
+  onUpdate: () => Promise<void>;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [suggestion, setSuggestion] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async () => {
+    if (!suggestion.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const tgHeaders = getHeaders();
+      const res = await fetch("/api/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(tgHeaders || {}) },
+        body: JSON.stringify({ bookingId, expertSuggestion: suggestion.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save suggestion");
+      }
+      setShowForm(false);
+      await onUpdate();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!showForm) {
+    return (
+      <>
+        <Separator className="my-3" />
+        <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
+          <MessageSquarePlus className="mr-1 h-3.5 w-3.5" />
+          Add Next-Step Suggestion
+        </Button>
+      </>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-2 rounded-lg border p-3">
+      <p className="text-sm font-medium">Next-Step Suggestion for Mentee</p>
+      <Textarea
+        placeholder="Share recommended next steps, resources, or action items..."
+        value={suggestion}
+        onChange={(e) => setSuggestion(e.target.value)}
+        className="min-h-[80px] resize-none"
+        rows={3}
+      />
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
+      <div className="flex gap-2">
+        <Button size="sm" onClick={handleSubmit} disabled={!suggestion.trim() || submitting}>
+          {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save Suggestion"}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+      </div>
+    </div>
+  );
+}

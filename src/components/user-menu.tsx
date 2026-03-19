@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
-import { CalendarDays, LogOut, User } from "lucide-react";
+import { CalendarDays, LogOut, User, Search } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 interface UserMenuProps {
@@ -66,12 +66,12 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
           onMouseLeave={() => setOpen(false)}
         >
           <Link
-            href="/profile"
+            href="/discover"
             className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
             onClick={() => setOpen(false)}
           >
-            <User className="h-4 w-4" />
-            My Profile
+            <Search className="h-4 w-4" />
+            Discover
           </Link>
           <Link
             href="/booking"
@@ -80,6 +80,14 @@ export function UserMenu({ variant = "dark" }: UserMenuProps) {
           >
             <CalendarDays className="h-4 w-4" />
             My Bookings
+          </Link>
+          <Link
+            href="/profile"
+            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+            onClick={() => setOpen(false)}
+          >
+            <User className="h-4 w-4" />
+            My Profile
           </Link>
           {!isTelegram && (
             <button

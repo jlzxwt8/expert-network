@@ -1,25 +1,58 @@
 import type { AIProvider } from "./types";
 
-export type { ProfileInput, ProfileOutput, ImageInput, MatchResult, ServiceItem } from "./types";
+export type {
+  ProfileInput,
+  ProfileOutput,
+  ImageInput,
+  MatchResult,
+  ServiceItem,
+} from "./types";
 
-function createProvider(): AIProvider {
-  if (process.env.AI_PROVIDER === "qwen") {
+// ---------------------------------------------------------------------------
+// Provider registry — add new providers here
+// ---------------------------------------------------------------------------
+
+const PROVIDERS: Record<string, () => AIProvider> = {
+  gemini: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { GeminiProvider } = require("./gemini") as typeof import("./gemini");
+    return new GeminiProvider();
+  },
+  qwen: () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { QwenProvider } = require("./qwen") as typeof import("./qwen");
     return new QwenProvider();
-  }
+  },
+  openai: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { OpenAIProvider } = require("./openai") as typeof import("./openai");
+    return new OpenAIProvider();
+  },
+};
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { GeminiProvider } = require("./gemini") as typeof import("./gemini");
-  return new GeminiProvider();
-}
+// ---------------------------------------------------------------------------
+// Singleton factory
+// ---------------------------------------------------------------------------
 
 let _provider: AIProvider | null = null;
 
 function provider(): AIProvider {
-  if (!_provider) _provider = createProvider();
+  if (!_provider) {
+    const name = process.env.AI_PROVIDER || "gemini";
+    const factory = PROVIDERS[name];
+    if (!factory) {
+      throw new Error(
+        `Unknown AI_PROVIDER "${name}". Available: ${Object.keys(PROVIDERS).join(", ")}`
+      );
+    }
+    _provider = factory();
+  }
   return _provider;
 }
+
+// ---------------------------------------------------------------------------
+// Public API — unchanged, consumers keep importing these functions
+// ---------------------------------------------------------------------------
 
 export function generateExpertProfile(
   ...args: Parameters<AIProvider["generateExpertProfile"]>

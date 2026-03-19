@@ -360,7 +360,7 @@ export default function ProfilePage() {
         throw new Error(data.error ?? "Failed to publish");
       }
       setProfile((prev) => (prev ? { ...prev, isPublished: true } : prev));
-      showMessage("Profile published! It's now visible to founders.", "publish");
+      showMessage("Profile published! It's now visible in the community.", "publish");
     } catch (err) {
       showMessage(err instanceof Error ? err.message : "Publish failed", "publish", true, 5000);
     } finally {
@@ -768,7 +768,7 @@ export default function ProfilePage() {
                     Profile not published
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                    Your profile is only visible to you. Publish it to appear in the expert directory and let founders book sessions.
+                    Your profile is only visible to you. Publish it to appear in the community directory and let others book sessions with you.
                   </p>
                 </div>
               </div>
@@ -926,7 +926,7 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground mb-4">
-                You don&apos;t have an expert profile yet.
+                You don&apos;t have a profile yet. Create one to share your expertise and let others book sessions with you.
               </p>
               <Button onClick={() => router.push("/onboarding")}>
                 Complete Onboarding

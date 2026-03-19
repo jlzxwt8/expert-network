@@ -1,20 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 import * as fs from "fs";
-import type {
-  AIProvider,
-  ProfileInput,
-  ProfileOutput,
-  ImageInput,
-  MatchResult,
-} from "./types";
+import type { ProfileInput, ProfileOutput } from "./types";
+import { parseProfileResponse } from "./types";
 import {
-  cleanJsonResponse,
-  ensureString,
-  buildImagePrompt,
   formatSocialLinks,
-} from "./types";
+  buildProfilePromptWithNativeSearch,
+  PDF_EXTRACTION_PROMPT,
+} from "./prompts";
+import { BaseAIProvider } from "./base-provider";
 
-const MODEL = "gemini-2.5-flash";
+const TEXT_MODEL = "gemini-2.5-flash";
 const IMAGE_MODEL = "gemini-2.5-flash-image";
 
 function setupServiceAccountAuth() {
@@ -42,131 +37,67 @@ function createClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 }
 
-export class GeminiProvider implements AIProvider {
+export class GeminiProvider extends BaseAIProvider {
   private ai: GoogleGenAI;
 
   constructor() {
+    super();
     this.ai = createClient();
   }
 
+  protected async chat(prompt: string): Promise<string> {
+    const response = await this.ai.models.generateContent({
+      model: TEXT_MODEL,
+      contents: prompt,
+    });
+    return response.text ?? "";
+  }
+
+  /**
+   * Override: single-step profile generation with native Google Search
+   * grounding, avoiding the two-step search→generate flow.
+   */
   async generateExpertProfile(data: ProfileInput): Promise<ProfileOutput> {
     const socialLinks = formatSocialLinks(data);
     const resumeSection = data.resumeText
       ? `\n\nAdditional context from uploaded document (resume/CV):\n${data.resumeText.slice(0, 3000)}`
       : "";
 
-    const prompt = `You are creating a professional profile on Help&Grow — a platform helping AI startups expand in Singapore and Southeast Asia, connecting startup founders, industry experts, and investors.
-
-Expert's name: ${data.nickName}
-Professional domains: ${data.domains.join(", ")}
-Social profiles:
-${socialLinks}${resumeSection}
-
-STEP 1 — Research: Use Google Search to look up EACH social profile link AND the expert's name. For LinkedIn, also search for "[name] LinkedIn [company]" to find cached profile data. Gather ONLY verifiable facts:
-- Job title, company, professional headline
-- Real work history and achievements
-- Follower/subscriber/connection counts (exact numbers only if found)
-- Content themes and recent posts
-- For Instagram/XiaoHongShu: follower count, content focus
-- For Official Website: services offered, company info, testimonials
-
-IMPORTANT: Some platforms (X/Twitter, XiaoHongShu/RedBook) block Google indexing. If Google Search returns NO usable results for a platform, honestly state that you could not find information for that platform. Do NOT guess, infer, or fabricate details for platforms you could not search.
-
-STEP 2 — Merge sources and assess what you actually found:
-- For each social link, note whether Google Search returned real data or not.
-- Combine verified facts from Google Search WITH the uploaded document (if provided).
-- The uploaded document (resume/CV) is a TRUSTED source — use it for experience, skills, and achievements.
-- Google Search results are useful for latest role, public presence, and follower counts.
-- If a social link returned no data from search, do NOT pretend you found something. Simply omit it.
-
-ABSOLUTE RULES — Truth over polish:
-- NEVER fabricate or estimate numbers. If you cannot find a follower count, do NOT mention one.
-- NEVER invent companies, job titles, achievements, or descriptions not found in search results or the uploaded document.
-- NEVER describe content themes for a platform you could not access.
-- A short, honest profile is ALWAYS better than a detailed but fabricated one.
-- If you only have the uploaded document and no search results, say so — build the profile from the document alone.
-
-STEP 3 — Generate a JSON object with these 4 keys:
-
-1. "bio" (STRING — must be a single markdown-formatted string, NOT an object or array):
-Write a concise third-person summary in markdown bullet points:
-- **Current Role**: Job title and company (only if verified)
-- **Expertise**: 2-3 bullet points on distinct domain areas
-- **Track Record**: 1-2 bullet points with verifiable achievements
-- **Social Presence**: Only mention platforms where you found real data. For platforms where search returned nothing, omit them entirely.
-Keep under 100 words. No fluff.
-
-2. "services" (ARRAY of objects): 3-4 services following MECE (Mutually Exclusive, Collectively Exhaustive) principle. Each service covers a distinct, non-overlapping area. Format: {"title": "concise service name (3-5 words)", "description": "one-sentence value proposition for founders"}
-
-3. "videoScript" (STRING): A natural first-person introduction (45-60 seconds spoken). Use ONLY real verified facts. Structure: who I am → what I do → how I help founders → book a session CTA.
-
-4. "sourceSummary" (STRING): A brief note listing which social platforms returned useful search data and which did not. Example: "Found data from: LinkedIn, Official Website, Substack. No data from Google Search: X/Twitter, XiaoHongShu (these platforms block search indexing)."
-
-IMPORTANT: "bio" must be a plain string with markdown formatting, never a JSON object or array.
-
-Return ONLY the JSON object, no markdown code fences.`;
+    const prompt = buildProfilePromptWithNativeSearch(
+      data,
+      socialLinks,
+      resumeSection
+    );
 
     const response = await this.ai.models.generateContent({
-      model: MODEL,
+      model: TEXT_MODEL,
       contents: prompt,
       config: { tools: [{ googleSearch: {} }] },
     });
 
-    const text = response.text ?? "";
-
     const grounding = response.candidates?.[0]?.groundingMetadata;
     if (grounding?.webSearchQueries) {
+      console.log("[Gemini] Search queries:", grounding.webSearchQueries);
       console.log(
-        "[generateExpertProfile] Google Search queries:",
-        grounding.webSearchQueries
-      );
-      console.log(
-        "[generateExpertProfile] Grounding chunks:",
+        "[Gemini] Grounding chunks:",
         grounding.groundingChunks?.length ?? 0
       );
     } else {
       console.warn(
-        "[generateExpertProfile] No grounding metadata — Google Search may not have been used"
+        "[Gemini] No grounding metadata — Google Search may not have been used"
       );
     }
 
-    const cleaned = cleanJsonResponse(text);
-
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      console.error(
-        "[generateExpertProfile] Failed to parse JSON, raw response:",
-        text.slice(0, 500)
-      );
-      throw new Error("AI returned invalid response format. Please try again.");
-    }
-
-    if (parsed.sourceSummary) {
-      console.log(
-        "[generateExpertProfile] Source summary:",
-        parsed.sourceSummary
-      );
-    }
-
-    return {
-      bio: ensureString(parsed.bio),
-      services: Array.isArray(parsed.services) ? parsed.services : [],
-      videoScript: ensureString(parsed.videoScript),
-      sourceSummary: ensureString(parsed.sourceSummary ?? ""),
-    };
+    return parseProfileResponse(response.text ?? "");
   }
 
-  async generateProfileImage(data: ImageInput): Promise<string | null> {
+  protected async generateImageRaw(prompt: string): Promise<string | null> {
     if (!process.env.GOOGLE_CLOUD_PROJECT && !process.env.GEMINI_API_KEY) {
       console.error(
-        "[generateProfileImage] Neither GOOGLE_CLOUD_PROJECT nor GEMINI_API_KEY is set"
+        "[Gemini] Neither GOOGLE_CLOUD_PROJECT nor GEMINI_API_KEY is set"
       );
       return null;
     }
-
-    const prompt = buildImagePrompt(data);
 
     try {
       const response = await this.ai.models.generateContent({
@@ -186,114 +117,23 @@ Return ONLY the JSON object, no markdown code fences.`;
       }
       return null;
     } catch (error) {
-      console.error("[generateProfileImage]", error);
+      console.error("[Gemini] Image generation failed:", error);
       return null;
     }
   }
 
-  async improveWriting(
-    type: "intro" | "services",
-    content: string
-  ): Promise<string> {
-    const prompt =
-      type === "intro"
-        ? `You are a professional copywriter for Help&Grow — an AI startup community platform.
-
-Improve this professional's introduction script. Rules:
-- Keep ALL facts, names, and claims unchanged
-- Maintain first-person tone
-- Make it more professional, concise, and engaging
-- Target 45-60 seconds spoken length
-- Do NOT add fabricated details
-- Return ONLY the improved text, no explanations or quotes
-
-Current introduction:
-${content}`
-        : `You are a professional copywriter for Help&Grow — an AI startup community platform.
-
-Improve these service offerings. Rules:
-- Keep the same meaning and number of services
-- Make titles clearer and punchier (3-6 words)
-- Make descriptions more compelling and concise (one sentence each)
-- Do NOT add new services or remove existing ones
-- Return ONLY a JSON array of objects with "title" and "description" keys, no markdown code fences
-
-Current services:
-${content}`;
-
-    const response = await this.ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-    });
-
-    return (response.text ?? "").trim();
-  }
-
-  async matchExperts(
-    query: string,
-    expertSummaries: string,
-    conversationHistory: { role: string; content: string }[]
-  ): Promise<MatchResult> {
-    const historyContext = conversationHistory
-      .map((m) => `${m.role}: ${m.content}`)
-      .join("\n");
-
-    const prompt = `You are the AI matchmaking assistant for Help&Grow — a platform helping AI startups expand in Singapore and Southeast Asia. Users include AI startup founders seeking advice, industry experts sharing knowledge, and investors doing due diligence.
-
-Here is the pool of available experts:
-${expertSummaries}
-
-${historyContext ? `Previous conversation:\n${historyContext}\n` : ""}
-
-The founder's latest query: "${query}"
-
-Based on your deep analysis of the founder's needs and the expert pool, recommend the top 2-3 most relevant experts. For each recommendation, provide:
-
-1. "expertId": The expert's ID
-2. "name": The expert's name
-3. "reason": A highly specific 2-3 sentence explanation of why this expert's background perfectly matches the founder's need.
-4. "sessionTypes": Available session types
-
-If no expert matches well, return empty "recommendations" array with a "noMatchMessage" string.
-
-Return ONLY a JSON object, no markdown code fences.`;
-
-    const response = await this.ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-    });
-
-    const text = response.text ?? "";
-    if (!text.trim()) {
-      throw new Error("Empty response from Gemini model");
-    }
-    const cleaned = cleanJsonResponse(text);
-    try {
-      return JSON.parse(cleaned) as MatchResult;
-    } catch {
-      console.error("[Gemini matchExperts] Failed to parse response:", text.slice(0, 500));
-      throw new Error("Failed to parse AI response");
-    }
-  }
-
+  /** Override: use Gemini's own multimodal PDF capabilities directly. */
   async extractTextFromPdf(buffer: Buffer): Promise<string> {
     const base64 = buffer.toString("base64");
 
     const response = await this.ai.models.generateContent({
-      model: MODEL,
+      model: TEXT_MODEL,
       contents: [
         {
           role: "user",
           parts: [
-            {
-              inlineData: {
-                mimeType: "application/pdf",
-                data: base64,
-              },
-            },
-            {
-              text: "Extract all text content from this PDF document. Return ONLY the extracted text, preserving the structure (headings, lists, paragraphs). Do not add any commentary or explanation.",
-            },
+            { inlineData: { mimeType: "application/pdf", data: base64 } },
+            { text: PDF_EXTRACTION_PROMPT },
           ],
         },
       ],

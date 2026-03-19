@@ -69,18 +69,18 @@ export async function sendGreeting(telegramUsername: string): Promise<boolean> {
   if (!chatId) return false;
 
   const text = [
-    `👋 *Welcome to Help&Grow Expert Network!*`,
+    `👋 *Welcome to Help&Grow!*`,
     ``,
     `Your Telegram account has been linked. You'll now receive:`,
     `• Booking confirmations`,
     `• Session reminders`,
-    `• Updates from your experts`,
+    `• Updates from your sessions`,
     ``,
-    `Tap below to explore experts right from Telegram!`,
+    `Tap below to explore the AI startup community!`,
   ].join("\n");
 
   await sendTelegramMessage(chatId, text, [
-    [{ text: "🚀 Open Expert Network", web_app: { url: `${APP_URL}/discover` } }],
+    [{ text: "🚀 Explore Help&Grow", web_app: { url: `${APP_URL}/discover` } }],
   ]);
 
   return true;

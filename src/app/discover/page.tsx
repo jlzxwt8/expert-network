@@ -397,7 +397,7 @@ function DiscoverContent() {
                 Back
               </button>
               <h1 className="text-xl font-bold text-foreground">
-                Discover Experts
+                Discover
               </h1>
             </div>
             <UserMenu />
@@ -470,7 +470,7 @@ function DiscoverContent() {
             </div>
           ) : experts.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
-              No experts found. Try adjusting your filters.
+              No results found. Try adjusting your filters.
             </div>
           ) : (
             <>
@@ -507,8 +507,8 @@ function DiscoverContent() {
               {chatMessages.length === 0 && (
                 <div className="py-8 text-center text-muted-foreground text-sm">
                   <Sparkles className="h-10 w-10 mx-auto mb-3 text-indigo-500" />
-                  <p>Describe your challenge and we&apos;ll match you with the right experts.</p>
-                  <p className="mt-1">e.g. &quot;I need help with AI product strategy in SEA&quot;</p>
+                  <p>Describe what you&apos;re looking for and we&apos;ll find the right match.</p>
+                  <p className="mt-1">e.g. &quot;I need help expanding my AI startup in Singapore&quot;</p>
                 </div>
               )}
               {chatMessages.map((m, i) => (
@@ -543,7 +543,7 @@ function DiscoverContent() {
               ))}
               {chatLoading && (
                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <span className="typing-dots">Finding experts</span>
+                  <span className="typing-dots">Finding matches</span>
                 </div>
               )}
               <div ref={chatEndRef} />
@@ -552,7 +552,7 @@ function DiscoverContent() {
             <div className="sticky bottom-0 pt-4 pb-2 bg-background">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Describe your challenge..."
+                  placeholder="What are you looking for?"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => {
