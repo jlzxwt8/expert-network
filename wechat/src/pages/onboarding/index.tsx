@@ -34,7 +34,7 @@ const SOCIAL_FIELDS = [
 export default function OnboardingPage() {
   const [step, setStep] = useState<Step>("nickname");
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: 0, role: "system", content: "Welcome! Let's set up your expert profile. What should we call you?" },
+    { id: 0, role: "system", content: "Welcome to Help&Grow! Let's create your profile. What should we call you?" },
   ]);
   const [input, setInput] = useState("");
   const [formData, setFormData] = useState<Record<string, string>>({});
@@ -197,7 +197,7 @@ export default function OnboardingPage() {
       if (uploadRes.statusCode === 200) {
         addMsg("user", `📄 ${file.name}`);
         addMsg("system", "Document uploaded! Generating your profile...");
-        generateProfile();
+        await generateProfile();
       } else {
         Taro.showToast({ title: "Upload failed", icon: "none" });
       }
@@ -207,10 +207,10 @@ export default function OnboardingPage() {
     }
   };
 
-  const skipDocument = () => {
+  const skipDocument = async () => {
     addMsg("user", "Skip");
-    addMsg("system", "Generating your expert profile...");
-    generateProfile();
+    addMsg("system", "Generating your profile...");
+    await generateProfile();
   };
 
   const generateProfile = async () => {
@@ -221,7 +221,7 @@ export default function OnboardingPage() {
       const res = await post("/api/onboarding/generate", {});
       if (res.statusCode === 200) {
         setStep("voice_sample");
-        setTimeout(() => addMsg("system", "Profile generated! Now record a voice introduction (10-60 seconds). This helps clients get to know you."), 800);
+        setTimeout(() => addMsg("system", "Profile generated! Now record a voice introduction (10-60 seconds). This helps others get to know you."), 800);
       } else {
         throw new Error("Generation failed");
       }
@@ -329,6 +329,7 @@ export default function OnboardingPage() {
               <View
                 key={g}
                 className="onboarding__option"
+                hoverClass="onboarding__option--hover"
                 onClick={() => selectGender(g)}
               >
                 {g}
@@ -348,12 +349,13 @@ export default function OnboardingPage() {
                     ? "onboarding__option--selected"
                     : ""
                 }`}
+                hoverClass="onboarding__option--hover"
                 onClick={() => toggleDomain(d)}
               >
                 {d}
               </View>
             ))}
-            <View className="onboarding__confirm-btn" onClick={confirmDomains}>
+            <View className="onboarding__confirm-btn" hoverClass="onboarding__confirm-btn--hover" onClick={confirmDomains}>
               Continue
             </View>
           </View>
@@ -366,6 +368,7 @@ export default function OnboardingPage() {
               <View
                 key={t}
                 className="onboarding__option"
+                hoverClass="onboarding__option--hover"
                 onClick={() => selectSessionType(t)}
               >
                 {t === "Online" ? "🖥 Online Only" : t === "Offline" ? "📍 Offline Only" : "🔄 Both"}
@@ -377,10 +380,10 @@ export default function OnboardingPage() {
         {/* Document upload */}
         {step === "document" && (
           <View className="onboarding__options">
-            <View className="onboarding__option" onClick={handleDocumentUpload}>
+            <View className="onboarding__option" hoverClass="onboarding__option--hover" onClick={handleDocumentUpload}>
               📄 Upload PDF
             </View>
-            <View className="onboarding__option" onClick={skipDocument}>
+            <View className="onboarding__option" hoverClass="onboarding__option--hover" onClick={skipDocument}>
               Skip
             </View>
           </View>
@@ -410,6 +413,7 @@ export default function OnboardingPage() {
           <View className="onboarding__preview-actions">
             <View
               className="onboarding__preview-btn"
+              hoverClass="onboarding__preview-btn--hover"
               onClick={() =>
                 Taro.navigateTo({
                   url: "/pages/profile/index",
@@ -418,7 +422,7 @@ export default function OnboardingPage() {
             >
               👁 Preview Profile
             </View>
-            <View className="onboarding__publish-btn" onClick={publishProfile}>
+            <View className="onboarding__publish-btn" hoverClass="onboarding__publish-btn--hover" onClick={publishProfile}>
               🚀 Publish Profile
             </View>
           </View>
@@ -443,7 +447,7 @@ export default function OnboardingPage() {
             onInput={(e) => setInput(e.detail.value)}
             confirmType="send"
             onConfirm={handleSend}
-            focus
+            adjustPosition
           />
           <View className="onboarding__send-btn" onClick={handleSend}>
             →

@@ -1,9 +1,13 @@
 .expert-card {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 24px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+  &--hover {
+    background: #fafbfc;
+  }
 
   &__body {
     display: flex;
@@ -15,14 +19,15 @@
     width: 88px;
     height: 88px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1, #9333ea);
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 30px;
-    font-weight: 600;
+    font-weight: 700;
     flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
   }
 
   &__info {
@@ -46,14 +51,15 @@
 
   &__name {
     font-size: 30px;
-    font-weight: 600;
-    color: #1a1a2e;
+    font-weight: 700;
+    color: #1e1b4b;
   }
 
   &__badge {
     font-size: 20px;
-    padding: 2px 12px;
-    border-radius: 8px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-weight: 600;
 
     &--verified {
       background: rgba(16, 185, 129, 0.1);
@@ -63,9 +69,12 @@
 
   &__price {
     font-size: 24px;
-    font-weight: 500;
+    font-weight: 600;
     color: #059669;
     flex-shrink: 0;
+    background: rgba(16, 185, 129, 0.08);
+    padding: 4px 14px;
+    border-radius: 10px;
   }
 
   &__domains {
@@ -78,9 +87,10 @@
   &__domain-chip {
     font-size: 22px;
     padding: 4px 16px;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    color: #6b7280;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-weight: 500;
   }
 
   &__rating {
@@ -95,42 +105,47 @@
   }
 
   &__star {
-    font-size: 26px;
-    color: #d1d5db;
+    font-size: 24px;
+    color: #e2e8f0;
 
     &--filled {
-      color: #fbbf24;
+      color: #f59e0b;
     }
   }
 
   &__review-count {
     font-size: 22px;
-    color: #8c8c8c;
+    color: #94a3b8;
   }
 
   &__actions {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     margin-top: 20px;
   }
 
   &__btn {
     flex: 1;
     text-align: center;
-    padding: 14px 0;
-    border-radius: 12px;
+    padding: 16px 0;
+    border-radius: 14px;
     font-size: 26px;
-    font-weight: 500;
+    font-weight: 600;
 
     &--primary {
-      background: #6366f1;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
     }
 
     &--outline {
       background: #fff;
       color: #6366f1;
-      border: 1px solid #e5e7eb;
+      border: 1.5px solid #e0e7ff;
+    }
+
+    &--hover {
+      opacity: 0.8;
     }
   }
 }

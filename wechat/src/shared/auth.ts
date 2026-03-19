@@ -62,20 +62,17 @@ export async function wxLogin(): Promise<{ token: string; user: AuthUser }> {
     data: { code, nickName, avatarUrl },
   });
 
-  if (res.statusCode !== 200 || !res.data?.token) {
-    throw new Error(res.data?.error || "Login failed");
+  if (res.statusCode !== 200 || !(res.data as Record<string, unknown>)["token"]) {
+    throw new Error((res.data as Record<string, string>)["error"] || "Login failed");
   }
 
-  setToken(res.data.token);
-  setUser(res.data.user);
+  const data = res.data as { token: string; user: AuthUser };
+  setToken(data.token);
+  setUser(data.user);
 
-  return { token: res.data.token, user: res.data.user };
+  return { token: data.token, user: data.user };
 }
 
 export function getApiBase(): string {
-  const env = process.env.NODE_ENV;
-  if (env === "development") {
-    return "http://localhost:3000";
-  }
-  return "https://expert-network.vercel.app";
+  return process.env.TARO_APP_API_BASE || "https://expert-network.vercel.app";
 }

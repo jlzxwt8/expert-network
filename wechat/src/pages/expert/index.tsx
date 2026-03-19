@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView } from "@tarojs/components";
+import { View, Text, Image } from "@tarojs/components";
 import Taro, { useLoad, useRouter, useShareAppMessage, useShareTimeline } from "@tarojs/taro";
 import { useState, useCallback, useRef } from "react";
 import { get } from "../../shared/api";
@@ -42,7 +42,7 @@ export default function ExpertPage() {
       if (res.statusCode === 200) {
         setExpert(res.data);
       } else if (res.statusCode === 404) {
-        setError("Expert not found");
+        setError("Profile not found");
       } else {
         setError("Failed to load profile");
       }
@@ -89,7 +89,7 @@ export default function ExpertPage() {
   useShareAppMessage(() => {
     const name = expert?.user.nickName ?? expert?.user.name ?? "Expert";
     return {
-      title: `${name} - Help&Grow Expert`,
+      title: `${name} on Help&Grow`,
       path: `/pages/expert/index?id=${expertId}`,
     };
   });
@@ -97,7 +97,7 @@ export default function ExpertPage() {
   useShareTimeline(() => {
     const name = expert?.user.nickName ?? expert?.user.name ?? "Expert";
     return {
-      title: `${name} - Help&Grow Expert`,
+      title: `${name} on Help&Grow`,
       query: `id=${expertId}`,
     };
   });
@@ -112,7 +112,7 @@ export default function ExpertPage() {
     return (
       <View className="expert-profile">
         <View className="expert-profile__skeleton">
-          <View className="expert-profile__skeleton-img" />
+          <View className="expert-profile__skeleton-avatar" />
           <View className="expert-profile__skeleton-line expert-profile__skeleton-line--lg" />
           <View className="expert-profile__skeleton-line" />
           <View className="expert-profile__skeleton-line expert-profile__skeleton-line--sm" />
@@ -125,9 +125,11 @@ export default function ExpertPage() {
     return (
       <View className="expert-profile">
         <View className="expert-profile__error">
-          <Text>{error || "Expert not found"}</Text>
+          <Text className="expert-profile__error-icon">😔</Text>
+          <Text className="expert-profile__error-text">{error || "Profile not found"}</Text>
           <View
             className="expert-profile__error-btn"
+            hoverClass="expert-profile__error-btn--hover"
             onClick={() => Taro.navigateBack()}
           >
             Go Back
@@ -137,7 +139,7 @@ export default function ExpertPage() {
     );
   }
 
-  const name = expert.user.nickName ?? expert.user.name ?? "Expert";
+  const name = expert.user.nickName || expert.user.name || "Member";
   const services = (expert.servicesOffered as ServiceItem[] | null) ?? [];
   const socialLinks = socialConfig.filter((c) => {
     const url = expert[c.key];
@@ -148,7 +150,7 @@ export default function ExpertPage() {
 
   return (
     <View className="expert-profile">
-      {/* Hero */}
+      {/* Compact Hero */}
       <View className="expert-profile__hero">
         {expert.hasAvatar ? (
           <Image
@@ -173,6 +175,9 @@ export default function ExpertPage() {
       {/* Name & Info */}
       <View className="expert-profile__info">
         <Text className="expert-profile__name">{name}</Text>
+        {expert.isVerified && (
+          <View className="expert-profile__verified">✓ Verified</View>
+        )}
         <View className="expert-profile__domains">
           {expert.domains.map((d) => (
             <View key={d} className="expert-profile__domain-chip">{d}</View>
@@ -195,9 +200,6 @@ export default function ExpertPage() {
             {expert.reviewCount} review{expert.reviewCount !== 1 ? "s" : ""}
           </Text>
         </View>
-        {expert.isVerified && (
-          <View className="expert-profile__verified">✓ Verified Community Member</View>
-        )}
       </View>
 
       {/* Voice Introduction */}
@@ -243,6 +245,7 @@ export default function ExpertPage() {
                 <View
                   key={key}
                   className="expert-profile__social-btn"
+                  hoverClass="expert-profile__social-btn--hover"
                   onClick={() => {
                     Taro.setClipboardData({
                       data: href,
@@ -265,13 +268,22 @@ export default function ExpertPage() {
           <Text className="expert-profile__section-title">Document</Text>
           <View
             className="expert-profile__document"
+            hoverClass="expert-profile__document--hover"
             onClick={() => {
+              Taro.showLoading({ title: "Downloading..." });
               Taro.downloadFile({
                 url: `${API_BASE}/api/experts/${expertId}/document`,
                 success: (res) => {
+                  Taro.hideLoading();
                   if (res.statusCode === 200) {
                     Taro.openDocument({ filePath: res.tempFilePath });
+                  } else {
+                    Taro.showToast({ title: "Download failed", icon: "none" });
                   }
+                },
+                fail: () => {
+                  Taro.hideLoading();
+                  Taro.showToast({ title: "Download failed", icon: "none" });
                 },
               });
             }}
@@ -279,7 +291,7 @@ export default function ExpertPage() {
             <Text className="expert-profile__document-name">
               📄 {expert.documentName}
             </Text>
-            <Text className="expert-profile__document-action">Download</Text>
+            <Text className="expert-profile__document-action">Open</Text>
           </View>
         </View>
       )}
@@ -360,6 +372,7 @@ export default function ExpertPage() {
             {hasMoreReviews && (
               <View
                 className="expert-profile__load-more"
+                hoverClass="expert-profile__load-more--hover"
                 onClick={() => fetchReviews(true)}
               >
                 {reviewsLoading ? "Loading..." : "Load more reviews"}
@@ -369,20 +382,28 @@ export default function ExpertPage() {
         )}
       </View>
 
+      <View style={{ height: "16px" }} />
+
       {/* Bottom bar */}
       <View className="expert-profile__bottom-bar">
-        <View
-          className="expert-profile__book-btn expert-profile__book-btn--primary"
-          onClick={() => goToBook("ONLINE")}
-        >
-          🖥 Book Online
-        </View>
-        <View
-          className="expert-profile__book-btn expert-profile__book-btn--outline"
-          onClick={() => goToBook("OFFLINE")}
-        >
-          📍 Book Offline
-        </View>
+        {expert.sessionType !== "OFFLINE" && (
+          <View
+            className="expert-profile__book-btn expert-profile__book-btn--primary"
+            hoverClass="expert-profile__book-btn--hover"
+            onClick={() => goToBook("ONLINE")}
+          >
+            🖥 Book Online
+          </View>
+        )}
+        {expert.sessionType !== "ONLINE" && (
+          <View
+            className="expert-profile__book-btn expert-profile__book-btn--outline"
+            hoverClass="expert-profile__book-btn--hover"
+            onClick={() => goToBook("OFFLINE")}
+          >
+            📍 Book Offline
+          </View>
+        )}
       </View>
     </View>
   );

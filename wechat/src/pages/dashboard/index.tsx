@@ -67,14 +67,17 @@ export default function DashboardPage() {
     const res = await Taro.showModal({
       title: "Cancel Booking",
       content: "Are you sure you want to cancel this booking?",
+      confirmColor: "#dc2626",
     });
     if (!res.confirm) return;
 
     try {
+      Taro.showLoading({ title: "Cancelling..." });
       const apiRes = await post(`/api/bookings/${bookingId}`, {
         action: "cancel",
         reason: "Cancelled by user",
       });
+      Taro.hideLoading();
       if (apiRes.statusCode === 200) {
         Taro.showToast({ title: "Cancelled", icon: "success" });
         fetchBookings();
@@ -82,6 +85,7 @@ export default function DashboardPage() {
         Taro.showToast({ title: "Cancel failed", icon: "none" });
       }
     } catch {
+      Taro.hideLoading();
       Taro.showToast({ title: "Cancel failed", icon: "none" });
     }
   };
@@ -98,40 +102,45 @@ export default function DashboardPage() {
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusLabel = (status: string) => {
     switch (status) {
-      case "CONFIRMED":
-        return "dashboard__status--confirmed";
-      case "PENDING":
-        return "dashboard__status--pending";
-      case "COMPLETED":
-        return "dashboard__status--completed";
-      case "CANCELLED":
-        return "dashboard__status--cancelled";
-      default:
-        return "";
+      case "CONFIRMED": return "Confirmed";
+      case "PENDING": return "Pending";
+      case "COMPLETED": return "Completed";
+      case "CANCELLED": return "Cancelled";
+      default: return status;
+    }
+  };
+
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case "CONFIRMED": return "dashboard__status--confirmed";
+      case "PENDING": return "dashboard__status--pending";
+      case "COMPLETED": return "dashboard__status--completed";
+      case "CANCELLED": return "dashboard__status--cancelled";
+      default: return "";
     }
   };
 
   return (
     <View className="dashboard">
-      {/* Tabs */}
       <View className="dashboard__tabs">
         <View
           className={`dashboard__tab ${tab === "upcoming" ? "dashboard__tab--active" : ""}`}
+          hoverClass="dashboard__tab--hover"
           onClick={() => setTab("upcoming")}
         >
           Upcoming ({upcomingBookings.length})
         </View>
         <View
           className={`dashboard__tab ${tab === "past" ? "dashboard__tab--active" : ""}`}
+          hoverClass="dashboard__tab--hover"
           onClick={() => setTab("past")}
         >
           Past ({pastBookings.length})
         </View>
       </View>
 
-      {/* Content */}
       {loading ? (
         <View className="dashboard__loading">
           {[1, 2, 3].map((i) => (
@@ -148,12 +157,18 @@ export default function DashboardPage() {
               ? "No upcoming bookings"
               : "No past bookings"}
           </Text>
+          <Text className="dashboard__empty-hint">
+            {tab === "upcoming"
+              ? "Book a session to get started"
+              : "Your completed sessions will appear here"}
+          </Text>
           {tab === "upcoming" && (
             <View
               className="dashboard__discover-btn"
+              hoverClass="dashboard__discover-btn--hover"
               onClick={() => Taro.switchTab({ url: "/pages/discover/index" })}
             >
-              Discover Experts
+              Explore & Learn
             </View>
           )}
         </View>
@@ -165,7 +180,16 @@ export default function DashboardPage() {
               booking.expert.user.name ??
               "Expert";
             return (
-              <View key={booking.id} className="dashboard__card">
+              <View
+                key={booking.id}
+                className="dashboard__card"
+                hoverClass="dashboard__card--hover"
+                onClick={() =>
+                  Taro.navigateTo({
+                    url: `/pages/expert/index?id=${booking.expertId}`,
+                  })
+                }
+              >
                 <View className="dashboard__card-header">
                   <View className="dashboard__card-avatar">
                     {expertName.charAt(0).toUpperCase()}
@@ -176,8 +200,8 @@ export default function DashboardPage() {
                       {formatDateTime(booking.startTime, booking.timezone)}
                     </Text>
                   </View>
-                  <View className={`dashboard__status ${getStatusColor(booking.status)}`}>
-                    {booking.status}
+                  <View className={`dashboard__status ${getStatusClass(booking.status)}`}>
+                    {getStatusLabel(booking.status)}
                   </View>
                 </View>
 
@@ -193,29 +217,25 @@ export default function DashboardPage() {
                 </View>
 
                 {booking.meetingLink && (
-                  <View className="dashboard__card-link">
-                    <Text className="dashboard__card-link-label">Meeting:</Text>
-                    <Text
-                      className="dashboard__card-link-url"
-                      onClick={() => {
-                        Taro.setClipboardData({
-                          data: booking.meetingLink!,
-                          success: () =>
-                            Taro.showToast({ title: "Link copied", icon: "success" }),
-                        });
-                      }}
-                    >
-                      {booking.meetingLink}
-                    </Text>
+                  <View
+                    className="dashboard__card-link"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      Taro.setClipboardData({
+                        data: booking.meetingLink!,
+                        success: () =>
+                          Taro.showToast({ title: "Link copied", icon: "success" }),
+                      });
+                    }}
+                  >
+                    <Text className="dashboard__card-link-label">Meeting Link</Text>
+                    <Text className="dashboard__card-link-action">Copy</Text>
                   </View>
                 )}
 
                 {booking.offlineAddress && (
                   <View className="dashboard__card-link">
-                    <Text className="dashboard__card-link-label">Location:</Text>
-                    <Text className="dashboard__card-link-url">
-                      {booking.offlineAddress}
-                    </Text>
+                    <Text className="dashboard__card-link-label">📍 {booking.offlineAddress}</Text>
                   </View>
                 )}
 
@@ -224,7 +244,7 @@ export default function DashboardPage() {
                   const canRescheduleCancel = msUntil >= 2 * 60 * 60 * 1000;
                   if (!canRescheduleCancel) return (
                     <View className="dashboard__card-hint">
-                      <Text>Reschedule & cancel disabled — starts within 2 hours</Text>
+                      <Text>Cannot modify — starts within 2 hours</Text>
                     </View>
                   );
                   return (
@@ -232,18 +252,24 @@ export default function DashboardPage() {
                       {booking.status === "CONFIRMED" && (
                         <View
                           className="dashboard__action-btn dashboard__action-btn--secondary"
-                          onClick={() =>
+                          hoverClass="dashboard__action-btn--hover"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             Taro.navigateTo({
                               url: `/pages/book/index?id=${booking.expertId}&type=${booking.sessionType}&rescheduleId=${booking.id}`,
-                            })
-                          }
+                            });
+                          }}
                         >
                           Reschedule
                         </View>
                       )}
                       <View
                         className="dashboard__action-btn dashboard__action-btn--danger"
-                        onClick={() => handleCancel(booking.id)}
+                        hoverClass="dashboard__action-btn--hover"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancel(booking.id);
+                        }}
                       >
                         Cancel
                       </View>

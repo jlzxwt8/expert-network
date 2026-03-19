@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: "Book Session",
+  navigationBarTitleText: "Book a Session",
 });

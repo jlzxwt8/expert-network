@@ -1,6 +1,6 @@
-import { View, Text } from "@tarojs/components";
+import { View, Text, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { get, post } from "../../shared/api";
 import type { ExpertDetail, AvailableSlot } from "../../shared/types";
 import "./index.scss";
@@ -10,15 +10,120 @@ interface SlotsResponse {
   bookedSlots: { startTime: string; endTime: string }[];
 }
 
+type TimeRange = { start: string; end: string };
+type WeeklySchedule = Record<string, TimeRange[]>;
+
+interface GeneratedSlot {
+  id: string;
+  startTime: string;
+  endTime: string;
+}
+
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const DAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function startOfDay(date: Date): Date {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function isSlotBooked(
+  slot: { startTime: string; endTime: string },
+  bookedSlots: { startTime: string; endTime: string }[]
+): boolean {
+  const sStart = new Date(slot.startTime).getTime();
+  const sEnd = new Date(slot.endTime).getTime();
+  return bookedSlots.some((b) => {
+    const bStart = new Date(b.startTime).getTime();
+    const bEnd = new Date(b.endTime).getTime();
+    return sStart < bEnd && sEnd > bStart;
+  });
+}
+
+function generateSlotsFromSchedule(
+  date: Date,
+  schedule: WeeklySchedule | null
+): GeneratedSlot[] {
+  if (!schedule) return [];
+  const dayKey = DAY_KEYS[date.getDay()];
+  const ranges = schedule[dayKey];
+  if (!ranges || ranges.length === 0) return [];
+
+  const day = startOfDay(date);
+  const slots: GeneratedSlot[] = [];
+  let slotIdx = 0;
+
+  for (const range of ranges) {
+    const [sh, sm] = range.start.split(":").map(Number);
+    const [eh, em] = range.end.split(":").map(Number);
+    let h = sh;
+    let m = sm || 0;
+
+    while (h < eh || (h === eh && m < em)) {
+      const start = new Date(day);
+      start.setHours(h, m, 0, 0);
+
+      const nextM = m + 30;
+      const endH = h + Math.floor(nextM / 60);
+      const endM = nextM % 60;
+
+      const end = new Date(day);
+      if (endH < eh || (endH === eh && endM <= em)) {
+        end.setHours(endH, endM, 0, 0);
+      } else {
+        end.setHours(eh, em, 0, 0);
+      }
+
+      if (end > start) {
+        slots.push({
+          id: `sched-${slotIdx++}`,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+        });
+      }
+
+      h = endH;
+      m = endM;
+    }
+  }
+
+  return slots;
+}
+
+function getNextNDays(n: number): Date[] {
+  const days: Date[] = [];
+  const today = new Date();
+  for (let i = 0; i < n; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
 export default function BookPage() {
   const router = useRouter();
   const expertId = router.params.id || "";
   const sessionType = router.params.type || "ONLINE";
   const [expert, setExpert] = useState<ExpertDetail | null>(null);
-  const [slots, setSlots] = useState<AvailableSlot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule | null>(null);
+  const [allSlots, setAllSlots] = useState<AvailableSlot[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<{ startTime: string; endTime: string }[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
+
+  const nextDays = useMemo(() => getNextNDays(14), []);
 
   useEffect(() => {
     if (!expertId) return;
@@ -27,22 +132,64 @@ export default function BookPage() {
       get<SlotsResponse>(`/api/experts/${expertId}/slots`),
     ])
       .then(([expertRes, slotsRes]) => {
-        if (expertRes.statusCode === 200) setExpert(expertRes.data);
-        if (slotsRes.statusCode === 200) setSlots(slotsRes.data.slots || []);
+        if (expertRes.statusCode === 200) {
+          setExpert(expertRes.data);
+          if ((expertRes.data as Record<string, unknown>).weeklySchedule) {
+            setWeeklySchedule(
+              (expertRes.data as Record<string, unknown>).weeklySchedule as WeeklySchedule
+            );
+          }
+        }
+        if (slotsRes.statusCode === 200) {
+          setAllSlots(slotsRes.data.slots || []);
+          setBookedSlots(slotsRes.data.bookedSlots || []);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [expertId]);
 
+  const slotsForDate = useMemo(() => {
+    if (!selectedDate) return [];
+    const now = new Date();
+
+    const explicitSlots = allSlots.filter(
+      (s) => isSameDay(new Date(s.startTime), selectedDate) && !s.isBooked
+    );
+
+    let displaySlots: { id: string; startTime: string; endTime: string }[];
+    if (explicitSlots.length > 0) {
+      displaySlots = explicitSlots.filter((s) => !isSlotBooked(s, bookedSlots));
+    } else {
+      displaySlots = generateSlotsFromSchedule(selectedDate, weeklySchedule).filter(
+        (s) => new Date(s.startTime) > now && !isSlotBooked(s, bookedSlots)
+      );
+    }
+
+    return displaySlots;
+  }, [selectedDate, allSlots, bookedSlots, weeklySchedule]);
+
+  const toggleSlot = (slotId: string) => {
+    setSelectedSlotIds((prev) =>
+      prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]
+    );
+  };
+
   const handleBook = async () => {
-    if (!selectedSlot || booking) return;
+    if (selectedSlotIds.length === 0 || booking) return;
     setBooking(true);
 
-    const slot = slots.find((s) => s.id === selectedSlot);
-    if (!slot) {
+    const selected = slotsForDate.filter((s) => selectedSlotIds.includes(s.id));
+    if (selected.length === 0) {
       setBooking(false);
       return;
     }
+
+    const sorted = [...selected].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    );
+    const firstSlot = sorted[0];
+    const lastSlot = sorted[sorted.length - 1];
 
     try {
       const res = await post<{
@@ -54,20 +201,17 @@ export default function BookPage() {
           signType: string;
           paySign: string;
         };
-        depositSGD: string;
-        depositCNY?: string;
-        totalSGD: string;
       }>("/api/bookings/wechat-pay", {
         expertId,
-        slotId: selectedSlot,
+        slotId: firstSlot.id.startsWith("sched-") ? undefined : firstSlot.id,
         sessionType,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+        startTime: firstSlot.startTime,
+        endTime: lastSlot.endTime,
       });
 
-      if (res.statusCode !== 200 || !res.data?.bookingId) {
+      if (res.statusCode !== 200 || !(res.data as Record<string, unknown>)["bookingId"]) {
         throw new Error(
-          (res.data as unknown as Record<string, string>)?.error || "Booking failed"
+          (res.data as unknown as Record<string, string>)["error"] || "Booking failed"
         );
       }
 
@@ -89,12 +233,12 @@ export default function BookPage() {
       }, 1500);
     } catch (err: unknown) {
       const errObj = err as Record<string, unknown>;
-      if (errObj?.errMsg === "requestPayment:fail cancel") {
+      if (errObj && errObj["errMsg"] === "requestPayment:fail cancel") {
         Taro.showToast({ title: "Payment cancelled", icon: "none" });
       } else {
         Taro.showToast({
           title:
-            (errObj?.message as string) ||
+            (errObj && (errObj["message"] as string)) ||
             "Booking failed. Please try again.",
           icon: "none",
         });
@@ -107,7 +251,17 @@ export default function BookPage() {
   if (loading) {
     return (
       <View className="book-page">
-        <View className="book-page__loading">Loading...</View>
+        <View className="book-page__skeleton-header" />
+        <View className="book-page__skeleton-dates">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} className="book-page__skeleton-date" />
+          ))}
+        </View>
+        <View className="book-page__skeleton-slots">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <View key={i} className="book-page__skeleton-slot" />
+          ))}
+        </View>
       </View>
     );
   }
@@ -116,97 +270,130 @@ export default function BookPage() {
     return (
       <View className="book-page">
         <View className="book-page__error">
-          <Text>Expert not found</Text>
+          <Text className="book-page__error-icon">😔</Text>
+          <Text className="book-page__error-text">Profile not found</Text>
+          <View
+            className="book-page__error-btn"
+            hoverClass="book-page__error-btn--hover"
+            onClick={() => Taro.navigateBack()}
+          >
+            Go Back
+          </View>
         </View>
       </View>
     );
   }
 
-  const name = expert.user.nickName ?? expert.user.name ?? "Expert";
+  const name = expert.user.nickName || expert.user.name || "Member";
   const priceCents =
     sessionType === "OFFLINE"
       ? expert.priceOfflineCents
       : expert.priceOnlineCents;
   const priceLabel = priceCents
-    ? `${expert.currency} ${Math.round(priceCents / 100)}/hr`
-    : "";
-  const depositLabel = priceCents
-    ? `${expert.currency} ${(priceCents / 200).toFixed(2)} deposit`
-    : "";
-
-  const availableSlots = slots.filter((s) => !s.isBooked);
-  const groupedSlots: Record<string, AvailableSlot[]> = {};
-  availableSlots.forEach((slot) => {
-    const date = new Date(slot.startTime).toLocaleDateString("en-SG", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    if (!groupedSlots[date]) groupedSlots[date] = [];
-    groupedSlots[date].push(slot);
-  });
+    ? `${expert.currency} ${Math.round(priceCents / 100)}/session`
+    : "Free";
 
   return (
     <View className="book-page">
       <View className="book-page__header">
         <Text className="book-page__expert-name">Book with {name}</Text>
-        <Text className="book-page__session-type">
-          {sessionType === "OFFLINE" ? "📍 Offline" : "🖥 Online"} Session
-        </Text>
-        {priceLabel && (
-          <Text className="book-page__price">{priceLabel}</Text>
-        )}
+        <View className="book-page__meta">
+          <Text className="book-page__session-type">
+            {sessionType === "OFFLINE" ? "📍 Offline" : "🖥 Online"}
+          </Text>
+          {priceLabel && (
+            <Text className="book-page__price">{priceLabel}</Text>
+          )}
+        </View>
       </View>
 
+      {/* Date selector */}
       <View className="book-page__section">
-        <Text className="book-page__section-title">Choose a Time Slot</Text>
-        {availableSlots.length === 0 ? (
-          <Text className="book-page__no-slots">
-            No available slots. Please check back later.
-          </Text>
-        ) : (
-          Object.entries(groupedSlots).map(([date, dateSlots]) => (
-            <View key={date} className="book-page__date-group">
-              <Text className="book-page__date-label">{date}</Text>
-              <View className="book-page__slots">
-                {dateSlots.map((slot) => (
-                  <View
-                    key={slot.id}
-                    className={`book-page__slot ${
-                      selectedSlot === slot.id
-                        ? "book-page__slot--selected"
-                        : ""
-                    }`}
-                    onClick={() => setSelectedSlot(slot.id)}
-                  >
-                    {new Date(slot.startTime).toLocaleTimeString("en-SG", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                    {" - "}
-                    {new Date(slot.endTime).toLocaleTimeString("en-SG", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </View>
-                ))}
+        <Text className="book-page__section-title">Select a Date</Text>
+        <ScrollView scrollX className="book-page__dates" enhanced showScrollbar={false}>
+          {nextDays.map((day) => {
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const isToday = isSameDay(day, new Date());
+            return (
+              <View
+                key={day.toISOString()}
+                className={`book-page__date-chip ${isSelected ? "book-page__date-chip--selected" : ""}`}
+                hoverClass="book-page__date-chip--hover"
+                onClick={() => {
+                  setSelectedDate(day);
+                  setSelectedSlotIds([]);
+                }}
+              >
+                <Text className="book-page__date-day">
+                  {isToday ? "Today" : DAY_NAMES_SHORT[day.getDay()]}
+                </Text>
+                <Text className="book-page__date-num">{day.getDate()}</Text>
               </View>
-            </View>
-          ))
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Time slots */}
+      <View className="book-page__section">
+        <Text className="book-page__section-title">Choose Time Slots</Text>
+        <Text className="book-page__hint">30 min per slot · select multiple for longer sessions</Text>
+        {!selectedDate ? (
+          <View className="book-page__no-slots-wrap">
+            <Text className="book-page__no-slots-icon">📅</Text>
+            <Text className="book-page__no-slots">Select a date above to see available times</Text>
+          </View>
+        ) : slotsForDate.length === 0 ? (
+          <View className="book-page__no-slots-wrap">
+            <Text className="book-page__no-slots-icon">🕐</Text>
+            <Text className="book-page__no-slots">No available slots for this date</Text>
+            <Text className="book-page__no-slots-hint">Try another date</Text>
+          </View>
+        ) : (
+          <View className="book-page__slots">
+            {slotsForDate.map((slot) => {
+              const isSelected = selectedSlotIds.includes(slot.id);
+              const startStr = new Date(slot.startTime).toLocaleTimeString("en-SG", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              });
+              const endStr = new Date(slot.endTime).toLocaleTimeString("en-SG", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              });
+              return (
+                <View
+                  key={slot.id}
+                  className={`book-page__slot ${isSelected ? "book-page__slot--selected" : ""}`}
+                  hoverClass="book-page__slot--hover"
+                  onClick={() => toggleSlot(slot.id)}
+                >
+                  {startStr} - {endStr}
+                  {isSelected && <Text className="book-page__slot-check"> ✓</Text>}
+                </View>
+              );
+            })}
+          </View>
         )}
       </View>
 
       <View className="book-page__bottom-bar">
-        {depositLabel && (
-          <Text className="book-page__deposit">{depositLabel}</Text>
+        {selectedSlotIds.length > 0 && (
+          <Text className="book-page__deposit">
+            {selectedSlotIds.length} slot{selectedSlotIds.length > 1 ? "s" : ""} selected
+            {priceCents ? ` · ${expert.currency} ${((priceCents * selectedSlotIds.length) / 200).toFixed(2)} deposit` : ""}
+          </Text>
         )}
         <View
           className={`book-page__confirm-btn ${
-            !selectedSlot || booking ? "book-page__confirm-btn--disabled" : ""
+            selectedSlotIds.length === 0 || booking ? "book-page__confirm-btn--disabled" : ""
           }`}
+          hoverClass={selectedSlotIds.length > 0 && !booking ? "book-page__confirm-btn--hover" : "none"}
           onClick={handleBook}
         >
-          {booking ? "Processing..." : "Confirm & Pay"}
+          {booking ? "Processing..." : selectedSlotIds.length === 0 ? "Select a slot to continue" : "Confirm & Pay"}
         </View>
       </View>
     </View>

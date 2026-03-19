@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { storeReviewEvent } from "@/lib/integrations/mem9-lifecycle";
+import { resolveUserId } from "@/lib/request-auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = await resolveUserId(request);
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,9 +49,9 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-    if (booking.founderId !== session.user.id) {
+    if (booking.founderId !== userId) {
       return NextResponse.json(
-        { error: "Forbidden: only the founder can review this booking" },
+        { error: "Forbidden: only the session booker can leave a review" },
         { status: 403 }
       );
     }
@@ -78,7 +77,7 @@ export async function POST(request: NextRequest) {
         data: {
           bookingId,
           expertId: booking.expertId,
-          founderId: session.user.id,
+          founderId: userId,
           rating,
           comment: comment ?? null,
         },
@@ -116,6 +115,74 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    if (typeof body !== "object" || body === null) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const bookingId = typeof body.bookingId === "string" ? body.bookingId.trim() : null;
+    const expertSuggestion = typeof body.expertSuggestion === "string" ? body.expertSuggestion.trim() : null;
+
+    if (!bookingId) {
+      return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
+    }
+    if (!expertSuggestion) {
+      return NextResponse.json({ error: "expertSuggestion is required" }, { status: 400 });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { expert: true, review: true },
+    });
+
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+    if (booking.expert.userId !== userId) {
+      return NextResponse.json(
+        { error: "Forbidden: only the expert can add suggestions" },
+        { status: 403 }
+      );
+    }
+    if (booking.status !== "COMPLETED") {
+      return NextResponse.json(
+        { error: "Can only add suggestions for completed bookings" },
+        { status: 400 }
+      );
+    }
+
+    if (booking.review) {
+      const updated = await prisma.review.update({
+        where: { id: booking.review.id },
+        data: { expertSuggestion, suggestionAt: new Date() },
+      });
+      return NextResponse.json(updated);
+    }
+
+    const review = await prisma.review.create({
+      data: {
+        bookingId,
+        expertId: booking.expertId,
+        founderId: booking.founderId,
+        rating: 0,
+        expertSuggestion,
+        suggestionAt: new Date(),
+      },
+    });
+    return NextResponse.json(review);
+  } catch (error) {
+    console.error("[reviews PATCH]", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -130,9 +197,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const where = { expertId, rating: { gt: 0 } };
     const [reviews, total] = await Promise.all([
       prisma.review.findMany({
-        where: { expertId },
+        where,
         orderBy: { createdAt: "desc" },
         skip,
         take,
@@ -147,7 +215,7 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      prisma.review.count({ where: { expertId } }),
+      prisma.review.count({ where }),
     ]);
 
     return NextResponse.json({ reviews, total, skip, take });

@@ -15,6 +15,12 @@ export default defineAppConfig({
     borderStyle: "white",
     list: [
       {
+        pagePath: "pages/index/index",
+        text: "Home",
+        iconPath: "assets/tab-home.png",
+        selectedIconPath: "assets/tab-home-active.png",
+      },
+      {
         pagePath: "pages/discover/index",
         text: "Discover",
         iconPath: "assets/tab-discover.png",
@@ -28,7 +34,7 @@ export default defineAppConfig({
       },
       {
         pagePath: "pages/profile/index",
-        text: "Profile",
+        text: "Me",
         iconPath: "assets/tab-profile.png",
         selectedIconPath: "assets/tab-profile-active.png",
       },

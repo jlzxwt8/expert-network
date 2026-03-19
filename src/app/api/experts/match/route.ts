@@ -4,6 +4,55 @@ import { domainStrings } from "@/lib/domains";
 import { matchExperts } from "@/lib/ai";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 
+function keywordMatch(
+  query: string,
+  experts: {
+    id: string;
+    bio: string | null;
+    sessionType: string;
+    servicesOffered: unknown;
+    domains: { domain: string }[];
+    user: { nickName: string | null; name: string | null };
+  }[]
+) {
+  const q = query.toLowerCase();
+  const scored = experts
+    .map((e) => {
+      let score = 0;
+      const domainStr = domainStrings(e.domains).join(" ").toLowerCase();
+      const bio = (e.bio ?? "").toLowerCase();
+      const name = (e.user.nickName ?? e.user.name ?? "").toLowerCase();
+      const services = JSON.stringify(e.servicesOffered ?? []).toLowerCase();
+
+      if (domainStr.includes(q) || q.split(/\s+/).some((w) => domainStr.includes(w))) score += 3;
+      if (bio.includes(q) || q.split(/\s+/).some((w) => w.length > 2 && bio.includes(w))) score += 2;
+      if (services.includes(q) || q.split(/\s+/).some((w) => w.length > 2 && services.includes(w))) score += 1;
+      if (name.includes(q)) score += 1;
+
+      return { expert: e, score };
+    })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  if (scored.length === 0) {
+    return {
+      recommendations: [],
+      noMatchMessage:
+        "I couldn't find a perfect match for your query. Try describing your specific challenge — e.g. 'I need help with BD in Southeast Asia' or 'Looking for legal advice on incorporation'.",
+    };
+  }
+
+  return {
+    recommendations: scored.map((r) => ({
+      expertId: r.expert.id,
+      name: r.expert.user.nickName ?? r.expert.user.name ?? "Expert",
+      reason: `Matches your search based on their expertise in ${domainStrings(r.expert.domains).join(", ")}.`,
+      sessionTypes: [r.expert.sessionType],
+    })),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -45,6 +94,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (experts.length === 0) {
+      return NextResponse.json({
+        recommendations: [],
+        noMatchMessage: "No experts are available at the moment. Please check back later.",
+      });
+    }
+
     // Enrich each expert summary with relevant memories (in parallel)
     const memoryResults = await Promise.all(
       experts.map((e) =>
@@ -63,9 +119,14 @@ export async function POST(request: NextRequest) {
       })
       .join("\n\n---\n\n");
 
-    const result = await matchExperts(query, expertSummaries, history);
-
-    return NextResponse.json(result);
+    try {
+      const result = await matchExperts(query, expertSummaries, history);
+      return NextResponse.json(result);
+    } catch (aiError) {
+      console.error("[experts/match] AI matching failed, falling back to keyword:", aiError);
+      const fallback = keywordMatch(query, experts);
+      return NextResponse.json(fallback);
+    }
   } catch (error) {
     console.error("[experts/match POST]", error);
     return NextResponse.json(

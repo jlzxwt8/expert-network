@@ -55,7 +55,7 @@ export class GeminiProvider implements AIProvider {
       ? `\n\nAdditional context from uploaded document (resume/CV):\n${data.resumeText.slice(0, 3000)}`
       : "";
 
-    const prompt = `You are creating a professional profile for an expert on the Help&Grow Expert Network — a platform connecting Singapore-based tech professionals with global startup founders.
+    const prompt = `You are creating a professional profile on Help&Grow — a platform helping AI startups expand in Singapore and Southeast Asia, connecting startup founders, industry experts, and investors.
 
 Expert's name: ${data.nickName}
 Professional domains: ${data.domains.join(", ")}
@@ -197,9 +197,9 @@ Return ONLY the JSON object, no markdown code fences.`;
   ): Promise<string> {
     const prompt =
       type === "intro"
-        ? `You are a professional copywriter for the Help&Grow Expert Network.
+        ? `You are a professional copywriter for Help&Grow — an AI startup community platform.
 
-Improve this expert's introduction script. Rules:
+Improve this professional's introduction script. Rules:
 - Keep ALL facts, names, and claims unchanged
 - Maintain first-person tone
 - Make it more professional, concise, and engaging
@@ -209,7 +209,7 @@ Improve this expert's introduction script. Rules:
 
 Current introduction:
 ${content}`
-        : `You are a professional copywriter for the Help&Grow Expert Network.
+        : `You are a professional copywriter for Help&Grow — an AI startup community platform.
 
 Improve these service offerings. Rules:
 - Keep the same meaning and number of services
@@ -238,7 +238,7 @@ ${content}`;
       .map((m) => `${m.role}: ${m.content}`)
       .join("\n");
 
-    const prompt = `You are the AI matchmaking assistant for the Help&Grow Expert Network — a platform connecting Singapore-based tech professionals with global startup founders.
+    const prompt = `You are the AI matchmaking assistant for Help&Grow — a platform helping AI startups expand in Singapore and Southeast Asia. Users include AI startup founders seeking advice, industry experts sharing knowledge, and investors doing due diligence.
 
 Here is the pool of available experts:
 ${expertSummaries}
@@ -264,8 +264,16 @@ Return ONLY a JSON object, no markdown code fences.`;
     });
 
     const text = response.text ?? "";
+    if (!text.trim()) {
+      throw new Error("Empty response from Gemini model");
+    }
     const cleaned = cleanJsonResponse(text);
-    return JSON.parse(cleaned) as MatchResult;
+    try {
+      return JSON.parse(cleaned) as MatchResult;
+    } catch {
+      console.error("[Gemini matchExperts] Failed to parse response:", text.slice(0, 500));
+      throw new Error("Failed to parse AI response");
+    }
   }
 
   async extractTextFromPdf(buffer: Buffer): Promise<string> {

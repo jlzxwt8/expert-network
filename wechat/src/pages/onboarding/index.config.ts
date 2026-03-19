@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: "Become an Expert",
+  navigationBarTitleText: "Create Your Profile",
 });

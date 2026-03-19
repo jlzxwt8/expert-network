@@ -1,8 +1,8 @@
 import { View, Text, Image } from "@tarojs/components";
-import Taro, { useLoad, useDidShow } from "@tarojs/taro";
+import Taro, { useLoad, useDidShow, useShareAppMessage } from "@tarojs/taro";
 import { useState, useCallback } from "react";
 import { get } from "../../shared/api";
-import { getApiBase, clearAuth, getUser } from "../../shared/auth";
+import { getApiBase, getUser } from "../../shared/auth";
 import type { ExpertDetail, AuthUser } from "../../shared/types";
 import "./index.scss";
 
@@ -40,18 +40,19 @@ export default function ProfilePage() {
     fetchProfile();
   });
 
-  const handleLogout = () => {
-    Taro.showModal({
-      title: "Logout",
-      content: "Are you sure you want to logout?",
-      success: (res) => {
-        if (res.confirm) {
-          clearAuth();
-          Taro.reLaunch({ url: "/pages/index/index" });
-        }
-      },
-    });
-  };
+  useShareAppMessage(() => {
+    if (isExpert && expert) {
+      const name = user?.nickName || user?.name || "Member";
+      return {
+        title: `${name} on Help&Grow`,
+        path: `/pages/expert/index?id=${expert.id}`,
+      };
+    }
+    return {
+      title: "Help&Grow — AI Startup Hub for SG & SEA",
+      path: "/pages/index/index",
+    };
+  });
 
   const API_BASE = getApiBase();
 
@@ -67,11 +68,12 @@ export default function ProfilePage() {
     );
   }
 
+  const displayName = user && (user.nickName || user.name) ? (user.nickName || user.name) : "User";
+
   return (
     <View className="profile">
-      {/* User header */}
       <View className="profile__header">
-        {expert?.hasAvatar ? (
+        {expert && expert.hasAvatar ? (
           <Image
             className="profile__avatar"
             src={`${API_BASE}/api/experts/${expert.id}/avatar`}
@@ -79,99 +81,25 @@ export default function ProfilePage() {
           />
         ) : (
           <View className="profile__avatar-placeholder">
-            {(user?.nickName ?? user?.name ?? "U").charAt(0).toUpperCase()}
+            {(displayName || "U").charAt(0).toUpperCase()}
           </View>
         )}
-        <Text className="profile__name">
-          {user?.nickName ?? user?.name ?? "User"}
-        </Text>
-        {user?.email && (
+        <Text className="profile__name">{displayName}</Text>
+        {user && user.email && (
           <Text className="profile__email">{user.email}</Text>
         )}
         {isExpert && (
-          <View className="profile__role-badge">Expert</View>
+          <View className="profile__role-badge">Community Member</View>
         )}
       </View>
 
-      {/* Menu items */}
-      <View className="profile__menu">
-        {isExpert && (
-          <>
-            <View
-              className="profile__menu-item"
-              onClick={() =>
-                Taro.navigateTo({
-                  url: `/pages/expert/index?id=${expert?.id}`,
-                })
-              }
-            >
-              <Text className="profile__menu-icon">👤</Text>
-              <Text className="profile__menu-label">View My Public Profile</Text>
-              <Text className="profile__menu-arrow">→</Text>
-            </View>
-            <View
-              className="profile__menu-item"
-              onClick={() => {
-                Taro.showToast({ title: "Coming soon", icon: "none" });
-              }}
-            >
-              <Text className="profile__menu-icon">✏️</Text>
-              <Text className="profile__menu-label">Edit Profile</Text>
-              <Text className="profile__menu-arrow">→</Text>
-            </View>
-            <View
-              className="profile__menu-item"
-              onClick={() => {
-                Taro.showToast({ title: "Coming soon", icon: "none" });
-              }}
-            >
-              <Text className="profile__menu-icon">📅</Text>
-              <Text className="profile__menu-label">Manage Availability</Text>
-              <Text className="profile__menu-arrow">→</Text>
-            </View>
-          </>
-        )}
-
-        {!isExpert && (
-          <View
-            className="profile__menu-item"
-            onClick={() =>
-              Taro.navigateTo({ url: "/pages/onboarding/index" })
-            }
-          >
-            <Text className="profile__menu-icon">🌟</Text>
-            <Text className="profile__menu-label">Become an Expert</Text>
-            <Text className="profile__menu-arrow">→</Text>
-          </View>
-        )}
-
-        <View
-          className="profile__menu-item"
-          onClick={() =>
-            Taro.switchTab({ url: "/pages/dashboard/index" })
-          }
-        >
-          <Text className="profile__menu-icon">📋</Text>
-          <Text className="profile__menu-label">My Bookings</Text>
-          <Text className="profile__menu-arrow">→</Text>
-        </View>
-
-        <View className="profile__menu-item" onClick={handleLogout}>
-          <Text className="profile__menu-icon">🚪</Text>
-          <Text className="profile__menu-label profile__menu-label--danger">
-            Logout
-          </Text>
-        </View>
-      </View>
-
-      {/* Expert stats */}
       {isExpert && expert && (
         <View className="profile__stats">
           <View className="profile__stat">
             <Text className="profile__stat-value">{expert.avgRating.toFixed(1)}</Text>
             <Text className="profile__stat-label">Rating</Text>
           </View>
-          <View className="profile__stat">
+          <View className="profile__stat profile__stat--border">
             <Text className="profile__stat-value">{expert.reviewCount}</Text>
             <Text className="profile__stat-label">Reviews</Text>
           </View>
@@ -181,6 +109,126 @@ export default function ProfilePage() {
           </View>
         </View>
       )}
+
+      <View className="profile__menu">
+        {isExpert && (
+          <>
+            <View
+              className="profile__menu-item"
+              hoverClass="profile__menu-item--hover"
+              onClick={() =>
+                Taro.navigateTo({
+                  url: `/pages/expert/index?id=${expert && expert.id}`,
+                })
+              }
+            >
+              <View className="profile__menu-icon-wrap profile__menu-icon-wrap--blue">
+                <Text className="profile__menu-icon">👤</Text>
+              </View>
+              <View className="profile__menu-content">
+                <Text className="profile__menu-label">My Public Profile</Text>
+                <Text className="profile__menu-hint">View how others see you</Text>
+              </View>
+              <Text className="profile__menu-arrow">›</Text>
+            </View>
+            <View
+              className="profile__menu-item"
+              hoverClass="profile__menu-item--hover"
+              onClick={() => {
+                Taro.showToast({ title: "Coming soon", icon: "none" });
+              }}
+            >
+              <View className="profile__menu-icon-wrap profile__menu-icon-wrap--purple">
+                <Text className="profile__menu-icon">✏️</Text>
+              </View>
+              <View className="profile__menu-content">
+                <Text className="profile__menu-label">Edit Profile</Text>
+                <Text className="profile__menu-hint">Update bio, pricing & links</Text>
+              </View>
+              <Text className="profile__menu-arrow">›</Text>
+            </View>
+            <View
+              className="profile__menu-item"
+              hoverClass="profile__menu-item--hover"
+              onClick={() => {
+                Taro.showToast({ title: "Coming soon", icon: "none" });
+              }}
+            >
+              <View className="profile__menu-icon-wrap profile__menu-icon-wrap--green">
+                <Text className="profile__menu-icon">📅</Text>
+              </View>
+              <View className="profile__menu-content">
+                <Text className="profile__menu-label">Manage Availability</Text>
+                <Text className="profile__menu-hint">Set your available time slots</Text>
+              </View>
+              <Text className="profile__menu-arrow">›</Text>
+            </View>
+          </>
+        )}
+
+        {!isExpert && (
+          <View
+            className="profile__menu-item"
+            hoverClass="profile__menu-item--hover"
+            onClick={() =>
+              Taro.navigateTo({ url: "/pages/onboarding/index" })
+            }
+          >
+            <View className="profile__menu-icon-wrap profile__menu-icon-wrap--amber">
+              <Text className="profile__menu-icon">🌟</Text>
+            </View>
+            <View className="profile__menu-content">
+              <Text className="profile__menu-label">Join the Community</Text>
+              <Text className="profile__menu-hint">Create your profile & start sharing</Text>
+            </View>
+            <Text className="profile__menu-arrow">›</Text>
+          </View>
+        )}
+
+        <View
+          className="profile__menu-item"
+          hoverClass="profile__menu-item--hover"
+          onClick={() => {
+            Taro.showShareMenu({ withShareTicket: true });
+            Taro.showToast({ title: "Use share button ↗", icon: "none" });
+          }}
+        >
+          <View className="profile__menu-icon-wrap profile__menu-icon-wrap--teal">
+            <Text className="profile__menu-icon">📤</Text>
+          </View>
+          <View className="profile__menu-content">
+            <Text className="profile__menu-label">Share Help&Grow</Text>
+            <Text className="profile__menu-hint">Invite friends to the community</Text>
+          </View>
+          <Text className="profile__menu-arrow">›</Text>
+        </View>
+
+        <View
+          className="profile__menu-item"
+          hoverClass="profile__menu-item--hover"
+          onClick={() => {
+            Taro.showModal({
+              title: "About Help&Grow",
+              content: "Help&Grow connects AI startup founders, domain experts, and investors across Singapore & Southeast Asia. Book 1-on-1 sessions and grow together.",
+              showCancel: false,
+              confirmText: "OK",
+            });
+          }}
+        >
+          <View className="profile__menu-icon-wrap profile__menu-icon-wrap--gray">
+            <Text className="profile__menu-icon">ℹ️</Text>
+          </View>
+          <View className="profile__menu-content">
+            <Text className="profile__menu-label">About</Text>
+            <Text className="profile__menu-hint">Learn more about Help&Grow</Text>
+          </View>
+          <Text className="profile__menu-arrow">›</Text>
+        </View>
+      </View>
+
+      <View className="profile__footer">
+        <Text className="profile__footer-text">Help&Grow · AI Startup Hub for SG & SEA</Text>
+      </View>
     </View>
   );
 }

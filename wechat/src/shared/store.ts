@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getUser, getToken, clearAuth, wxLogin } from "./auth";
 import type { AuthUser } from "./types";
 
@@ -18,19 +18,13 @@ export function initStore() {
 export function useAuth() {
   const [, setTick] = useState(0);
 
-  const subscribe = useCallback(() => {
+  useEffect(() => {
     const listener = () => setTick((t) => t + 1);
     listeners.add(listener);
     return () => {
       listeners.delete(listener);
     };
   }, []);
-
-  // Subscribe on mount
-  useState(() => {
-    const unsub = subscribe();
-    return unsub;
-  });
 
   const login = useCallback(async () => {
     const result = await wxLogin();

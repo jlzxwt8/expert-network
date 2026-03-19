@@ -1,6 +1,7 @@
 import { View, Text, Input, ScrollView } from "@tarojs/components";
 import Taro, {
   useLoad,
+  useDidShow,
   usePullDownRefresh,
   useReachBottom,
 } from "@tarojs/taro";
@@ -37,14 +38,15 @@ export default function DiscoverPage() {
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("reviews");
 
-  // AI Match state
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const chatScrollId = useRef("");
 
   const expertsRef = useRef<Expert[]>([]);
   expertsRef.current = experts;
   const take = 20;
+  const initialLoadDone = useRef(false);
 
   const fetchExperts = useCallback(
     async (append = false) => {
@@ -82,6 +84,13 @@ export default function DiscoverPage() {
 
   useLoad(() => {
     fetchExperts();
+    initialLoadDone.current = true;
+  });
+
+  useDidShow(() => {
+    if (initialLoadDone.current) {
+      fetchExperts();
+    }
   });
 
   usePullDownRefresh(() => {
@@ -110,21 +119,15 @@ export default function DiscoverPage() {
     );
   };
 
-  const changeSessionFilter = (f: SessionFilter) => {
-    setSessionFilter(f);
-  };
-
-  const changeSort = (s: SortOption) => {
-    setSortBy(s);
-  };
-
   const sendMatchQuery = async () => {
     const q = chatInput.trim();
     if (!q || chatLoading) return;
 
     setChatInput("");
+    const msgIdx = chatMessages.length;
     setChatMessages((prev) => [...prev, { role: "user", content: q }]);
     setChatLoading(true);
+    chatScrollId.current = `chat-msg-${msgIdx}`;
 
     const history = chatMessages
       .filter(
@@ -154,6 +157,7 @@ export default function DiscoverPage() {
             noMatchMessage: res.data.noMatchMessage,
           },
         ]);
+        chatScrollId.current = `chat-msg-${msgIdx + 1}`;
       } else {
         throw new Error("Match failed");
       }
@@ -181,15 +185,14 @@ export default function DiscoverPage() {
   return (
     <View className="discover">
       {/* Domain filters */}
-      <ScrollView scrollX className="discover__domains" enableFlex>
+      <ScrollView scrollX className="discover__domains" enableFlex enhanced showScrollbar={false}>
         {DOMAINS.map((d) => (
           <View
             key={d}
             className={`discover__domain-chip ${
-              selectedDomains.includes(d)
-                ? "discover__domain-chip--active"
-                : ""
+              selectedDomains.includes(d) ? "discover__domain-chip--active" : ""
             }`}
+            hoverClass="discover__domain-chip--hover"
             onClick={() => toggleDomain(d)}
           >
             {d}
@@ -206,13 +209,18 @@ export default function DiscoverPage() {
               className={`discover__session-btn ${
                 sessionFilter === st ? "discover__session-btn--active" : ""
               }`}
-              onClick={() => changeSessionFilter(st)}
+              hoverClass="discover__session-btn--hover"
+              onClick={() => setSessionFilter(st)}
             >
               {st === "all" ? "All" : st === "ONLINE" ? "Online" : "Offline"}
             </View>
           ))}
         </View>
-        <View className="discover__sort" onClick={() => changeSort(sortBy === "reviews" ? "newest" : "reviews")}>
+        <View
+          className="discover__sort"
+          hoverClass="discover__sort--hover"
+          onClick={() => setSortBy(sortBy === "reviews" ? "newest" : "reviews")}
+        >
           {sortBy === "reviews" ? "Most Reviews ↓" : "Newest ↓"}
         </View>
       </View>
@@ -221,15 +229,17 @@ export default function DiscoverPage() {
       <View className="discover__tabs">
         <View
           className={`discover__tab ${tab === "browse" ? "discover__tab--active" : ""}`}
+          hoverClass="discover__tab--hover"
           onClick={() => setTab("browse")}
         >
-          🔍 Browse
+          Browse
         </View>
         <View
           className={`discover__tab ${tab === "match" ? "discover__tab--active" : ""}`}
+          hoverClass="discover__tab--hover"
           onClick={() => setTab("match")}
         >
-          ✨ AI Match
+          AI Match
         </View>
       </View>
 
@@ -251,15 +261,29 @@ export default function DiscoverPage() {
             </View>
           ) : experts.length === 0 ? (
             <View className="discover__empty">
-              <Text>No experts found. Try adjusting your filters.</Text>
+              <Text className="discover__empty-icon">🔍</Text>
+              <Text className="discover__empty-text">No results found</Text>
+              <Text className="discover__empty-hint">Try adjusting your filters</Text>
             </View>
           ) : (
             <>
+              <View className="discover__count">
+                <Text>{total} expert{total !== 1 ? "s" : ""} found</Text>
+              </View>
               {experts.map((expert) => (
                 <ExpertCard key={expert.id} expert={expert} />
               ))}
               {loadingMore && (
-                <View className="discover__loading-more">Loading...</View>
+                <View className="discover__loading-more">
+                  <View className="discover__loading-dot" />
+                  <View className="discover__loading-dot" />
+                  <View className="discover__loading-dot" />
+                </View>
+              )}
+              {!loadingMore && experts.length >= total && experts.length > 0 && (
+                <View className="discover__end-mark">
+                  <Text>— All loaded —</Text>
+                </View>
               )}
             </>
           )}
@@ -269,13 +293,17 @@ export default function DiscoverPage() {
       {/* AI Match tab */}
       {tab === "match" && (
         <View className="discover__match">
-          <View className="discover__chat">
+          <ScrollView
+            scrollY
+            className="discover__chat"
+            scrollIntoView={chatScrollId.current}
+            scrollWithAnimation
+          >
             {chatMessages.length === 0 && (
               <View className="discover__chat-empty">
                 <Text className="discover__chat-empty-icon">✨</Text>
                 <Text className="discover__chat-empty-text">
-                  Describe your challenge and we'll match you with the right
-                  experts.
+                  Describe what you're looking for and we'll find the right people for you
                 </Text>
                 <Text className="discover__chat-empty-hint">
                   e.g. "I need help with AI product strategy in SEA"
@@ -285,6 +313,7 @@ export default function DiscoverPage() {
             {chatMessages.map((m, i) => (
               <View
                 key={i}
+                id={`chat-msg-${i}`}
                 className={`discover__chat-msg ${
                   m.role === "user"
                     ? "discover__chat-msg--user"
@@ -310,21 +339,19 @@ export default function DiscoverPage() {
                                 .slice(0, 2)}
                             </View>
                             <View className="discover__rec-info">
-                              <Text className="discover__rec-name">
-                                {rec.name}
-                              </Text>
-                              <Text className="discover__rec-reason">
-                                {rec.reason}
-                              </Text>
+                              <Text className="discover__rec-name">{rec.name}</Text>
+                              <Text className="discover__rec-reason">{rec.reason}</Text>
                               <View className="discover__rec-actions">
                                 <View
                                   className="discover__rec-btn discover__rec-btn--primary"
+                                  hoverClass="discover__rec-btn--hover"
                                   onClick={() => goToBook(rec.expertId)}
                                 >
                                   Book
                                 </View>
                                 <View
                                   className="discover__rec-btn discover__rec-btn--outline"
+                                  hoverClass="discover__rec-btn--hover"
                                   onClick={() => goToExpert(rec.expertId)}
                                 >
                                   View
@@ -343,11 +370,15 @@ export default function DiscoverPage() {
               </View>
             ))}
             {chatLoading && (
-              <View className="discover__chat-loading">Finding experts...</View>
+              <View className="discover__chat-loading">
+                <View className="discover__loading-dot" />
+                <View className="discover__loading-dot" />
+                <View className="discover__loading-dot" />
+              </View>
             )}
-          </View>
+            <View style={{ height: "24px" }} />
+          </ScrollView>
 
-          {/* Input area */}
           <View className="discover__input-bar">
             <Input
               className="discover__input"
@@ -357,16 +388,16 @@ export default function DiscoverPage() {
               confirmType="send"
               onConfirm={sendMatchQuery}
               disabled={chatLoading}
+              adjustPosition
             />
             <View
               className={`discover__send-btn ${
-                !chatInput.trim() || chatLoading
-                  ? "discover__send-btn--disabled"
-                  : ""
+                !chatInput.trim() || chatLoading ? "discover__send-btn--disabled" : ""
               }`}
+              hoverClass="discover__send-btn--hover"
               onClick={sendMatchQuery}
             >
-              {chatLoading ? "..." : "→"}
+              {chatLoading ? "···" : "→"}
             </View>
           </View>
         </View>

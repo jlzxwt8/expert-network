@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
 import { domainStrings } from "@/lib/domains";
 import type { SessionType } from "@/generated/prisma/client";
 
@@ -26,12 +25,9 @@ function parseSessionType(value: unknown): SessionType | null {
 
 export async function GET(request: NextRequest) {
   try {
-    const isTelegram = request.headers.get("x-telegram-mini-app") === "true";
-    if (!isTelegram) {
-      const session = await getServerSession(authOptions);
-      if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    const userId = await resolveUserId(request);
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);

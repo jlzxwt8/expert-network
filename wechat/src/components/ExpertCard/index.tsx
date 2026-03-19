@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function ExpertCard({ expert }: Props) {
-  const name = expert.user.nickName ?? expert.user.name ?? "Expert";
+  const name = expert.user.nickName || expert.user.name || "Member";
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -30,7 +30,7 @@ export default function ExpertCard({ expert }: Props) {
   };
 
   return (
-    <View className="expert-card" onClick={goToProfile}>
+    <View className="expert-card" hoverClass="expert-card--hover" onClick={goToProfile}>
       <View className="expert-card__body">
         <View className="expert-card__avatar">{initials}</View>
         <View className="expert-card__info">
@@ -39,7 +39,7 @@ export default function ExpertCard({ expert }: Props) {
               <Text className="expert-card__name">{name}</Text>
               {expert.isVerified && (
                 <View className="expert-card__badge expert-card__badge--verified">
-                  ✓ Verified
+                  ✓
                 </View>
               )}
             </View>
@@ -79,10 +79,18 @@ export default function ExpertCard({ expert }: Props) {
         </View>
       </View>
       <View className="expert-card__actions">
-        <View className="expert-card__btn expert-card__btn--primary" onClick={(e) => { e.stopPropagation(); goToBook(); }}>
+        <View
+          className="expert-card__btn expert-card__btn--primary"
+          hoverClass="expert-card__btn--hover"
+          onClick={(e) => { e.stopPropagation(); goToBook(); }}
+        >
           Book Session
         </View>
-        <View className="expert-card__btn expert-card__btn--outline" onClick={(e) => { e.stopPropagation(); goToProfile(); }}>
+        <View
+          className="expert-card__btn expert-card__btn--outline"
+          hoverClass="expert-card__btn--hover"
+          onClick={(e) => { e.stopPropagation(); goToProfile(); }}
+        >
           View Profile
         </View>
       </View>
