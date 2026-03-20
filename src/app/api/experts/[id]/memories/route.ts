@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
 
 /**

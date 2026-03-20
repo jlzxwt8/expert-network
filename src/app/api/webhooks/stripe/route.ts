@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { verifyWebhookSignature, retrievePaymentIntent, getAccountStatus } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
-import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
-import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
+import { type NextRequest, NextResponse } from "next/server";
+
 import type { SessionType } from "@/generated/prisma/client";
+import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { prisma } from "@/lib/prisma";
+import { verifyWebhookSignature, retrievePaymentIntent, getAccountStatus } from "@/lib/stripe";
+import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 
 export const maxDuration = 30;
 

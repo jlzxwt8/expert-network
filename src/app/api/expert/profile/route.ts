@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { domainStrings, setExpertDomains } from "@/lib/domains";
+import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
 export async function GET(request: NextRequest) {

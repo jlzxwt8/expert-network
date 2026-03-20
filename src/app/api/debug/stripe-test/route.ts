@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { retrieveBalance } from "@/lib/stripe";
 
 export async function GET() {

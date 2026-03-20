@@ -1,0 +1,42 @@
+# Taro + WeChat Mini Program Reference (LLM-friendly)
+
+## Framework
+
+Taro 4.x with React 18. Compiles to WeChat Mini Program (weapp target).
+
+## Project Structure
+
+wechat/src/pages/<name>/index.tsx   — Page component
+wechat/src/pages/<name>/index.scss  — Page styles
+wechat/src/pages/<name>/index.config.ts — Page config (title, nav style)
+
+## Key APIs
+
+- Taro.login() — Get WeChat login code
+- Taro.request() — HTTP requests (use for API calls)
+- Taro.navigateTo({ url }) — Navigate to non-tab page
+- Taro.switchTab({ url }) — Switch to tab bar page
+- Taro.showShareMenu() — Enable sharing
+- Taro.getSystemInfoSync() — Device info, statusBarHeight
+- Taro.setStorageSync/getStorageSync — Local storage
+
+## Lifecycle Hooks
+
+- useLaunch() — App launch (in app.tsx)
+- useLoad() — Page load (replaces componentDidMount)
+- useDidShow() — Page visible (use for data refresh on tab revisit)
+- usePullDownRefresh() — Pull-to-refresh
+- useReachBottom() — Infinite scroll
+
+## WeChat-Specific Patterns
+
+- hoverClass="pressed" on View for tap feedback (required by guidelines)
+- ScrollView with scrollX for horizontal lists (not CSS overflow-x)
+- adjustPosition on Input to handle keyboard pushing content
+- env(safe-area-inset-bottom) for bottom padding on iPhone X+
+- navigationStyle: "custom" in page config for custom nav bars
+
+## Build & Upload
+
+npm run build:weapp     — Build for WeChat
+node scripts/wechat-upload.js "1.0.0" "Description"  — Upload via miniprogram-ci

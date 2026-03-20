@@ -1,10 +1,10 @@
 "use client";
 
 import { memo, Suspense, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { useTelegram } from "@/components/telegram-provider";
+
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import {
   Star,
   Shield,
@@ -14,13 +14,14 @@ import {
   Loader2,
   ArrowLeft,
 } from "lucide-react";
-import { UserMenu } from "@/components/user-menu";
-import { Button } from "@/components/ui/button";
+import { useSession } from "next-auth/react";
+
+import { useTelegram } from "@/components/telegram-provider";
+import { useInviteGuard } from "@/hooks/use-invite-guard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { VoiceInputButton } from "@/components/voice-input-button";
 import {
   Select,
   SelectContent,
@@ -28,6 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserMenu } from "@/components/user-menu";
+import { VoiceInputButton } from "@/components/voice-input-button";
 import { DOMAINS } from "@/lib/constants";
 
 type SessionFilter = "all" | "ONLINE" | "OFFLINE";
@@ -219,6 +223,7 @@ export default function DiscoverPage() {
 function DiscoverContent() {
   const { status: sessionStatus } = useSession();
   const { isTelegram, ready: tgReady } = useTelegram();
+  const { checked: inviteChecked, hasInvite } = useInviteGuard();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [experts, setExperts] = useState<Expert[]>([]);
@@ -239,6 +244,8 @@ function DiscoverContent() {
       router.push("/auth/signin?callbackUrl=/discover");
     }
   }, [sessionStatus, isTelegram, tgReady, router]);
+
+  if (!inviteChecked || !hasInvite) return null;
 
   const domainsParam = searchParams.get("domains") ?? "";
   const domains = useMemo(

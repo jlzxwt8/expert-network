@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { calculateBookingAmount } from "@/lib/stripe";
+import { type NextRequest, NextResponse } from "next/server";
+
 import type { SessionType } from "@/generated/prisma/client";
-import { resolveUserId } from "@/lib/request-auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
+import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
+import { calculateBookingAmount } from "@/lib/stripe";
 const TON_RATE_API = "https://tonapi.io/v2/rates?tokens=ton&currencies=sgd";
 
 async function getSGDToTONRate(): Promise<number> {

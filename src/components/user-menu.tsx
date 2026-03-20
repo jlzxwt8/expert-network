@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { signOut } from "next-auth/react";
+
 import Link from "next/link";
+
 import { CalendarDays, LogOut, User, Search } from "lucide-react";
+import { signOut } from "next-auth/react";
+
 import { useAuth } from "@/hooks/use-auth";
 
 interface UserMenuProps {

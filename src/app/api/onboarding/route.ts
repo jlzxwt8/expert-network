@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { domainStrings, setExpertDomains } from "@/lib/domains";
+import { type NextRequest, NextResponse } from "next/server";
+
 import type { OnboardingStep, SessionType } from "@/generated/prisma/client";
+import { domainStrings, setExpertDomains } from "@/lib/domains";
+import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
 const SOCIAL_LINK_KEYS = [

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
-import { generateCustodialWallet } from "@/lib/ton-wallet";
 import { resolveUserId } from "@/lib/request-auth";
+import { generateCustodialWallet } from "@/lib/ton-wallet";
 
 export async function GET(request: NextRequest) {
   try {

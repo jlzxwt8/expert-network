@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { getVoiceSynthesis } from "@/lib/integrations/config";
+import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
 export async function POST(request: NextRequest) {

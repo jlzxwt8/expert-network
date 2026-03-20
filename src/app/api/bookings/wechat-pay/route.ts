@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { resolveUserId } from "@/lib/request-auth";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
+import type { SessionType } from "@/generated/prisma/client";
 import { findOverlappingBooking } from "@/lib/booking-utils";
+import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
 import { calculateBookingAmount } from "@/lib/stripe";
 import {
   createUnifiedOrder,
@@ -9,7 +11,6 @@ import {
   isWechatPayConfigured,
   convertSGDToCNY,
 } from "@/lib/wechat-pay";
-import type { SessionType } from "@/generated/prisma/client";
 
 export async function POST(request: NextRequest) {
   try {

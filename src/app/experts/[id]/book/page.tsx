@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, startTransition } from "react";
+
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+
+import { beginCell } from "@ton/core";
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
+import { format, isSameDay, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
 import {
   Monitor,
   MapPin,
@@ -10,15 +15,13 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import { UserMenu } from "@/components/user-menu";
+
 import { useTelegram } from "@/components/telegram-provider";
-import { getTelegramInitData } from "@/lib/telegram";
-import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
-import { beginCell } from "@ton/core";
-import { format, isSameDay, parseISO, setHours, setMinutes, startOfDay } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
+import { UserMenu } from "@/components/user-menu";
+import { getTelegramInitData } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
 type SessionType = "ONLINE" | "OFFLINE";
@@ -420,14 +423,6 @@ export default function BookSessionPage() {
 
   const handleConfirm = () => {
     if (selectedSlots.length === 0 || !expertId) return;
-    if (sessionType === "ONLINE" && !meetingLink.trim()) {
-      setError("Please enter a meeting link for online sessions.");
-      return;
-    }
-    if (sessionType === "OFFLINE" && !offlineAddress.trim()) {
-      setError("Please enter a meeting address for offline sessions.");
-      return;
-    }
     if (pricePerHour == null) {
       setError("This advisor has not set pricing for this session type.");
       return;
@@ -444,8 +439,7 @@ export default function BookSessionPage() {
   const canConfirm =
     !!selectedDate &&
     selectedSlots.length > 0 &&
-    !submitting &&
-    (sessionType === "ONLINE" ? meetingLink.trim().length > 0 : offlineAddress.trim().length > 0);
+    !submitting;
 
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-background">
@@ -503,7 +497,7 @@ export default function BookSessionPage() {
         {sessionType === "ONLINE" && (
           <section>
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-              Meeting link <span className="text-destructive">*</span>
+              Meeting link <span className="text-xs text-muted-foreground/70">(optional — can add later)</span>
             </h2>
             <Input
               value={meetingLink}
@@ -517,7 +511,7 @@ export default function BookSessionPage() {
         {sessionType === "OFFLINE" && (
           <section>
             <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-              Meeting address <span className="text-destructive">*</span>
+              Meeting address <span className="text-xs text-muted-foreground/70">(optional — can add later)</span>
             </h2>
             <Input
               value={offlineAddress}

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { domainStrings } from "@/lib/domains";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { generateProfileImage } from "@/lib/ai";
+import { domainStrings } from "@/lib/domains";
+import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
 export async function POST(request: NextRequest) {

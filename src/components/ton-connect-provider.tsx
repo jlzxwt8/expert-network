@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode } from "react";
+import { type ReactNode } from "react";
+
 import { TonConnectUIProvider } from "@tonconnect/ui-react";
 
 const MANIFEST_URL = "https://expert-network.vercel.app/tonconnect-manifest.json";

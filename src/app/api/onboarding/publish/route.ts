@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { domainStrings } from "@/lib/domains";
 import { seedExpertProfile } from "@/lib/integrations/mem9-lifecycle";
+import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
 export async function POST(request: NextRequest) {

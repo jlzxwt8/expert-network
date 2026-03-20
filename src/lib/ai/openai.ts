@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+
 import { BaseAIProvider } from "./base-provider";
 
 const TEXT_MODEL = "gpt-4o";

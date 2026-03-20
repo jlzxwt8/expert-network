@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
 import type { SessionType } from "@/generated/prisma/client";
-import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
-import { resolveUserId } from "@/lib/request-auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
+import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
 
 const SESSION_TYPES: SessionType[] = ["ONLINE", "OFFLINE", "BOTH"];
 

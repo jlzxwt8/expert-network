@@ -1,13 +1,14 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
-import { Mail, Chrome, Loader2 } from "lucide-react";
-import { useTelegram } from "@/components/telegram-provider";
 
+import { useSearchParams, useRouter } from "next/navigation";
+
+import { Mail, Chrome, Loader2 } from "lucide-react";
+import { signIn, useSession } from "next-auth/react";
+
+import { useTelegram } from "@/components/telegram-provider";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
 function SignInForm() {

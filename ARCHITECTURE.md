@@ -1,0 +1,155 @@
+# Architecture — Expert Network
+
+## Overview
+
+Expert Network is a multi-platform marketplace connecting startup founders in Singapore & Southeast Asia with domain experts for paid consulting sessions. It serves three client surfaces (web, Telegram Mini App, WeChat Mini Program) backed by a single Next.js API layer.
+
+## System Diagram
+
+```
+┌─────────────┐  ┌─────────────────┐  ┌──────────────────┐
+│ Web Browser  │  │ Telegram MiniApp│  │ WeChat MiniProg  │
+│ (Next.js SSR)│  │ (React SPA)     │  │ (Taro + React)   │
+└──────┬───────┘  └───────┬─────────┘  └───────┬──────────┘
+       │                  │                     │
+       └──────────────────┼─────────────────────┘
+                          │
+                ┌─────────▼──────────┐
+                │  Next.js API Layer  │  (Vercel Serverless)
+                │  /api/*             │
+                └──┬──────┬──────┬───┘
+                   │      │      │
+           ┌───────▼┐ ┌───▼───┐ ┌▼────────┐
+           │ Prisma  │ │Stripe │ │AI Provs │
+           │ (DB)    │ │(Pay)  │ │(Qwen/   │
+           │         │ │       │ │ Gemini/ │
+           │ Supa/   │ │Connect│ │ OpenAI) │
+           │ TiDB    │ │Webhook│ │         │
+           └─────────┘ └───────┘ └─────────┘
+```
+
+## Business Domains
+
+| Domain | Responsibility | Key Files |
+|--------|---------------|-----------|
+| **Auth** | Multi-platform authentication (NextAuth, Telegram, WeChat) | `src/lib/auth.ts`, `src/lib/request-auth.ts`, `src/lib/telegram-server.ts` |
+| **Experts** | Profile management, domains, availability, pricing | `src/app/api/experts/`, `src/app/api/expert/` |
+| **Bookings** | Session scheduling, timezone handling, conflict detection | `src/app/api/bookings/`, `src/lib/booking-utils.ts` |
+| **Payments** | Stripe checkout, TON crypto, WeChat Pay, free sessions | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
+| **Reviews** | Post-session ratings with expert suggestions | `src/app/api/reviews/` |
+| **AI** | Expert matching, profile generation, chat, image gen, TTS/ASR | `src/lib/ai/`, `src/lib/chat-engine.ts` |
+| **Onboarding** | Multi-step expert registration wizard | `src/app/api/onboarding/` |
+| **Notifications** | Telegram bot + WeChat template messages | `src/lib/telegram-bot.ts`, `src/lib/wechat-notify.ts` |
+| **Memory** | Per-expert persistent context via mem9 | `src/lib/integrations/mem9.ts` |
+
+## Layer Architecture
+
+Within each domain, code follows these layers (dependencies flow downward only):
+
+```
+Types       — Prisma models, TypeScript interfaces, Zod schemas
+    ↓
+Config      — Environment variables, feature flags, constants
+    ↓
+Repository  — Prisma queries, data access (src/lib/)
+    ↓
+Service     — Business logic, orchestration (src/lib/)
+    ↓
+API Route   — HTTP handlers, request validation (src/app/api/)
+    ↓
+UI          — React pages and components (src/app/, src/components/)
+```
+
+**Rules:**
+- UI may call API Routes (via fetch) but never imports from Service or Repository directly
+- API Routes validate inputs then delegate to Service layer
+- Service layer is framework-agnostic — no Next.js imports
+- Cross-domain dependencies go through explicit interfaces
+
+## Authentication Architecture
+
+```
+Request → resolveUserId(request)
+              ├─ Check x-wechat-token header → JWT verify → wechatOpenId → User
+              ├─ Check x-telegram-init-data header → HMAC verify → telegramId → User
+              └─ Check NextAuth session cookie → getServerSession → User
+```
+
+All API routes use `resolveUserId()` for unified multi-platform auth.
+
+## AI Provider Architecture
+
+```
+src/lib/ai/
+├── index.ts          — Factory: reads AI_PROVIDER env, returns provider
+├── types.ts          — AIProvider interface, shared types
+├── base-provider.ts  — Shared utilities
+├── prompts.ts        — Prompt templates
+├── gemini.ts         — Google Gemini implementation
+├── qwen.ts           — Alibaba Qwen/DashScope implementation
+├── openai.ts         — OpenAI implementation
+└── search.ts         — Search grounding utilities
+```
+
+Provider selection: `AI_PROVIDER=qwen|gemini|openai` (defaults to Gemini).
+
+## Database
+
+- **Primary**: Supabase (PostgreSQL) in production
+- **Alternative**: TiDB Cloud Zero (MySQL) — switchable via `DB_PROVIDER`
+- **ORM**: Prisma 7 with driver adapters (`@prisma/adapter-pg`, `@prisma/adapter-mariadb`)
+- **Schema**: `prisma/schema.prisma` — provider line patched by `scripts/switch-db.mjs`
+
+### Key Models
+
+| Model | Purpose |
+|-------|---------|
+| User | All users (founders, experts, admins) with multi-platform IDs |
+| Expert | Extended profile linked to User — pricing, schedule, Stripe Connect |
+| ExpertDomain | Many-to-many expert ↔ domain mapping |
+| AvailableSlot | Explicit availability windows |
+| Booking | Session records with payment tracking |
+| Review | Post-session ratings and expert suggestions |
+
+## Payment Architecture
+
+1. **Stripe** (primary): Checkout Sessions → webhook creates Booking → cron charges remainder
+2. **TON**: TonConnect wallet → on-chain transfer → manual confirmation
+3. **WeChat Pay**: JSAPI → webhook confirms payment
+4. **Free**: Direct booking creation when expert price is 0
+
+Stripe uses Connected Accounts (Express) for marketplace payouts with configurable platform fee.
+
+## Memory Architecture (mem9)
+
+Each expert gets a persistent cloud memory space via [mem9.ai](https://mem9.ai) that enriches AI interactions with accumulated context.
+
+```
+Expert onboarded → ensureExpertSpace() → mem9 space created
+                → seedExpertProfile()  → bio, domains, services stored as memories
+                                         ↓
+Booking created  → storeBookingEvent()  → session details added to memory
+Review received  → storeReviewEvent()   → rating + comment added to memory
+                                         ↓
+AI match query   → searchExpertMemories() → relevant memories injected into prompt
+AI chat          → searchExpertMemories() → context-aware responses
+```
+
+**Key files:**
+- `src/lib/integrations/mem9.ts` — Low-level API client (create space, store, search, get, update)
+- `src/lib/integrations/mem9-lifecycle.ts` — Fire-and-forget helpers for business events
+- `Expert.mem9SpaceId` — Prisma field linking expert to their memory space
+
+**Design principles:**
+- All mem9 calls are fire-and-forget (`.catch(() => {})`) — never block primary flows
+- Memory accumulates over time: profile seed → bookings → reviews → richer AI matching
+- Search results are injected as additional context into AI provider prompts
+
+## WeChat Mini Program
+
+- **Framework**: Taro 4.x (React)
+- **Location**: `wechat/`
+- **Pages**: Home, Discover, Expert, Book, Dashboard, Onboarding, Profile
+- **Auth**: `wx.login()` → backend `code2session` → JWT stored in Taro storage
+- **API calls**: Same backend via `TARO_APP_API_BASE` with `x-wechat-token` header
+- **Build**: `npm run build:weapp` → uploads via `miniprogram-ci` (see `scripts/wechat-upload.js`)

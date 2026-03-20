@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
-import { domainStrings } from "@/lib/domains";
 import { matchExperts } from "@/lib/ai";
+import { domainStrings } from "@/lib/domains";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
+import { prisma } from "@/lib/prisma";
 
 export interface ChatMessage {
   role: "user" | "assistant";

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
+
+import { encode } from "next-auth/jwt";
+
 import { prisma } from "@/lib/prisma";
 import {
   validateAndParseTelegramInitData,
   parseTelegramInitDataUnsafe,
   type TelegramUser,
 } from "@/lib/telegram-server";
-import { encode } from "next-auth/jwt";
 
 export async function POST(request: Request) {
   try {

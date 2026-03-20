@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
@@ -11,6 +12,20 @@ const MIGRATIONS = [
   `UPDATE "Expert" SET "stripeAccountId" = NULL, "stripeAccountStatus" = 'none' WHERE "stripeAccountId" IS NOT NULL`,
   `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "expertSuggestion" TEXT`,
   `ALTER TABLE "Review" ADD COLUMN IF NOT EXISTS "suggestionAt" TIMESTAMP`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "inviteCode" TEXT`,
+  `CREATE TABLE IF NOT EXISTS "InvitationCode" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "maxUses" INTEGER NOT NULL DEFAULT 10,
+    "usedCount" INTEGER NOT NULL DEFAULT 0,
+    "createdBy" TEXT,
+    "note" TEXT,
+    "expiresAt" TIMESTAMP,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "InvitationCode_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "InvitationCode_code_key" ON "InvitationCode"("code")`,
 ];
 
 /**

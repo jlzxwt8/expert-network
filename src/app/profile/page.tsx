@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/use-auth";
+
 import {
   Loader2,
   Upload,
@@ -26,15 +27,17 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 import { AudioPlayer } from "@/components/audio-player";
-import { VoiceRecorder } from "@/components/voice-recorder";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DOMAINS } from "@/lib/constants";
 import { UserMenu } from "@/components/user-menu";
+import { VoiceRecorder } from "@/components/voice-recorder";
 import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
+import { useAuth } from "@/hooks/use-auth";
+import { DOMAINS } from "@/lib/constants";
 import { getTelegramInitData } from "@/lib/telegram";
 
 interface ServiceItem {

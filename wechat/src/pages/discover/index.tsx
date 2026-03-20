@@ -5,7 +5,7 @@ import Taro, {
   usePullDownRefresh,
   useReachBottom,
 } from "@tarojs/taro";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { get, post } from "../../shared/api";
 import ExpertCard from "../../components/ExpertCard";
 import type {
@@ -28,7 +28,66 @@ interface ChatMessage {
   noMatchMessage?: string;
 }
 
+function useInviteGuard() {
+  const [hasInvite, setHasInvite] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const cached = Taro.getStorageSync("hasInvite");
+    if (cached === "true") {
+      setHasInvite(true);
+      return;
+    }
+    get<{ hasInvite: boolean }>("/api/invite/status")
+      .then((res) => {
+        if (res.data?.hasInvite) {
+          Taro.setStorageSync("hasInvite", "true");
+          setHasInvite(true);
+        } else {
+          setHasInvite(false);
+          promptInviteCode();
+        }
+      })
+      .catch(() => setHasInvite(true));
+  }, []);
+
+  function promptInviteCode() {
+    Taro.showModal({
+      title: "Invitation Code Required",
+      content: "Help&Grow is invite-only. Please enter your invitation code.",
+      editable: true,
+      placeholderText: "Enter code",
+      confirmText: "Submit",
+      cancelText: "Back",
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const code = res.content.trim().toUpperCase();
+          post<{ success?: boolean; error?: string }>("/api/invite/validate", { code })
+            .then((r) => {
+              if (r.statusCode === 200 && r.data?.success) {
+                Taro.setStorageSync("hasInvite", "true");
+                setHasInvite(true);
+                Taro.showToast({ title: "Welcome!", icon: "success" });
+              } else {
+                Taro.showToast({ title: r.data?.error || "Invalid code", icon: "none" });
+                setTimeout(() => promptInviteCode(), 1500);
+              }
+            })
+            .catch(() => {
+              Taro.showToast({ title: "Network error", icon: "none" });
+              setTimeout(() => promptInviteCode(), 1500);
+            });
+        } else {
+          Taro.switchTab({ url: "/pages/index/index" });
+        }
+      },
+    });
+  }
+
+  return hasInvite;
+}
+
 export default function DiscoverPage() {
+  const hasInvite = useInviteGuard();
   const [tab, setTab] = useState<TabType>("browse");
   const [experts, setExperts] = useState<Expert[]>([]);
   const [total, setTotal] = useState(0);
@@ -181,6 +240,16 @@ export default function DiscoverPage() {
   const goToBook = (expertId: string) => {
     Taro.navigateTo({ url: `/pages/book/index?id=${expertId}&from=match` });
   };
+
+  if (hasInvite === false || hasInvite === null) {
+    return (
+      <View className="discover" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <Text style={{ color: "#94a3b8", fontSize: "14px" }}>
+          {hasInvite === null ? "Loading..." : "Invitation code required"}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View className="discover">

@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+
 import {
   Star,
   Shield,
@@ -19,12 +21,13 @@ import {
   Play,
   Pause,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
+import { AudioPlayer } from "@/components/audio-player";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "@/components/user-menu";
-import { AudioPlayer } from "@/components/audio-player";
 import { openExternalUrl } from "@/lib/telegram";
 
 interface ExpertUser {

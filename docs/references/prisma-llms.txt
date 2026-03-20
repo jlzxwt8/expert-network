@@ -1,0 +1,37 @@
+# Prisma 7 Reference (LLM-friendly)
+
+## Setup
+
+- Schema: prisma/schema.prisma
+- Config: prisma.config.ts (sets datasource URL)
+- Generated client: src/generated/prisma/
+- Driver adapters: @prisma/adapter-pg (Supabase) or @prisma/adapter-mariadb (TiDB)
+
+## Database Switching
+
+DB_PROVIDER=supabase → PostgreSQL (production default)
+DB_PROVIDER=tidb → MySQL
+
+Switch script: node scripts/switch-db.mjs
+Patches the `provider` line in schema.prisma.
+
+## Common Commands
+
+npx prisma generate        — Regenerate client after schema changes
+npx prisma db push         — Push schema to database (no migrations)
+npx prisma migrate dev     — Create migration (development)
+npx prisma studio          — Visual database browser
+
+## Query Patterns Used
+
+prisma.expert.findUnique({ where: { id }, include: { user: true, domains: true } })
+prisma.booking.findFirst({ where: { stripeCheckoutSessionId: sessionId } })
+prisma.expert.updateMany({ where: { stripeAccountId: acctId }, data: { status } })
+prisma.booking.create({ data: { ... }, include: { expert: { include: { user: true } }, founder: true } })
+
+## Notes
+
+- Always use include/select to control data shape
+- findFirst for unique lookups by non-@id fields
+- updateMany when matching by non-unique field (like stripeAccountId)
+- Prisma client singleton in src/lib/prisma.ts with global caching

@@ -1,12 +1,13 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import Link from "next/link";
-import { useAuth } from "@/hooks/use-auth";
-import { getTelegramInitData } from "@/lib/telegram";
-import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
+import { useRouter } from "next/navigation";
+
 import { beginCell } from "@ton/core";
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
+import { format, parseISO, isSameDay, startOfDay, setHours, setMinutes } from "date-fns";
 import {
   Calendar,
   Clock,
@@ -23,15 +24,17 @@ import {
   Star,
   MessageSquarePlus,
 } from "lucide-react";
-import { UserMenu } from "@/components/user-menu";
-import { format, parseISO, isSameDay, startOfDay, setHours, setMinutes } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { UserMenu } from "@/components/user-menu";
+import { useAuth } from "@/hooks/use-auth";
+import { getTelegramInitData } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
 interface UserData {

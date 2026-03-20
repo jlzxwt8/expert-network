@@ -1,9 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { getServerSession } from "next-auth";
+
 import { authOptions } from "@/lib/auth";
+import { findOverlappingBooking } from "@/lib/booking-utils";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession, calculateBookingAmount, getPlatformFeePercent } from "@/lib/stripe";
-import { findOverlappingBooking } from "@/lib/booking-utils";
 
 export async function POST(request: NextRequest) {
   try {

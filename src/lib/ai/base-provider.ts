@@ -1,11 +1,3 @@
-import type {
-  AIProvider,
-  ProfileInput,
-  ProfileOutput,
-  ImageInput,
-  MatchResult,
-} from "./types";
-import { parseProfileResponse, parseMatchResponse } from "./types";
 import {
   buildProfilePromptFromResearch,
   buildImagePrompt,
@@ -13,6 +5,15 @@ import {
   buildMatchExpertsPrompt,
 } from "./prompts";
 import { searchSocialProfiles, extractPdfWithGemini } from "./search";
+import { parseProfileResponse, parseMatchResponse } from "./types";
+
+import type {
+  AIProvider,
+  ProfileInput,
+  ProfileOutput,
+  ImageInput,
+  MatchResult,
+} from "./types";
 
 /**
  * Abstract base class for AI providers.

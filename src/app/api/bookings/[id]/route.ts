@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
+import { findOverlappingBooking } from "@/lib/booking-utils";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
-import { findOverlappingBooking } from "@/lib/booking-utils";
 import { notifyCancellation, notifyReschedule, notifyLocationUpdate } from "@/lib/telegram-bot";
 import { notifyWechatBookingCancelled, notifyWechatBookingRescheduled, notifyWechatLocationUpdated } from "@/lib/wechat-notify";
 

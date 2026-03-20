@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
+
 import { useRouter } from "next/navigation";
-import { useTelegram } from "@/components/telegram-provider";
-import { getTelegramInitData } from "@/lib/telegram";
+
+
+import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2,
@@ -20,28 +21,31 @@ import {
   DollarSign,
   CreditCard,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
-import {
-  DOMAINS,
-  SOCIAL_PLATFORMS,
-  ONBOARDING_STEPS,
-} from "@/lib/constants";
-import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
-import { VoiceInputButton } from "@/components/voice-input-button";
-import { VoiceRecorder } from "@/components/voice-recorder";
 import { AudioPlayer } from "@/components/audio-player";
-import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
-import { Progress } from "@/components/ui/progress";
+import { useTelegram } from "@/components/telegram-provider";
+import { useInviteGuard } from "@/hooks/use-invite-guard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { VoiceInputButton } from "@/components/voice-input-button";
+import { VoiceRecorder } from "@/components/voice-recorder";
+import { WeeklyScheduleEditor, type WeeklySchedule } from "@/components/weekly-schedule-editor";
+import {
+  DOMAINS,
+  SOCIAL_PLATFORMS,
+  ONBOARDING_STEPS,
+} from "@/lib/constants";
+import { getTelegramInitData } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
 type Step =
@@ -122,6 +126,7 @@ export default function OnboardingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { isTelegram, authDone } = useTelegram();
+  const { checked: inviteChecked, hasInvite } = useInviteGuard();
   const [tonConnectUI] = useTonConnectUI();
   const tonWallet = useTonWallet();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -967,6 +972,8 @@ export default function OnboardingPage() {
   if (!isTelegram && status === "unauthenticated") {
     return null;
   }
+
+  if (!inviteChecked || !hasInvite) return null;
 
   const platform = SOCIAL_PLATFORMS[currentSocialIndex];
   const progressValue = getProgressValue(currentStep);

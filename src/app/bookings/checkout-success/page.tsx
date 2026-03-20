@@ -1,8 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+
 import { useSearchParams, useRouter } from "next/navigation";
+
 import { CheckCircle, Loader2, ArrowRight, AlertCircle } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 

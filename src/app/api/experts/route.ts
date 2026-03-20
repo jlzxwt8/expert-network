@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
+import type { SessionType } from "@/generated/prisma/client";
+import { domainStrings } from "@/lib/domains";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
-import { domainStrings } from "@/lib/domains";
-import type { SessionType } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
 

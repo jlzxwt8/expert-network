@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
+import type { SessionType } from "@/generated/prisma/client";
+import { findOverlappingBooking } from "@/lib/booking-utils";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
-import { findOverlappingBooking } from "@/lib/booking-utils";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
-import type { SessionType } from "@/generated/prisma/client";
 
 export async function POST(request: NextRequest) {
   try {

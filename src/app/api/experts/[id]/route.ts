@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { domainStrings } from "@/lib/domains";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: NextRequest,

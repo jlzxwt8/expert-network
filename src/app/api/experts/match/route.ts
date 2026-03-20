@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { domainStrings } from "@/lib/domains";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { matchExperts } from "@/lib/ai";
+import { domainStrings } from "@/lib/domains";
 import { searchExpertMemories } from "@/lib/integrations/mem9-lifecycle";
+import { prisma } from "@/lib/prisma";
 
 function keywordMatch(
   query: string,

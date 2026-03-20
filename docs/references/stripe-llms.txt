@@ -1,0 +1,31 @@
+# Stripe Integration Reference (LLM-friendly)
+
+This project uses Stripe's REST API directly (no SDK) due to connection issues
+in Vercel's serverless environment. See `src/lib/stripe.ts`.
+
+## Key APIs Used
+
+- POST /v1/checkout/sessions — Create payment checkout
+- GET /v1/checkout/sessions/:id — Retrieve session after payment
+- POST /v1/payment_intents — Create payment intent (for remainder charging)
+- GET /v1/payment_intents/:id — Retrieve payment intent
+- POST /v1/accounts — Create Connected Account (Express)
+- POST /v1/account_links — Generate KYC onboarding URL
+- GET /v1/accounts/:id — Check account status
+
+## Webhook Events Handled
+
+- checkout.session.completed — Creates booking on deposit payment
+- payment_intent.succeeded — Marks booking as fully paid (remainder)
+- account.updated — Syncs Connected Account status
+
+## Authentication
+
+All requests use Bearer token: `Authorization: Bearer sk_live_...`
+Request bodies use `application/x-www-form-urlencoded` (Stripe's format).
+
+## Marketplace Model
+
+- Connected Accounts (Express type) for expert payouts
+- `application_fee_amount` on checkout sessions for platform fee
+- `transfer_data.destination` routes payment to expert's account

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import Link from "next/link";
+
 import {
   Rocket,
   Sparkles,
@@ -12,9 +14,10 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
+
+import { useTelegram } from "@/components/telegram-provider";
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/user-menu";
-import { useTelegram } from "@/components/telegram-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { getTelegramInitData } from "@/lib/telegram";
 

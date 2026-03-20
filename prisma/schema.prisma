@@ -94,6 +94,8 @@ model User {
   wechatOpenId     String?  @unique
   wechatUnionId    String?
 
+  inviteCode       String?
+
   accounts Account[]
   sessions Session[]
   expert   Expert?
@@ -250,4 +252,16 @@ model Review {
   @@index([expertId])
   @@index([founderId])
   @@index([bookingId])
+}
+
+model InvitationCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  maxUses   Int       @default(10)
+  usedCount Int       @default(0)
+  createdBy String?
+  note      String?
+  expiresAt DateTime?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
 }

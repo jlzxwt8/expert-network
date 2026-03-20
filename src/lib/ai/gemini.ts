@@ -1,13 +1,17 @@
-import { GoogleGenAI } from "@google/genai";
 import * as fs from "fs";
-import type { ProfileInput, ProfileOutput } from "./types";
-import { parseProfileResponse } from "./types";
+
+import { GoogleGenAI } from "@google/genai";
+
+import { BaseAIProvider } from "./base-provider";
 import {
   formatSocialLinks,
   buildProfilePromptWithNativeSearch,
   PDF_EXTRACTION_PROMPT,
 } from "./prompts";
-import { BaseAIProvider } from "./base-provider";
+import { parseProfileResponse } from "./types";
+
+import type { ProfileInput, ProfileOutput } from "./types";
+
 
 const TEXT_MODEL = "gemini-2.5-flash";
 const IMAGE_MODEL = "gemini-2.5-flash-image";

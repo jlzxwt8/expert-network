@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { retrieveCheckoutSession, retrievePaymentIntent } from "@/lib/stripe";
-import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
-import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
-import { resolveUserId } from "@/lib/request-auth";
+import { type NextRequest, NextResponse } from "next/server";
+
 import type { SessionType } from "@/generated/prisma/client";
+import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { prisma } from "@/lib/prisma";
+import { resolveUserId } from "@/lib/request-auth";
+import { retrieveCheckoutSession, retrievePaymentIntent } from "@/lib/stripe";
+import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
 
 /**
  * POST /api/bookings/verify

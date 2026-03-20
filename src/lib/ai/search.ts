@@ -7,12 +7,14 @@
  */
 
 import { GoogleGenAI } from "@google/genai";
-import type { ProfileInput } from "./types";
+
 import {
   buildSearchPrompt,
   formatSocialLinks,
   PDF_EXTRACTION_PROMPT,
 } from "./prompts";
+
+import type { ProfileInput } from "./types";
 
 const SEARCH_MODEL = "gemini-2.5-flash";
 

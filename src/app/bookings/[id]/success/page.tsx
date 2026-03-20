@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+
 import Link from "next/link";
+import { useParams } from "next/navigation";
+
+import { format, parseISO } from "date-fns";
 import {
   CheckCircle,
   Calendar,
@@ -13,10 +16,10 @@ import {
   ExternalLink,
   Loader2,
 } from "lucide-react";
-import { openExternalUrl } from "@/lib/telegram";
-import { format, parseISO } from "date-fns";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { openExternalUrl } from "@/lib/telegram";
 
 interface Booking {
   id: string;

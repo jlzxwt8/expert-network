@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
 import type { UserRole } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 
 const VALID_ROLES: UserRole[] = ["EXPERT", "FOUNDER", "ADMIN"];

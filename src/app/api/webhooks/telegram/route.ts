@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { type NextRequest, NextResponse } from "next/server";
+
+import type { SessionType } from "@/generated/prisma/client";
 import { chat } from "@/lib/chat-engine";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { prisma } from "@/lib/prisma";
 import { notifyExpertBooking } from "@/lib/telegram-bot";
-import type { SessionType } from "@/generated/prisma/client";
 
 const APP_URL =
   process.env.NEXTAUTH_URL || "https://expert-network.vercel.app";
