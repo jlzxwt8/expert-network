@@ -245,8 +245,6 @@ function DiscoverContent() {
     }
   }, [sessionStatus, isTelegram, tgReady, router]);
 
-  if (!inviteChecked || !hasInvite) return null;
-
   const domainsParam = searchParams.get("domains") ?? "";
   const domains = useMemo(
     () => (domainsParam ? domainsParam.split(",").filter(Boolean) : []),
@@ -389,6 +387,14 @@ function DiscoverContent() {
   }, [chatMessages, chatLoading]);
 
   const hasMore = experts.length < total;
+
+  if (!inviteChecked || !hasInvite) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full max-w-lg mx-auto flex flex-col pb-24">

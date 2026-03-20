@@ -973,7 +973,13 @@ export default function OnboardingPage() {
     return null;
   }
 
-  if (!inviteChecked || !hasInvite) return null;
+  if (!inviteChecked || !hasInvite) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   const platform = SOCIAL_PLATFORMS[currentSocialIndex];
   const progressValue = getProgressValue(currentStep);
