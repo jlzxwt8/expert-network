@@ -116,7 +116,6 @@ export default function BookSessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineAddress, setOfflineAddress] = useState("");
-  const [meetingLink, setMeetingLink] = useState("");
   const [expertPricing, setExpertPricing] = useState<{
     priceOnlineCents: number | null;
     priceOfflineCents: number | null;
@@ -261,8 +260,7 @@ export default function BookSessionPage() {
     startTime: mergedStart!,
     endTime: mergedEnd!,
     timezone,
-    ...(sessionType === "ONLINE" && { meetingLink: meetingLink.trim() }),
-    ...(sessionType === "OFFLINE" && { offlineAddress: offlineAddress.trim() }),
+    ...(sessionType === "OFFLINE" && offlineAddress.trim() && { offlineAddress: offlineAddress.trim() }),
   });
 
   const handleStripeCheckout = async () => {
@@ -496,15 +494,10 @@ export default function BookSessionPage() {
 
         {sessionType === "ONLINE" && (
           <section>
-            <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-              Meeting link <span className="text-xs text-muted-foreground/70">(optional — can add later)</span>
-            </h2>
-            <Input
-              value={meetingLink}
-              onChange={(e) => setMeetingLink(e.target.value)}
-              placeholder="https://zoom.us/j/... or https://meet.google.com/..."
-              className="min-h-[44px]"
-            />
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 px-4 py-3 text-sm text-indigo-700">
+              <Monitor className="inline h-4 w-4 mr-1.5 -mt-0.5" />
+              A video meeting link will be generated automatically when your booking is confirmed.
+            </div>
           </section>
         )}
 

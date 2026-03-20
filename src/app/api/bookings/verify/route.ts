@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
+import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { retrieveCheckoutSession, retrievePaymentIntent } from "@/lib/stripe";
@@ -93,7 +94,9 @@ export async function POST(request: NextRequest) {
         startTime: new Date(meta.startTime!),
         endTime: new Date(meta.endTime!),
         timezone: meta.timezone || "Asia/Singapore",
-        meetingLink: meta.meetingLink || null,
+        meetingLink: (meta.sessionType || "ONLINE") === "ONLINE"
+          ? (meta.meetingLink || generateMeetingLink())
+          : null,
         status: "CONFIRMED",
         totalAmountCents: parseInt(meta.totalCents || "0", 10),
         depositAmountCents: parseInt(meta.depositCents || "0", 10),

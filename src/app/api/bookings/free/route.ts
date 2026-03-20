@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
 import { findOverlappingBooking } from "@/lib/booking-utils";
+import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
 import { notifyExpertBooking, notifyFounderBooking } from "@/lib/telegram-bot";
@@ -66,7 +67,9 @@ export async function POST(request: NextRequest) {
         startTime: start,
         endTime: end,
         timezone: timezone || "Asia/Singapore",
-        meetingLink: meetingLink || null,
+        meetingLink: sessionType === "ONLINE"
+          ? (meetingLink || generateMeetingLink())
+          : null,
         offlineAddress: offlineAddress || null,
         status: "CONFIRMED",
         totalAmountCents: 0,
