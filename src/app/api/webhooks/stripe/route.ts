@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
+import { triggerBookingEmails } from "@/lib/booking-emails";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
@@ -135,6 +136,8 @@ export async function POST(request: NextRequest) {
           startTime: booking.startTime,
           status: booking.status,
         }).catch(() => {});
+
+        triggerBookingEmails(booking);
 
         const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
 

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import { triggerBookingEmails } from "@/lib/booking-emails";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import {
@@ -98,6 +99,8 @@ export async function POST(request: NextRequest) {
         founder: true,
       },
     });
+
+    triggerBookingEmails(updated);
 
     const depositLabel = updated.depositAmountCents
       ? `${updated.currency} ${(updated.depositAmountCents / 100).toFixed(2)}`

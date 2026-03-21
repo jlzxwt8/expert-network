@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
+import { triggerBookingEmails } from "@/lib/booking-emails";
 import { findOverlappingBooking } from "@/lib/booking-utils";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
@@ -83,6 +84,8 @@ export async function POST(request: NextRequest) {
         founder: true,
       },
     });
+
+    triggerBookingEmails(booking);
 
     const expertName = expert.user.nickName ?? expert.user.name ?? "Expert";
     const founderName = founder?.nickName ?? founder?.name ?? "Client";
