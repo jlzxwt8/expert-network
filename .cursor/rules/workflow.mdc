@@ -1,0 +1,22 @@
+---
+description: Development workflow and collaboration practices
+alwaysApply: true
+---
+
+# Workflow
+
+## Collaboration with Antigravity
+
+The developer uses **Antigravity** (AI coding tool) alongside Cursor during weekends and off-hours. This means:
+
+- **Always `git pull` before starting work** to pick up any changes made via Antigravity
+- **Check for merge conflicts** before committing — files may have been modified externally
+- **Never force-push** — Antigravity commits may already be on remote
+- If a file you need to edit has unexpected changes, read it fresh before applying edits
+
+## Pre-flight Checklist
+
+Before any coding session:
+1. `git pull origin main` to get latest
+2. Check `git log --oneline -5` for recent commits you didn't make
+3. If new files/dependencies appeared, run `npm install` and `npx prisma generate`
