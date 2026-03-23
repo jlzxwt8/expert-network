@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 import { findOverlappingBooking } from "@/lib/booking-utils";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -337,6 +339,18 @@ export async function PATCH(
         data: { status: body.status },
         include: { expert: { include: { user: true } }, founder: true },
       });
+
+      // Issue POVP credential if the session is completed and was free
+      if (body.status === "COMPLETED" && (!updated.totalAmountCents || updated.totalAmountCents === 0)) {
+        try {
+          const { issuePOVPCredential } = await import("@/lib/povp-credential");
+          // Fire and forget so we don't block the API response
+          issuePOVPCredential(updated.id).catch(console.error);
+        } catch (err) {
+          console.error("[POVP] Credential issuance failed to load:", err);
+        }
+      }
+
       return NextResponse.json(updated);
     }
 

@@ -5,7 +5,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const url = process.env.DATABASE_URL!;
+  const url = process.env.DATABASE_URL || "postgresql://mock:mock@localhost:5432/mock";
 
   if (url.startsWith("mysql://")) {
     // TiDB / MySQL path

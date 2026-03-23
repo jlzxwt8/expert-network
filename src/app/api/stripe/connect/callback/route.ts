@@ -10,7 +10,7 @@ import { retrieveAccount, getAccountStatus } from "@/lib/stripe";
  * Syncs account status and redirects to the appropriate page.
  */
 export async function GET(request: NextRequest) {
-  const origin = process.env.NEXTAUTH_URL || "";
+  const origin = process.env.NEXTAUTH_URL || request.nextUrl.origin;
 
   try {
     const userId = await resolveUserId(request);
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}${returnTo}?stripe_connect=complete`);
   } catch (error) {
     console.error("[stripe/connect/callback]", error);
-    return NextResponse.redirect(`${origin}/profile?stripe_connect=error`);
+    const errorUrl = new URL("/profile?stripe_connect=error", origin);
+    return NextResponse.redirect(errorUrl.toString());
   }
 }

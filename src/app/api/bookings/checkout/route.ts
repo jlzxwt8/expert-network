@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress } =
+    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress, donationAmountCents } =
       body;
 
     if (!expertId || !sessionType || !startTime || !endTime) {
@@ -92,9 +92,18 @@ export async function POST(request: NextRequest) {
       },
     };
 
+    const parsedDonation = Number(donationAmountCents) || 0;
+    if (parsedDonation > 0) {
+      if (!paymentIntentData.metadata) paymentIntentData.metadata = {};
+      (paymentIntentData.metadata as Record<string, string>).donationAmountCents = String(parsedDonation);
+    }
+
     if (expert.stripeAccountId && expert.stripeAccountStatus === "active") {
       const feePercent = getPlatformFeePercent();
-      const applicationFee = Math.round(depositCents * (feePercent / 100));
+      let applicationFee = Math.round(depositCents * (feePercent / 100));
+      if (parsedDonation > 0) {
+        applicationFee += parsedDonation; // Route donation to platform
+      }
       paymentIntentData.application_fee_amount = applicationFee;
       paymentIntentData.transfer_data = {
         destination: expert.stripeAccountId,
@@ -116,6 +125,17 @@ export async function POST(request: NextRequest) {
           },
           quantity: 1,
         },
+        ...(parsedDonation > 0 ? [{
+          price_data: {
+            currency: expert.currency.toLowerCase(),
+            unit_amount: parsedDonation,
+            product_data: {
+              name: "Help & Grow Donation",
+              description: "Voluntary donation to support NGO initiatives.",
+            },
+          },
+          quantity: 1,
+        }] : [])
       ],
       payment_intent_data: paymentIntentData,
       payment_method_options: {

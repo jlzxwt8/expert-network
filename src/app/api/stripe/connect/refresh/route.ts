@@ -10,7 +10,7 @@ import { createAccountLink } from "@/lib/stripe";
  * Stripe sends the user here when an account link is no longer valid.
  */
 export async function GET(request: NextRequest) {
-  const origin = process.env.NEXTAUTH_URL || "";
+  const origin = process.env.NEXTAUTH_URL || request.nextUrl.origin;
 
   try {
     const userId = await resolveUserId(request);
@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(accountLink.url);
   } catch (error) {
     console.error("[stripe/connect/refresh]", error);
-    return NextResponse.redirect(`${origin}/profile?stripe_connect=error`);
+    const errorUrl = new URL("/profile?stripe_connect=error", origin);
+    return NextResponse.redirect(errorUrl.toString());
   }
 }

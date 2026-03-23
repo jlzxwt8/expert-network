@@ -52,6 +52,8 @@ model VerificationToken {
 enum UserRole {
   EXPERT
   FOUNDER
+  NGO
+  BOOTCAMP
   ADMIN
 }
 
@@ -166,6 +168,7 @@ model Expert {
   bookings        Booking[]
   reviews         Review[]
   availableSlots  AvailableSlot[]
+  povpCredentials POVPCredential[]
 }
 
 model ExpertDomain {
@@ -211,6 +214,7 @@ model Booking {
   // Payment
   totalAmountCents        Int?
   depositAmountCents      Int?
+  donationAmountCents     Int?      @default(0)
   currency                String   @default("SGD")
   paymentMethod           String?
   paymentStatus           String   @default("pending")
@@ -227,6 +231,7 @@ model Booking {
   updatedAt   DateTime      @updatedAt
 
   review      Review?
+  povpCredential POVPCredential?
 
   @@index([expertId, startTime])
   @@index([founderId])
@@ -264,4 +269,21 @@ model InvitationCode {
   expiresAt DateTime?
   isActive  Boolean   @default(true)
   createdAt DateTime  @default(now())
+}
+
+model POVPCredential {
+  id             String   @id @default(cuid())
+  expertId       String
+  expert         Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  bookingId      String   @unique
+  booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  // EAS details
+  attestationUID String   @unique
+  recipient      String?  
+  hours          Float    
+  
+  createdAt      DateTime @default(now())
+  
+  @@index([expertId])
 }

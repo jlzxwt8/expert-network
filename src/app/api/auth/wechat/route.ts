@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 import { SignJWT } from "jose";
 
 import { prisma } from "@/lib/prisma";
