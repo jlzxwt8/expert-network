@@ -7,7 +7,9 @@ alwaysApply: false
 # AI Provider Architecture
 
 `src/lib/ai/` uses a Strategy pattern so the LLM backend can be swapped via a
-single env var: `AI_PROVIDER` = `gemini` | `qwen` | `openai`.
+single env var: `AI_PROVIDER` = `dedalus` | `gemini` | `qwen` | `openai`.
+
+**Current default: `dedalus`** — model-agnostic gateway via Dedalus Labs.
 
 ## File Layout
 
@@ -17,44 +19,29 @@ single env var: `AI_PROVIDER` = `gemini` | `qwen` | `openai`.
 | `prompts.ts` | All prompt templates (shared across providers) |
 | `search.ts` | Google Search grounding + PDF extraction via Gemini AI Studio |
 | `base-provider.ts` | Abstract base class with default AIProvider implementations |
+| `dedalus.ts` | **Dedalus provider** — routes to any model via unified API gateway |
 | `gemini.ts` | Gemini provider — extends base, overrides profile gen (native search) |
 | `qwen.ts` | Qwen/DashScope provider — extends base, custom image generation |
 | `openai.ts` | OpenAI provider — extends base, DALL-E 3 image generation |
 | `index.ts` | Registry-based factory + public API re-exports |
 
-## How It Works
+## Dedalus Provider (Recommended)
 
-1. **Base class** (`BaseAIProvider`) implements all `AIProvider` methods using
-   two abstract primitives: `chat(prompt)` and `generateImageRaw(prompt)`.
-2. **Each provider** only implements those two methods + any overrides.
-3. **Profile generation** uses a two-step flow by default:
-   search (Gemini) → generate (provider LLM). Gemini overrides this to a
-   single call with native `googleSearch` tool.
-4. **PDF extraction** defaults to Gemini via `search.ts`. Gemini provider
-   overrides to use its own client directly.
+The Dedalus provider uses the [Dedalus Labs](https://dedaluslabs.ai) gateway which provides:
+- **Any model via one API**: OpenAI, Anthropic, Google, xAI, DeepSeek, Mistral
+- **MCP server support**: connect to hosted tool servers
+- **No vendor lock-in**: switch models by changing a string
 
-## Adding a New Provider
+### Env vars
+- `DEDALUS_API_KEY` — API key from Dedalus dashboard
+- `DEDALUS_MODEL` — default model for general tasks (e.g. `google/gemini-2.5-flash`)
+- `DEDALUS_MATCH_MODEL` — model for expert matching (e.g. `anthropic/claude-sonnet-4-5-20250929`)
 
-1. Create `src/lib/ai/<name>.ts` extending `BaseAIProvider`
-2. Implement `chat()` and `generateImageRaw()`
-3. Register in the `PROVIDERS` map in `index.ts`
-4. Add env vars to `.env.example`
-
-## Provider-Specific Notes
-
-### Gemini
-- Supports Vertex AI (`GOOGLE_CLOUD_PROJECT`) or AI Studio (`GEMINI_API_KEY`)
-- Native Google Search grounding via `googleSearch` tool
-- Native multimodal PDF extraction
-
-### Qwen (DashScope)
-- Uses `dashscope-intl.aliyuncs.com` (Singapore), never `dashscope.aliyuncs.com` (Beijing)
-- Image generation via wanx API returns temp URL (24h) — downloaded as base64
-- Needs `GEMINI_API_KEY` for search grounding and PDF extraction
-
-### OpenAI
-- Uses `gpt-4o` for text, `dall-e-3` for images
-- Needs `GEMINI_API_KEY` for search grounding and PDF extraction
+### Model selection
+- General tasks (profile, writing): fast + cheap model like `google/gemini-2.5-flash`
+- Expert matching: stronger model like `anthropic/claude-sonnet-4-5-20250929`
+- Image generation: `openai/dall-e-3` via Dedalus
+- Can switch models per-task without changing providers
 
 ## Key Rule
 
