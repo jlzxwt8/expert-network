@@ -50,9 +50,12 @@ See `docs/` for full details:
 
 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports NextAuth, Telegram, and WeChat in one call.
 2. **AI providers**: Swappable via `AI_PROVIDER` env var (`gemini`, `qwen`, `openai`). See `src/lib/ai/index.ts`.
-3. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`.
+3. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. Optional donation piping in checkout.
 4. **Database switching**: Run `node scripts/switch-db.mjs` — reads `DB_PROVIDER` and patches `prisma/schema.prisma`.
 5. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Uses the same backend API with `x-wechat-token` auth header.
+6. **MCP server**: `/api/mcp` exposes expert search/match/availability as MCP tools for AI agents.
+7. **Public API**: `/api/v1/` namespace provides auth-free GET endpoints for agent/skill consumption.
+8. **POVP**: NGO/Bootcamp users get pro-bono matchmaking at `/match`. Completed free sessions issue EAS on-chain credentials.
 
 ## Coding Standards
 
@@ -72,4 +75,6 @@ See `docs/` for full details:
 | Update WeChat Mini Program | `wechat/src/pages/` |
 | Add a new business domain | See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules |
 | Fix a payment issue | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
+| Work on POVP/NGO features | `src/app/(ngo)/`, `src/lib/povp-credential.ts`, `src/app/api/matchmaking/` |
+| Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | Update product specs | `docs/product-specs/` |

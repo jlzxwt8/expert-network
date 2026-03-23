@@ -26,6 +26,25 @@ const MIGRATIONS = [
     CONSTRAINT "InvitationCode_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "InvitationCode_code_key" ON "InvitationCode"("code")`,
+  // POVP initiative migrations
+  `ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'NGO'`,
+  `ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'BOOTCAMP'`,
+  `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "donationAmountCents" INTEGER DEFAULT 0`,
+  `CREATE TABLE IF NOT EXISTS "POVPCredential" (
+    "id" TEXT NOT NULL,
+    "expertId" TEXT NOT NULL,
+    "bookingId" TEXT NOT NULL,
+    "attestationUID" TEXT NOT NULL,
+    "recipient" TEXT,
+    "hours" DOUBLE PRECISION NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "POVPCredential_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "POVPCredential_expertId_fkey" FOREIGN KEY ("expertId") REFERENCES "Expert"("id") ON DELETE CASCADE,
+    CONSTRAINT "POVPCredential_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE CASCADE
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "POVPCredential_bookingId_key" ON "POVPCredential"("bookingId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "POVPCredential_attestationUID_key" ON "POVPCredential"("attestationUID")`,
+  `CREATE INDEX IF NOT EXISTS "POVPCredential_expertId_idx" ON "POVPCredential"("expertId")`,
 ];
 
 /**

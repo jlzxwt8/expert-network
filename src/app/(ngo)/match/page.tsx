@@ -180,7 +180,7 @@ export default function MatchmakingPage() {
             <Card className="bg-slate-900 border-slate-800 shadow-2xl animate-in fade-in slide-in-from-right-4 duration-500">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-400">
-                  < Sparkles className="h-6 w-6" />
+                  <Sparkles className="h-6 w-6" />
                   Describe Your Challenge
                 </CardTitle>
                 <CardDescription className="text-slate-400">
