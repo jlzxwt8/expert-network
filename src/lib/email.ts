@@ -7,7 +7,7 @@ function getResend(): Resend | null {
   return _resend;
 }
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "Help&Grow <noreply@resend.dev>";
+const FROM_EMAIL = process.env.EMAIL_FROM || "Help&Grow <onboarding@resend.dev>";
 
 interface BookingEmailParams {
   expertName: string;
