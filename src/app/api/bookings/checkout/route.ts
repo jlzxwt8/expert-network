@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { findOverlappingBooking } from "@/lib/booking-utils";
+import { redeemTokens } from "@/lib/hg-token";
 import { prisma } from "@/lib/prisma";
 import { createCheckoutSession, calculateBookingAmount, getPlatformFeePercent } from "@/lib/stripe";
 
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress, donationAmountCents } =
+    const { expertId, sessionType, startTime, endTime, timezone, meetingLink, offlineAddress, redeemTokenCount } =
       body;
 
     if (!expertId || !sessionType || !startTime || !endTime) {
@@ -73,6 +74,19 @@ export async function POST(request: NextRequest) {
       end
     );
 
+    let tokenDiscountCents = 0;
+    let tokensDebited = 0;
+    const parsedRedeemTokens = Math.max(0, Math.floor(Number(redeemTokenCount) || 0));
+
+    if (parsedRedeemTokens > 0) {
+      const result = await redeemTokens(session.user.id, "", parsedRedeemTokens);
+      tokenDiscountCents = result.discountCents;
+      tokensDebited = result.tokensDebited;
+    }
+
+    const adjustedDepositCents = Math.max(0, depositCents - tokenDiscountCents);
+    const adjustedTotalCents = Math.max(0, totalCents - tokenDiscountCents);
+
     const origin =
       request.headers.get("origin") || process.env.NEXTAUTH_URL || "";
 
@@ -86,28 +100,30 @@ export async function POST(request: NextRequest) {
         timezone: timezone || "Asia/Singapore",
         meetingLink: meetingLink || "",
         offlineAddress: offlineAddress || "",
-        totalCents: String(totalCents),
-        depositCents: String(depositCents),
+        totalCents: String(adjustedTotalCents),
+        depositCents: String(adjustedDepositCents),
         currency: expert.currency,
+        tokenDiscount: String(tokenDiscountCents),
+        tokensRedeemed: String(tokensDebited),
       },
     };
 
-    const parsedDonation = Number(donationAmountCents) || 0;
-    if (parsedDonation > 0) {
-      if (!paymentIntentData.metadata) paymentIntentData.metadata = {};
-      (paymentIntentData.metadata as Record<string, string>).donationAmountCents = String(parsedDonation);
-    }
-
     if (expert.stripeAccountId && expert.stripeAccountStatus === "active") {
       const feePercent = getPlatformFeePercent();
-      let applicationFee = Math.round(depositCents * (feePercent / 100));
-      if (parsedDonation > 0) {
-        applicationFee += parsedDonation; // Route donation to platform
-      }
+      const applicationFee = Math.round(adjustedDepositCents * (feePercent / 100));
       paymentIntentData.application_fee_amount = applicationFee;
       paymentIntentData.transfer_data = {
         destination: expert.stripeAccountId,
       };
+    }
+
+    if (adjustedDepositCents <= 0) {
+      return NextResponse.json({
+        freeCheckout: true,
+        tokenDiscount: tokenDiscountCents,
+        tokensRedeemed: tokensDebited,
+        message: "Booking fully covered by H&G tokens. Use the free booking endpoint.",
+      });
     }
 
     const checkoutSession = await createCheckoutSession({
@@ -117,25 +133,14 @@ export async function POST(request: NextRequest) {
         {
           price_data: {
             currency: expert.currency.toLowerCase(),
-            unit_amount: depositCents,
+            unit_amount: adjustedDepositCents,
             product_data: {
               name: `Session Deposit — ${expert.user.nickName || expert.user.name || "Expert"}`,
-              description: `${sessionType} session on ${start.toLocaleDateString()}. 50% deposit (remainder charged 24h after session).`,
+              description: `${sessionType} session on ${start.toLocaleDateString()}. 50% deposit${tokensDebited > 0 ? ` (${tokensDebited} H&G tokens applied)` : ""}.`,
             },
           },
           quantity: 1,
         },
-        ...(parsedDonation > 0 ? [{
-          price_data: {
-            currency: expert.currency.toLowerCase(),
-            unit_amount: parsedDonation,
-            product_data: {
-              name: "Help & Grow Donation",
-              description: "Voluntary donation to support NGO initiatives.",
-            },
-          },
-          quantity: 1,
-        }] : [])
       ],
       payment_intent_data: paymentIntentData,
       payment_method_options: {

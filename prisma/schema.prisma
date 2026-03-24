@@ -52,8 +52,6 @@ model VerificationToken {
 enum UserRole {
   EXPERT
   FOUNDER
-  NGO
-  BOOTCAMP
   ADMIN
 }
 
@@ -97,12 +95,14 @@ model User {
   wechatUnionId    String?
 
   inviteCode       String?
+  tokenBalance     Int       @default(0)
 
   accounts Account[]
   sessions Session[]
   expert   Expert?
   bookingsAsFounder Booking[] @relation("FounderBookings")
   reviews  Review[]
+  tokenLedger TokenLedger[]
 }
 
 model Expert {
@@ -168,7 +168,7 @@ model Expert {
   bookings        Booking[]
   reviews         Review[]
   availableSlots  AvailableSlot[]
-  povpCredentials POVPCredential[]
+  pompCredentials POMPCredential[]
 }
 
 model ExpertDomain {
@@ -214,7 +214,8 @@ model Booking {
   // Payment
   totalAmountCents        Int?
   depositAmountCents      Int?
-  donationAmountCents     Int?      @default(0)
+  tokenDiscount           Int?      @default(0)
+  tokensRedeemed          Int?      @default(0)
   currency                String   @default("SGD")
   paymentMethod           String?
   paymentStatus           String   @default("pending")
@@ -231,7 +232,8 @@ model Booking {
   updatedAt   DateTime      @updatedAt
 
   review      Review?
-  povpCredential POVPCredential?
+  pompCredentials POMPCredential[]
+  tokenLedgerEntries TokenLedger[]
 
   @@index([expertId, startTime])
   @@index([founderId])
@@ -271,19 +273,35 @@ model InvitationCode {
   createdAt DateTime  @default(now())
 }
 
-model POVPCredential {
+model POMPCredential {
   id             String   @id @default(cuid())
   expertId       String
   expert         Expert   @relation(fields: [expertId], references: [id], onDelete: Cascade)
-  bookingId      String   @unique
+  bookingId      String
   booking        Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  
-  // EAS details
+
+  recipientRole  String
   attestationUID String   @unique
-  recipient      String?  
-  hours          Float    
-  
+  recipient      String?
+  hours          Float
+
   createdAt      DateTime @default(now())
-  
+
+  @@unique([bookingId, recipientRole])
   @@index([expertId])
+}
+
+model TokenLedger {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingId   String?
+  booking     Booking? @relation(fields: [bookingId], references: [id])
+  type        String
+  amount      Int
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([bookingId])
 }

@@ -3,13 +3,14 @@
 ## Current Priorities
 
 1. **Stability**: Ensure Stripe webhooks, payment flows, and notifications are reliable across all platforms
-2. **WeChat Mini Program**: Polish UX, pass WeChat review for public release
+2. **Feature + integration testing**: Web app + **Telegram** flows (WeChat polish **on hold**)
 3. **AI matching**: Improve expert recommendation quality with richer context
 4. **Growth**: SEO, sharing features, referral mechanics
 
 ## Upcoming Work
 
-- [ ] WeChat Mini Program public release (pending WeChat review)
+- [x] **Next.js 15 upgrade** — [completed plan](exec-plans/completed/nextjs-15-upgrade.md) (run manual QA on preview before prod)
+- [ ] WeChat Mini Program public release (**on hold** — Web + Telegram testing first)
 - [ ] Expert earnings dashboard (view payouts, transaction history)
 - [ ] Group sessions / workshop booking support
 - [ ] Multi-language support (English, Chinese, Malay)
@@ -17,7 +18,8 @@
 
 ## Recently Completed
 
-- [x] POVP initiative: NGO/Bootcamp matchmaking, EAS credentials, donation piping
+- [x] POMP (Proof of Meet Protocol): on-chain proof for expert + learner each completed booking (EAS on Base)
+- [x] H&G Token (ERC-20): 1:1 SGD earn ratio, 100:1 SGD redemption for booking discounts
 - [x] MCP server exposing Expert Network for AI agent integration
 - [x] OpenClaw/QClaw skill for agent-based expert discovery
 - [x] Invitation code system for platform quality control
@@ -35,7 +37,8 @@
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-03 | POVP on-chain credentials via EAS on Base | Verifiable volunteer proof, low gas cost |
+| 2026-03 | POMP via **EAS** (Ethereum Attestation Service) on Base for every meeting | No protocol subscription; pay Base gas only; standard tooling + EASScan |
+| 2026-03 | H&G ERC-20 token for learner rewards | Incentivize bookings, redeemable for discounts |
 | 2026-03 | MCP + OpenClaw skill for agent integration | Platform-as-a-service for AI agents |
 | 2026-03 | Jitsi Meet for video calls | Free, no API key needed, auto-generated links |
 | 2026-03 | Resend for transactional email | Free tier sufficient, scheduled send support |

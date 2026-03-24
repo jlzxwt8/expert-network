@@ -24,12 +24,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   Default: "An unexpected error occurred. Please try again.",
 };
 
-export default function AuthErrorPage({
+export default async function AuthErrorPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const errorCode = searchParams.error ?? "Default";
+  const { error } = await searchParams;
+  const errorCode = error ?? "Default";
   const message =
     ERROR_MESSAGES[errorCode] ?? ERROR_MESSAGES.Default;
 

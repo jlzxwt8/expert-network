@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import type { SessionType } from "@/generated/prisma/client";
 import { triggerBookingEmails } from "@/lib/booking-emails";
+import { creditTokens } from "@/lib/hg-token";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { generateMeetingLink } from "@/lib/meeting";
 import { prisma } from "@/lib/prisma";
@@ -121,6 +122,8 @@ export async function POST(request: NextRequest) {
             stripePaymentIntentId: pi || null,
             stripeCustomerId: customerId || null,
             stripePaymentMethodId: paymentMethodId || null,
+            tokenDiscount: parseInt(meta.tokenDiscount || "0", 10) || 0,
+            tokensRedeemed: parseInt(meta.tokensRedeemed || "0", 10) || 0,
           },
           include: {
             expert: { include: { user: true } },
@@ -138,6 +141,12 @@ export async function POST(request: NextRequest) {
         }).catch(() => {});
 
         triggerBookingEmails(booking);
+
+        if (booking.totalAmountCents && booking.totalAmountCents > 0) {
+          creditTokens(booking.founderId, booking.id, booking.totalAmountCents).catch(
+            (e) => console.error("[webhooks/stripe] token credit error:", e)
+          );
+        }
 
         const depositLabel = `${booking.currency} ${((booking.depositAmountCents || 0) / 100).toFixed(2)}`;
 

@@ -1,0 +1,37 @@
+# Runs when GitHub receives a successful deployment status (e.g. Vercel GitHub integration).
+# Verifies the deployed site responds — does NOT log in with Google OAuth (see workflow comment).
+name: Deploy smoke
+
+on:
+  deployment_status:
+
+jobs:
+  smoke:
+    # Only run on success; skip if no URL (some providers omit it).
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve deployment URL
+        id: url
+        env:
+          ENV_URL: ${{ github.event.deployment_status.environment_url }}
+          TARGET_URL: ${{ github.event.deployment_status.target_url }}
+        run: |
+          BASE="${ENV_URL:-${TARGET_URL}}"
+          if [ -z "$BASE" ]; then
+            echo "No environment_url or target_url on deployment_status; skipping smoke."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: GET /api/health
+        if: steps.url.outputs.skip != 'true'
+        run: |
+          set -e
+          curl -fsSL "${{ steps.url.outputs.base }}/api/health" | tee /tmp/health.json
+          grep -q '"ok"' /tmp/health.json
+
+      # Google OAuth on Preview still requires human sign-in or a dedicated E2E setup
+      # (test user + cookie injection / Playwright). This workflow only checks liveness.

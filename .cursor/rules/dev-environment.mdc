@@ -1,5 +1,5 @@
 ---
-description: Development environment constraints and workarounds
+description: 
 alwaysApply: true
 ---
 
@@ -14,8 +14,5 @@ The developer uses a **company Mac Pro with Zscaler** (corporate proxy/SSL inspe
 - Node.js TLS connections may fail with `unable to get local issuer certificate`
 
 ### Workarounds
-
-1. **Database migrations**: Must run via the deployed app's `/api/admin/migrate` endpoint (executes raw SQL from within Vercel's network which CAN reach the database). Never attempt `prisma db push` locally.
-2. **TLS errors** for tools like `miniprogram-ci`: Prefix with `NODE_TLS_REJECT_UNAUTHORIZED=0`
-3. **Schema changes**: Always add corresponding raw SQL to `/api/admin/migrate` route's `MIGRATIONS` array so they can be applied in production.
-4. **Prisma generate**: Works fine locally (no network needed). Always run `npx prisma generate` after schema changes.
+1. For Supabase, user will use dashboard;
+2. For TiDB Cloud Zero, an admin page is to do some operation: https://expert-network.vercel.app/admin/tidb

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
@@ -306,6 +307,9 @@ function AdminContent() {
             <p className="text-xs text-muted-foreground">Help&Grow Platform Management</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/tidb">TiDB</Link>
+            </Button>
             <Button
               variant="ghost"
               size="sm"

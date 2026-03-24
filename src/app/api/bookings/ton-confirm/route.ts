@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { triggerBookingEmails } from "@/lib/booking-emails";
+import { creditTokens } from "@/lib/hg-token";
 import { storeBookingEvent } from "@/lib/integrations/mem9-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { resolveUserId } from "@/lib/request-auth";
@@ -55,6 +56,12 @@ export async function POST(request: NextRequest) {
     });
 
     triggerBookingEmails(updated);
+
+    if (updated.totalAmountCents && updated.totalAmountCents > 0) {
+      creditTokens(updated.founderId, updated.id, updated.totalAmountCents).catch(
+        (e) => console.error("[ton-confirm] token credit error:", e)
+      );
+    }
 
     const depositLabel = `${updated.currency} ${((updated.depositAmountCents || 0) / 100).toFixed(2)}`;
 

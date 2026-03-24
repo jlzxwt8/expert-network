@@ -5,7 +5,7 @@
 
 ## Quick Start
 
-- **Framework**: Next.js 14 (App Router) + TypeScript
+- **Framework**: Next.js 15 (App Router) + TypeScript
 - **Database**: Prisma 7 with PostgreSQL (Supabase) or MySQL (TiDB), switched via `DB_PROVIDER`
 - **Hosting**: Vercel (serverless)
 - **Clients**: Web browser, Telegram Mini App, WeChat Mini Program (Taro)
@@ -15,7 +15,9 @@
 ```
 AGENTS.md            ← You are here
 ARCHITECTURE.md      ← Domain map, dependency layers, tech decisions
+contracts/           ← Foundry smart contracts (HelpGrowToken)
 docs/                ← Full knowledge base (see below)
+hiclaw/              ← HiClaw multi-agent service (ECS deployment)
 prisma/              ← Database schema and migrations
 scripts/             ← Build-time helpers (switch-db, wechat-upload)
 src/
@@ -49,13 +51,18 @@ See `docs/` for full details:
 ## Key Conventions
 
 1. **Authentication**: All API routes use `resolveUserId(request)` from `src/lib/request-auth.ts` — supports NextAuth, Telegram, and WeChat in one call.
-2. **AI providers**: Swappable via `AI_PROVIDER` env var (`gemini`, `qwen`, `openai`). See `src/lib/ai/index.ts`.
-3. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. Optional donation piping in checkout.
+2. **AI providers**: Swappable via `AI_PROVIDER` env var (`dedalus`, `gemini`, `qwen`, `openai`). Default when unset: `gemini`. See `src/lib/ai/index.ts`.
+3. **Payments**: Stripe (primary), TON (crypto), WeChat Pay. Webhook at `/api/webhooks/stripe`. H&G token redemption at checkout.
 4. **Database switching**: Run `node scripts/switch-db.mjs` — reads `DB_PROVIDER` and patches `prisma/schema.prisma`.
 5. **WeChat Mini Program**: Lives in `wechat/`, built with Taro. Uses the same backend API with `x-wechat-token` auth header.
 6. **MCP server**: `/api/mcp` exposes expert search/match/availability as MCP tools for AI agents.
 7. **Public API**: `/api/v1/` namespace provides auth-free GET endpoints for agent/skill consumption.
-8. **POVP**: NGO/Bootcamp users get pro-bono matchmaking at `/match`. Completed free sessions issue EAS on-chain credentials.
+8. **POMP (Proof of Meet Protocol)**: Every completed booking creates **two EAS attestations** on Base (schema in `src/lib/pomp-eas-schema.ts`) via `src/lib/pomp-credential.ts` + `@ethereum-attestation-service/eas-sdk`. Register schema once: `scripts/register-pomp-eas-schema.mjs`.
+9. **H&G Token**: ERC-20 token (`contracts/src/HelpGrowToken.sol`) on Base. Learners earn tokens 1:1 with SGD paid; redeem at 100 tokens = 1 SGD discount. On-chain burn via `redeemDiscount()`. See `src/lib/hg-token.ts`.
+10. **Smart Contracts**: Foundry-based (`contracts/`). Deploy via `forge script script/Deploy.s.sol` (HelpGrowToken on Base Sepolia/Mainnet).
+11. **HiClaw Agent System**: Manager-Worker multi-agent OS (e.g. home laptop or ECS; see `hiclaw/README.md`). Session store: **[TiDB Cloud Zero](https://zero.tidbcloud.com/)** — provision then **claim** for production (unclaimed instances expire ~30 days). Shadow workers use mem9 + DashScope Qwen-Max.
+12. **On-chain Sync**: `/api/webhook/onchain` ingests **EAS `Attested`** logs (Alchemy webhook) and updates TiDB `sessions` (incl. `eas_attestation_uid`). `/api/reputation/:expertId` aggregates from TiDB.
+13. **Reputation Dashboard**: `/reputation` — expert stats from TiDB + EASScan links; mentee H&G balance via wagmi + ledger API.
 
 ## Coding Standards
 
@@ -75,6 +82,9 @@ See `docs/` for full details:
 | Update WeChat Mini Program | `wechat/src/pages/` |
 | Add a new business domain | See [ARCHITECTURE.md](ARCHITECTURE.md) for layer rules |
 | Fix a payment issue | `src/lib/stripe.ts`, `src/app/api/webhooks/stripe/` |
-| Work on POVP/NGO features | `src/app/(ngo)/`, `src/lib/povp-credential.ts`, `src/app/api/matchmaking/` |
+| Work on POMP/token features | `src/lib/pomp-credential.ts`, `src/lib/pomp-eas-schema.ts`, `src/lib/hg-token.ts`, `contracts/src/` |
+| Modify smart contracts | `contracts/src/`, deploy via `contracts/script/Deploy.s.sol` |
+| Work on HiClaw agents | `hiclaw/service/src/` (manager, shadowWorker, waitingRoom) |
+| On-chain sync/reputation | `src/lib/tidb.ts`, `src/app/api/webhook/onchain/`, `src/app/api/reputation/` |
 | Modify MCP server tools | `src/app/api/mcp/route.ts` |
 | Update product specs | `docs/product-specs/` |

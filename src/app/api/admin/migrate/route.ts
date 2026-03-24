@@ -26,25 +26,41 @@ const MIGRATIONS = [
     CONSTRAINT "InvitationCode_pkey" PRIMARY KEY ("id")
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "InvitationCode_code_key" ON "InvitationCode"("code")`,
-  // POVP initiative migrations
-  `ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'NGO'`,
-  `ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'BOOTCAMP'`,
-  `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "donationAmountCents" INTEGER DEFAULT 0`,
-  `CREATE TABLE IF NOT EXISTS "POVPCredential" (
+  // POMP (Proof of Meet Protocol) migrations
+  `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "tokenDiscount" INTEGER DEFAULT 0`,
+  `ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS "tokensRedeemed" INTEGER DEFAULT 0`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tokenBalance" INTEGER DEFAULT 0`,
+  `DROP TABLE IF EXISTS "POVPCredential"`,
+  `CREATE TABLE IF NOT EXISTS "POMPCredential" (
     "id" TEXT NOT NULL,
     "expertId" TEXT NOT NULL,
     "bookingId" TEXT NOT NULL,
+    "recipientRole" TEXT NOT NULL,
     "attestationUID" TEXT NOT NULL,
     "recipient" TEXT,
     "hours" DOUBLE PRECISION NOT NULL,
     "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "POVPCredential_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "POVPCredential_expertId_fkey" FOREIGN KEY ("expertId") REFERENCES "Expert"("id") ON DELETE CASCADE,
-    CONSTRAINT "POVPCredential_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE CASCADE
+    CONSTRAINT "POMPCredential_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "POMPCredential_expertId_fkey" FOREIGN KEY ("expertId") REFERENCES "Expert"("id") ON DELETE CASCADE,
+    CONSTRAINT "POMPCredential_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id") ON DELETE CASCADE
   )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "POVPCredential_bookingId_key" ON "POVPCredential"("bookingId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "POVPCredential_attestationUID_key" ON "POVPCredential"("attestationUID")`,
-  `CREATE INDEX IF NOT EXISTS "POVPCredential_expertId_idx" ON "POVPCredential"("expertId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "POMPCredential_attestationUID_key" ON "POMPCredential"("attestationUID")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "POMPCredential_bookingId_recipientRole_key" ON "POMPCredential"("bookingId", "recipientRole")`,
+  `CREATE INDEX IF NOT EXISTS "POMPCredential_expertId_idx" ON "POMPCredential"("expertId")`,
+  `CREATE TABLE IF NOT EXISTS "TokenLedger" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "bookingId" TEXT,
+    "type" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "description" TEXT,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "TokenLedger_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "TokenLedger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE,
+    CONSTRAINT "TokenLedger_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "TokenLedger_userId_idx" ON "TokenLedger"("userId")`,
+  `CREATE INDEX IF NOT EXISTS "TokenLedger_bookingId_idx" ON "TokenLedger"("bookingId")`,
 ];
 
 /**

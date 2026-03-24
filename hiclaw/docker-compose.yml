@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  # HiClaw Manager — pre-built image from alibaba/hiclaw
+  # The install script configures Matrix, Higress, MinIO, Element Web internally.
+  # On first run, use the interactive installer instead:
+  #   bash <(curl -sSL https://higress.ai/hiclaw/install.sh)
+  # This compose file is for subsequent starts + the custom service.
+
+  expert-shadow-service:
+    build:
+      context: ./service
+      dockerfile: Dockerfile
+    container_name: expert-shadow-service
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - TIDB_DATABASE_URL=${TIDB_DATABASE_URL}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - MEM9_ENABLED=${MEM9_ENABLED:-true}
+    networks:
+      - hiclaw-net
+
+networks:
+  hiclaw-net:
+    external: true
+    name: hiclaw_default
